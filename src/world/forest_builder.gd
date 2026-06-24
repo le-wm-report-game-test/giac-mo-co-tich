@@ -127,6 +127,8 @@ func _ready() -> void:
 	_scatter_bushes()
 	_scatter_decorations()
 	_scatter_boulders()
+	_spawn_animals()
+	_spawn_orcs()
 
 
 # ─── Materials Setup ────────────────────────────────────────────────────────
@@ -238,6 +240,37 @@ func _build_ground_collision() -> void:
 				ground_body.add_child(hill_col)
 
 
+# Preload Wind Sway Shader
+var _wind_shader: Shader = preload("res://src/world/wind_sway.gdshader")
+
+# Đệ quy duyệt qua các Mesh con và áp dụng ShaderMaterial giữ nguyên texture gốc và màu sắc từng surface
+func _apply_wind_shader(node: Node) -> void:
+	if node is MeshInstance3D:
+		var mesh: Mesh = node.mesh
+		if mesh != null:
+			for i in range(mesh.get_surface_count()):
+				var original_material = node.get_active_material(i)
+				
+				var tex: Texture2D = null
+				var color := Color(1.0, 1.0, 1.0, 1.0)
+				
+				if original_material is BaseMaterial3D:
+					tex = original_material.albedo_texture
+					color = original_material.albedo_color
+					
+				var shader_mat := ShaderMaterial.new()
+				shader_mat.shader = _wind_shader
+				if tex != null:
+					shader_mat.set_shader_parameter("albedo_texture", tex)
+				shader_mat.set_shader_parameter("albedo_color", color)
+				
+				# Gán đè vật liệu cho riêng surface index đó (không gán đè toàn bộ mesh)
+				node.set_surface_override_material(i, shader_mat)
+					
+	for child in node.get_children():
+		_apply_wind_shader(child)
+
+
 # ─── Scatter Trees (MegaKit .gltf PackedScene) ──────────────────────────────
 func _scatter_trees() -> void:
 	if tree_scenes.is_empty():
@@ -273,6 +306,7 @@ func _scatter_trees() -> void:
 		tree_node.position = Vector3(x, height, z)
 		tree_node.rotation.y = rot_y
 		tree_node.scale = Vector3(scale_val, scale_val, scale_val)
+		_apply_wind_shader(tree_node)
 		add_child(tree_node)
 
 		# Collision cho thân cây
@@ -321,17 +355,23 @@ func _scatter_bushes() -> void:
 		bush_node.position = Vector3(x, height, z)
 		bush_node.rotation.y = _rng.randf_range(0.0, TAU)
 		bush_node.scale = Vector3(scale_val, scale_val, scale_val)
+		
+		# Áp dụng cho bụi lớn (Bush_Common, Bush_Common_Flowers, Plant_1_Big), các bụi/cây xỉ nhỏ khác giữ yên lặng
+		var res_path := scene.resource_path
+		if "Bush_Common" in res_path or "Plant_1_Big" in res_path:
+			_apply_wind_shader(bush_node)
+			
 		add_child(bush_node)
 		placed += 1
 
 
 # ─── Scatter Decorations (cỏ clump, hoa, nấm, đá nhỏ) ─────────────────────
 func _scatter_decorations() -> void:
-	# null cho material → dùng materials gốc từ .obj (nhiều màu tự nhiên)
-	_scatter_mesh_group(grass_clump_meshes, num_grass_clumps, false, null, 0.6, 1.1)
-	_scatter_mesh_group(flower_meshes, num_flowers, false, null, 0.8, 1.2)
-	_scatter_mesh_group(mushroom_meshes, num_mushrooms, false, null, 0.7, 1.1)
-	_scatter_mesh_group(rock_meshes, num_rocks, false, null, 0.8, 1.5)
+	# Cỏ clump đung đưa nhẹ trong gió, các loại hoa/nấm/đá khác giữ tĩnh lặng
+	_scatter_mesh_group(grass_clump_meshes, num_grass_clumps, false, null, 0.6, 1.1, true)
+	_scatter_mesh_group(flower_meshes, num_flowers, false, null, 0.8, 1.2, false)
+	_scatter_mesh_group(mushroom_meshes, num_mushrooms, false, null, 0.7, 1.1, false)
+	_scatter_mesh_group(rock_meshes, num_rocks, false, null, 0.8, 1.5, false)
 
 
 func _scatter_mesh_group(
@@ -340,7 +380,8 @@ func _scatter_mesh_group(
 	avoid_clearing: bool,
 	mat_override: StandardMaterial3D,
 	scale_min: float,
-	scale_max: float
+	scale_max: float,
+	apply_wind: bool = false
 ) -> void:
 	if meshes.is_empty():
 		return
@@ -374,6 +415,8 @@ func _scatter_mesh_group(
 		mi.position = Vector3(x, height, z)
 		mi.rotation.y = _rng.randf_range(0.0, TAU)
 		mi.scale = Vector3(scale_val, scale_val, scale_val)
+		if apply_wind:
+			_apply_wind_shader(mi)
 		add_child(mi)
 		placed += 1
 
@@ -519,3 +562,73 @@ func _spawn_multimesh(
 	if mat != null:
 		mmi.material_override = mat
 	add_child(mmi)
+
+
+# ─── Spawning Animal Bots ──────────────────────────────────────────────────
+func _spawn_animals() -> void:
+	var bot_script := preload("res://src/world/animal_bot.gd")
+	
+	# Spawn 4 bots per species
+	var species_list := [
+		{"type": 0, "count": 4, "name": "Dog"},
+		{"type": 1, "count": 4, "name": "Cat"},
+		{"type": 2, "count": 4, "name": "Rabbit"},
+		{"type": 3, "count": 4, "name": "Parrot"}
+	]
+	
+	for sp in species_list:
+		for i in range(sp["count"]):
+			var placed := false
+			var attempts := 0
+			while not placed and attempts < 100:
+				attempts += 1
+				var x := _rng.randf_range(-MAP_HALF + 5.0, MAP_HALF - 5.0)
+				var z := _rng.randf_range(-MAP_HALF + 5.0, MAP_HALF - 5.0)
+				
+				# Avoid spawning right next to the player's spawn point
+				var pos_2d := Vector2(x, z)
+				if pos_2d.distance_to(SPAWN_CENTER) < 6.0:
+					continue
+					
+				var zone := _get_zone(x, z)
+				if zone == Zone.HILL:
+					continue
+					
+				var bot := CharacterBody3D.new()
+				bot.set_script(bot_script)
+				bot.animal_type = sp["type"] as AnimalBot.AnimalType
+				bot.speed = _rng.randf_range(1.0, 1.8)
+				bot.position = Vector3(x, 0.2, z)
+				bot.name = "%sBot_%d" % [sp["name"], i]
+				
+				# Ensure correct collision layer/mask so they collide with trees and environment
+				bot.collision_layer = 16
+				bot.collision_mask = 1
+				
+				add_child(bot)
+				placed = true
+
+
+# ─── Spawning Orc Mobs ──────────────────────────────────────────────────────
+func _spawn_orcs() -> void:
+	var orc_script := preload("res://src/world/orc_mob.gd")
+	var num_orcs := 8
+	for i in range(num_orcs):
+		var placed := false
+		var attempts := 0
+		while not placed and attempts < 100:
+			attempts += 1
+			var x := _rng.randf_range(-MAP_HALF + 5.0, MAP_HALF - 5.0)
+			var z := _rng.randf_range(-MAP_HALF + 5.0, MAP_HALF - 5.0)
+			var pos_2d := Vector2(x, z)
+			if pos_2d.distance_to(SPAWN_CENTER) < 8.0:
+				continue
+			var zone := _get_zone(x, z)
+			if zone == Zone.HILL:
+				continue
+			var bot := CharacterBody3D.new()
+			bot.set_script(orc_script)
+			bot.position = Vector3(x, 0.2, z)
+			bot.name = "OrcMob_%d" % i
+			add_child(bot)
+			placed = true

@@ -10,8 +10,20 @@ extends CharacterBody3D
 # Runtime velocity direction
 var _target_velocity: Vector3 = Vector3.ZERO
 
+@onready var health_component: HealthComponent = $HealthComponent
+
 func _ready() -> void:
 	_setup_input_actions()
+	if health_component:
+		health_component.died.connect(_on_died)
+		health_component.health_changed.connect(_on_health_changed)
+
+func _on_died() -> void:
+	print("Player Died!")
+	EventBus.player_died.emit()
+
+func _on_health_changed(current: float, max_h: float) -> void:
+	print("Player Health: ", current, " / ", max_h)
 
 func _setup_input_actions() -> void:
 	var actions: Dictionary = {
