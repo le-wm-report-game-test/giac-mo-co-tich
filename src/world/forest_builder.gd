@@ -1,5 +1,6 @@
 # forest_builder.gd
 # Xây dựng khu rừng modular 60x60m sử dụng Modular Terrain Collection (chủ đề Hilly)
+# Cây cối: Stylized Nature MegaKit (.gltf) — texture stylized đẹp, có thân và lá riêng
 # Bố cục: 1 Spawn Clearing trung tâm + 2 Combat Arenas + 1 Boss Arena + đường mòn
 class_name ForestBuilder
 extends Node3D
@@ -15,20 +16,21 @@ extends Node3D
 @export var hill_corner_inner_mesh: Mesh = preload("res://Assets/modular_terrain_collection/Hilly_Terrain_Hill_Corner_Inner_2x2.obj")
 @export var hill_corner_outer_mesh: Mesh = preload("res://Assets/modular_terrain_collection/Hilly_Terrain_Hill_Corner_Outer_2x2.obj")
 
-# ─── Tree Prop Meshes ──────────────────────────────────────────────────────
+# ─── Tree Scenes (Stylized Nature MegaKit .gltf) ─────────────────────────
 @export_group("Tree Props")
-@export var tree_meshes: Array[Mesh] = [
-	preload("res://Assets/modular_terrain_collection/Hilly_Prop_Tree_Oak_1.obj"),
-	preload("res://Assets/modular_terrain_collection/Hilly_Prop_Tree_Oak_2.obj"),
-	preload("res://Assets/modular_terrain_collection/Hilly_Prop_Tree_Oak_3.obj"),
-	preload("res://Assets/modular_terrain_collection/Hilly_Prop_Tree_Pine_1.obj"),
-	preload("res://Assets/modular_terrain_collection/Hilly_Prop_Tree_Pine_2.obj"),
-	preload("res://Assets/modular_terrain_collection/Hilly_Prop_Tree_Cedar_1.obj"),
+@export var tree_scenes: Array[PackedScene] = [
+	preload("res://Assets/Stylized Nature MegaKit[Standard]/glTF/Pine_1.gltf"),
+	preload("res://Assets/Stylized Nature MegaKit[Standard]/glTF/Pine_2.gltf"),
+	preload("res://Assets/Stylized Nature MegaKit[Standard]/glTF/Pine_3.gltf"),
+	preload("res://Assets/Stylized Nature MegaKit[Standard]/glTF/Pine_4.gltf"),
+	preload("res://Assets/Stylized Nature MegaKit[Standard]/glTF/Pine_5.gltf"),
 ]
-@export var bush_meshes: Array[Mesh] = [
-	preload("res://Assets/modular_terrain_collection/Hilly_Prop_Bush_1.obj"),
-	preload("res://Assets/modular_terrain_collection/Hilly_Prop_Bush_2.obj"),
-	preload("res://Assets/modular_terrain_collection/Hilly_Prop_Bush_3.obj"),
+@export var bush_scenes: Array[PackedScene] = [
+	preload("res://Assets/Stylized Nature MegaKit[Standard]/glTF/Bush_Common.gltf"),
+	preload("res://Assets/Stylized Nature MegaKit[Standard]/glTF/Bush_Common_Flowers.gltf"),
+	preload("res://Assets/Stylized Nature MegaKit[Standard]/glTF/Fern_1.gltf"),
+	preload("res://Assets/Stylized Nature MegaKit[Standard]/glTF/Plant_1.gltf"),
+	preload("res://Assets/Stylized Nature MegaKit[Standard]/glTF/Plant_1_Big.gltf"),
 ]
 
 # ─── Decoration Prop Meshes ────────────────────────────────────────────────
@@ -60,17 +62,17 @@ extends Node3D
 
 # ─── Forest Settings ───────────────────────────────────────────────────────
 @export_group("Forest Settings")
-@export var num_trees: int = 120
-@export var num_bushes: int = 80
-@export var num_grass_clumps: int = 150
-@export var num_flowers: int = 60
-@export var num_mushrooms: int = 30
-@export var num_rocks: int = 40
-@export var num_boulders: int = 12
+@export var num_trees: int = 150
+@export var num_bushes: int = 200
+@export var num_grass_clumps: int = 350
+@export var num_flowers: int = 150
+@export var num_mushrooms: int = 80
+@export var num_rocks: int = 100
+@export var num_boulders: int = 25
 @export var random_seed: int = 2025
 
 # ─── Map Constants ─────────────────────────────────────────────────────────
-const MAP_HALF: float = 30.0
+const MAP_HALF: float = 50.0
 const TILE_SIZE: float = 1.0
 
 # Zone enum để dễ đọc
@@ -119,6 +121,7 @@ func _ready() -> void:
 
 	_setup_materials()
 	_build_ground_floor()
+	_build_under_floor()
 	_build_ground_collision()
 	_scatter_trees()
 	_scatter_bushes()
@@ -179,6 +182,27 @@ func _build_ground_floor() -> void:
 		_spawn_multimesh(path_center_mesh, path_positions, _mat_dirt, "PathTiles")
 
 
+# ─── Nền lót dưới mặt đất (Under-floor để che khe hở) ──────────────────────────
+func _build_under_floor() -> void:
+	var mi := MeshInstance3D.new()
+	mi.name = "UnderFloor"
+	
+	var plane := PlaneMesh.new()
+	# Tạo diện tích lớn hơn map một chút để phủ kín hoàn toàn
+	plane.size = Vector2(MAP_HALF * 2.0 + 10.0, MAP_HALF * 2.0 + 10.0)
+	mi.mesh = plane
+	
+	var mat := StandardMaterial3D.new()
+	# Màu xanh cỏ đậm hoặc đất tối để khi hở khe nhìn tự nhiên như đổ bóng
+	mat.albedo_color = Color(0.12, 0.18, 0.12)
+	mat.roughness = 1.0
+	mi.material_override = mat
+	
+	# Đặt thấp hơn mặt đất phẳng một chút để tránh hiện tượng Z-fighting
+	mi.position = Vector3(0.0, -0.02, 0.0)
+	add_child(mi)
+
+
 # ─── Collision cho mặt đất ─────────────────────────────────────────────────
 func _build_ground_collision() -> void:
 	var ground_body := StaticBody3D.new()
@@ -193,22 +217,30 @@ func _build_ground_collision() -> void:
 	col_shape.position = Vector3(0.0, -0.1, 0.0)
 	ground_body.add_child(col_shape)
 
-	# Thêm collision cho các gò đất cao
-	for zone_data in HILL_ZONES:
-		var c: Vector2 = zone_data["center"]
-		var r: float = zone_data["radius"]
-		var h: float = zone_data["height"]
-		var hill_col := CollisionShape3D.new()
-		var hill_box := BoxShape3D.new()
-		hill_box.size = Vector3(r * 2.0, h + 0.2, r * 2.0)
-		hill_col.shape = hill_box
-		hill_col.position = Vector3(c.x, h * 0.5, c.y)
-		ground_body.add_child(hill_col)
+	# Thêm collision cho từng ô gò đất cao (Grid-based collision) thay vì dùng Box lớn
+	# Điều này giúp loại bỏ vùng cản vô hình ở góc hộp và cho phép đi lại mượt mà khớp với hình ảnh
+	var start: int = int(-MAP_HALF)
+	var end: int = int(MAP_HALF)
+	for x_i in range(start, end):
+		for z_i in range(start, end):
+			var xf: float = float(x_i) + 0.5
+			var zf: float = float(z_i) + 0.5
+			var height_offset: float = _get_hill_height(xf, zf)
+			
+			if height_offset > 0.05:
+				var hill_col := CollisionShape3D.new()
+				var hill_box := BoxShape3D.new()
+				# Mỗi ô 1x1m sẽ có 1 hộp collision tương ứng
+				hill_box.size = Vector3(1.0, height_offset + 0.2, 1.0)
+				hill_col.shape = hill_box
+				# Đặt tâm của hộp sao cho mặt trên khớp chính xác với height_offset
+				hill_col.position = Vector3(xf, height_offset * 0.5 - 0.1, zf)
+				ground_body.add_child(hill_col)
 
 
-# ─── Scatter Trees ──────────────────────────────────────────────────────────
+# ─── Scatter Trees (MegaKit .gltf PackedScene) ──────────────────────────────
 func _scatter_trees() -> void:
-	if tree_meshes.is_empty():
+	if tree_scenes.is_empty():
 		return
 
 	var placed: int = 0
@@ -226,25 +258,26 @@ func _scatter_trees() -> void:
 			continue
 
 		var height: float = _get_hill_height(x, z)
-		var mesh_idx: int = _rng.randi() % tree_meshes.size()
-		var mesh: Mesh = tree_meshes[mesh_idx]
-		if mesh == null:
+		var scene_idx: int = _rng.randi() % tree_scenes.size()
+		var scene: PackedScene = tree_scenes[scene_idx]
+		if scene == null:
 			continue
 
 		var scale_val: float = _rng.randf_range(0.8, 1.4)
 		var rot_y: float = _rng.randf_range(0.0, TAU)
 
-		var mi := MeshInstance3D.new()
-		mi.mesh = mesh
-		mi.material_override = _mat_tree
-		mi.position = Vector3(x, height, z)
-		mi.rotation.y = rot_y
-		mi.scale = Vector3(scale_val, scale_val, scale_val)
-		add_child(mi)
+		# instantiate() giữ nguyên toàn bộ scene gốc (materials, textures)
+		var tree_node: Node3D = scene.instantiate() as Node3D
+		if tree_node == null:
+			continue
+		tree_node.position = Vector3(x, height, z)
+		tree_node.rotation.y = rot_y
+		tree_node.scale = Vector3(scale_val, scale_val, scale_val)
+		add_child(tree_node)
 
-		# Collision cho cây
+		# Collision cho thân cây
 		var tree_body := StaticBody3D.new()
-		tree_body.position = mi.position
+		tree_body.position = tree_node.position
 		var tree_col := CollisionShape3D.new()
 		var tree_cap := CapsuleShape3D.new()
 		tree_cap.radius = 0.35 * scale_val
@@ -257,9 +290,9 @@ func _scatter_trees() -> void:
 		placed += 1
 
 
-# ─── Scatter Bushes ─────────────────────────────────────────────────────────
+# ─── Scatter Bushes (MegaKit .gltf PackedScene) ─────────────────────────────
 func _scatter_bushes() -> void:
-	if bush_meshes.is_empty():
+	if bush_scenes.is_empty():
 		return
 
 	var placed: int = 0
@@ -276,25 +309,26 @@ func _scatter_bushes() -> void:
 			continue
 
 		var height: float = _get_hill_height(x, z)
-		var mesh_idx: int = _rng.randi() % bush_meshes.size()
-		var mesh: Mesh = bush_meshes[mesh_idx]
-		if mesh == null:
+		var scene_idx: int = _rng.randi() % bush_scenes.size()
+		var scene: PackedScene = bush_scenes[scene_idx]
+		if scene == null:
 			continue
 
 		var scale_val: float = _rng.randf_range(0.7, 1.2)
-		var mi := MeshInstance3D.new()
-		mi.mesh = mesh
-		mi.material_override = _mat_tree
-		mi.position = Vector3(x, height, z)
-		mi.rotation.y = _rng.randf_range(0.0, TAU)
-		mi.scale = Vector3(scale_val, scale_val, scale_val)
-		add_child(mi)
+		var bush_node: Node3D = scene.instantiate() as Node3D
+		if bush_node == null:
+			continue
+		bush_node.position = Vector3(x, height, z)
+		bush_node.rotation.y = _rng.randf_range(0.0, TAU)
+		bush_node.scale = Vector3(scale_val, scale_val, scale_val)
+		add_child(bush_node)
 		placed += 1
 
 
 # ─── Scatter Decorations (cỏ clump, hoa, nấm, đá nhỏ) ─────────────────────
 func _scatter_decorations() -> void:
-	_scatter_mesh_group(grass_clump_meshes, num_grass_clumps, false, _mat_grass, 0.6, 1.1)
+	# null cho material → dùng materials gốc từ .obj (nhiều màu tự nhiên)
+	_scatter_mesh_group(grass_clump_meshes, num_grass_clumps, false, null, 0.6, 1.1)
 	_scatter_mesh_group(flower_meshes, num_flowers, false, null, 0.8, 1.2)
 	_scatter_mesh_group(mushroom_meshes, num_mushrooms, false, null, 0.7, 1.1)
 	_scatter_mesh_group(rock_meshes, num_rocks, false, null, 0.8, 1.5)

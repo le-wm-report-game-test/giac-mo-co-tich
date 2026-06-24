@@ -61,9 +61,9 @@ func _physics_process(delta: float) -> void:
 
 	move_and_slide()
 
-	# Clamp player position within the forest map bounds (-28 to 28)
-	global_position.x = clampf(global_position.x, -28.0, 28.0)
-	global_position.z = clampf(global_position.z, -28.0, 28.0)
+	# Clamp player position within the forest map bounds (-48 to 48)
+	global_position.x = clampf(global_position.x, -48.0, 48.0)
+	global_position.z = clampf(global_position.z, -48.0, 48.0)
 
 func _get_camera_relative_direction(input_dir: Vector2) -> Vector3:
 	var camera := get_viewport().get_camera_3d()

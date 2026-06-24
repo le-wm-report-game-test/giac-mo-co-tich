@@ -4,6 +4,10 @@
 [ext_resource type="Script" path="res://src/world/forest_builder.gd" id="2_forest_builder_gd"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_w1"]
+sky_top_color = Color(0.384314, 0.545098, 0.85098, 1)
+sky_horizon_color = Color(0.647059, 0.72549, 0.854902, 1)
+ground_bottom_color = Color(0.2, 0.168627, 0.133333, 1)
+ground_horizon_color = Color(0.647059, 0.72549, 0.854902, 1)
 
 [sub_resource type="Sky" id="Sky_w2"]
 sky_material = SubResource("ProceduralSkyMaterial_w1")
@@ -11,8 +15,18 @@ sky_material = SubResource("ProceduralSkyMaterial_w1")
 [sub_resource type="Environment" id="Environment_w3"]
 background_mode = 2
 sky = SubResource("Sky_w2")
-tonemap_mode = 2
+tonemap_mode = 3
+tonemap_exposure = 1.05
+ssao_enabled = true
+ssao_radius = 1.5
+ssao_intensity = 2.0
+ssil_enabled = true
+sdfgi_enabled = false
 glow_enabled = true
+glow_bloom = 0.15
+volumetric_fog_enabled = true
+volumetric_fog_density = 0.015
+volumetric_fog_albedo = Color(0.705882, 0.862745, 0.862745, 1)
 
 [node name="World" type="Node3D" unique_id=1922861527]
 script = ExtResource("1_world_gd")
@@ -22,7 +36,13 @@ environment = SubResource("Environment_w3")
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=746118024]
 transform = Transform3D(0.707107, -0.5, 0.5, 0, 0.707107, 0.707107, -0.707107, -0.5, 0.5, 0, 10, 0)
+light_color = Color(1, 0.960784, 0.862745, 1)
+light_energy = 1.25
+light_angular_distance = 0.5
 shadow_enabled = true
+shadow_bias = 0.03
+shadow_normal_bias = 1.5
+shadow_blur = 1.5
 
 [node name="SpawnPoint" type="Marker3D" parent="." unique_id=12824431]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
