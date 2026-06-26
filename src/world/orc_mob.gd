@@ -82,6 +82,7 @@ func _setup_sprite_node() -> void:
 	sprite.region_enabled = true
 	sprite.pixel_size = sprite_pixel_size
 	sprite.position.y = maxf(0.5, sprite_pixel_size * 50.0)
+	sprite.position.z = 0.25
 	add_child(sprite)
 
 func _setup_health_component() -> void:

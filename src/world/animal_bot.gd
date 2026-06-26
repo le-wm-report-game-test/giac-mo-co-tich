@@ -40,6 +40,7 @@ func _ready() -> void:
 	sprite.billboard = StandardMaterial3D.BILLBOARD_FIXED_Y
 	sprite.shaded = true # Rất quan trọng: Giúp sprite 2D nhận ánh sáng/bóng đổ 3D thật hơn
 	sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST # Pixel art sắc nét, không bị nhòe
+	sprite.position.z = 0.15 # Đẩy nhẹ về phía trước để tránh clipping trên dốc
 	add_child(sprite)
 	
 	# Định vị trí Y của sprite dựa theo kích thước loài vật để chân chạm đất phẳng
@@ -98,7 +99,15 @@ func _physics_process(delta: float) -> void:
 		frame_timer += delta
 		if frame_timer >= 1.0 / anim_fps:
 			frame_timer = 0.0
-			current_frame = (current_frame + 1) % 2  # Only 2 walk frames (f0, f1)
+			var max_frames := 2
+			match animal_type:
+				AnimalType.PARROT:
+					max_frames = 4
+				AnimalType.CAT, AnimalType.RABBIT:
+					max_frames = 3
+				AnimalType.DOG:
+					max_frames = 10
+			current_frame = (current_frame + 1) % max_frames
 	else:
 		velocity.x = move_toward(velocity.x, 0.0, speed * delta)
 		velocity.z = move_toward(velocity.z, 0.0, speed * delta)

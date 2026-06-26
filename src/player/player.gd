@@ -32,6 +32,8 @@ var invulnerable_timer: float = 0.0
 var invulnerable_duration: float = 0.5
 
 var _texture_cache: Dictionary = {}
+var _last_footprint_pos: Vector3 = Vector3.ZERO
+var _footprint_left_side: bool = false
 
 @onready var health_component: HealthComponent = $HealthComponent
 @onready var sprite: Sprite3D = $Visuals/Sprite3D
@@ -55,6 +57,7 @@ func _ready() -> void:
 	sprite.alpha_scissor_threshold = 0.12
 	sprite.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	sprite.pixel_size = 0.0086  # Scale sprite to ~1.9m height (221px sprite * 0.0086 = 1.9m)
+	sprite.position.z = 0.25  # Shift forward to prevent clipping on slopes/stairs
 	
 	# Setup collision (CapsuleShape3D for 1.8m human)
 	$CollisionShape3D.shape.height = 1.6
@@ -160,6 +163,22 @@ func _physics_process(delta: float) -> void:
 	global_position.z = clampf(global_position.z, -48.0, 48.0)
 	
 	_process_animation(delta)
+	_handle_footprints(delta)
+
+func _handle_footprints(_delta: float) -> void:
+	if anim_state != AnimState.WALK:
+		return
+	if global_position.distance_to(_last_footprint_pos) < 0.7:
+		return
+	var fp := Footprint.new()
+	get_parent().add_child(fp)
+	var right_dir := -sprite.global_transform.basis.x.normalized()
+	var offset_side := 0.12 if _footprint_left_side else -0.12
+	_footprint_left_side = not _footprint_left_side
+	var fp_pos := global_position + right_dir * offset_side
+	fp_pos.y = global_position.y + 0.02
+	fp.global_position = fp_pos
+	_last_footprint_pos = global_position
 
 func _get_camera_relative_direction(input_dir: Vector2) -> Vector3:
 	var camera := get_viewport().get_camera_3d()
