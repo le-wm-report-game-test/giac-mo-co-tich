@@ -6,7 +6,7 @@ extends Area3D
 
 func _ready() -> void:
 	# Configure Area3D default collision parameters for hitbox detection
-	monitoring = true
+	monitoring = false
 	monitorable = false
 	area_entered.connect(_on_area_entered)
 

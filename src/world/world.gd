@@ -24,7 +24,17 @@ func _ready() -> void:
 	add_child(camera)
 	camera.set_target(player)
 	
-	# 3. Notify Event Bus
+	# 3. Create World Manager (HUD, Boss, Weather, etc.)
+	var world_manager := WorldManager.new()
+	world_manager.name = "WorldManager"
+	add_child(world_manager)
+	
+	# 4. Create Audio Manager
+	var audio_manager := AudioManager.new()
+	audio_manager.name = "AudioManager"
+	add_child(audio_manager)
+	
+	# 5. Notify Event Bus
 	if get_node_or_null("/root/EventBus"):
 		var event_bus := get_node("/root/EventBus")
 		if event_bus.has_signal("player_spawned"):

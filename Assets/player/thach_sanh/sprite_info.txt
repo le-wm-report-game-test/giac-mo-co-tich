@@ -1,0 +1,33 @@
+ThachSanhV1 Sprite Sheet Info
+Source: D:\openclaw\giac-mo-co-tich\Assets\ThachSanhV1.png
+Total size: 1122x1402
+
+Animations:
+
+idle: 3 frames, 118x221 each
+  frame 0: (54,42) 118x221
+  frame 1: (220,42) 113x221
+  frame 2: (375,42) 111x221
+walk: 8 frames, 121x240 each
+  frame 0: (42,317) 121x240
+  frame 1: (187,317) 114x240
+  frame 2: (319,317) 113x240
+  frame 3: (450,317) 114x240
+  frame 4: (594,317) 118x240
+  frame 5: (736,317) 117x240
+  frame 6: (859,317) 112x240
+  frame 7: (989,317) 114x240
+attack: 5 frames, 186x207 each
+  frame 0: (12,656) 185x207
+  frame 1: (239,656) 145x207
+  frame 2: (426,656) 142x207
+  frame 3: (622,656) 166x207
+  frame 4: (838,656) 186x207
+hurt: 3 frames, 149x199 each
+  frame 0: (54,923) 149x199
+  frame 1: (239,923) 126x199
+  frame 2: (419,923) 115x199
+death: 3 frames, 210x165 each
+  frame 0: (42,1194) 138x165
+  frame 1: (218,1194) 175x165
+  frame 2: (393,1194) 210x165

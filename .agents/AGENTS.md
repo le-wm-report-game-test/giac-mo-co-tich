@@ -66,3 +66,14 @@ Hạn chế tối đa việc tạo cây thừa kế quá sâu cho các Class nh�
 *   **Không tạo file rác:** Giữ cấu trúc thư mục sạch sẽ.
 *   **Tạo CONTEXT.md:** Tạo file `CONTEXT.md` ngay ở root dự án để định nghĩa các từ khóa gameplay khi chúng được thống nhất (ví dụ: DreamState, SoulEnergy, JoltPhysicsConfig).
 *   **ADR (Architecture Decision Records):** Viết ADR lưu vào `docs/adr/xxxx-title.md` khi đưa ra một quyết định kiến trúc quan trọng (ví dụ: sử dụng State Machine cho AI của quái, cấu hình save/load mã hóa).
+
+---
+
+## 5. Quy Tắc Tối Ưu Hiệu Năng & Tránh God Object
+
+Đọc tài liệu bắt buộc tại [.agents/rules/performance_and_architecture_rules.md](file:///d:/openclaw/giac-mo-co-tich/.agents/rules/performance_and_architecture_rules.md) trước khi sửa đổi hoặc thêm mới code:
+- Giới hạn file tối đa **200 dòng**, hàm tối đa **50 dòng**.
+- Tránh gọi `load()` động trong vòng lặp cập nhật mỗi frame; bắt buộc dùng texture cache.
+- Tuyệt đối không tạo hàng ngàn `CollisionShape3D` riêng lẻ; gộp thành một Mesh Shape hoặc dùng HeightMap.
+- Tránh dùng `set_script()` ở runtime; instantiate đối tượng từ `.tscn` được đóng gói sẵn.
+- Tránh dùng hardcoded absolute paths (ví dụ: `/root/World/AudioManager`), sử dụng NodePath hoặc EventBus.

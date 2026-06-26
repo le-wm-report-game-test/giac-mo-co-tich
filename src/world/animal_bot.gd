@@ -16,18 +16,24 @@ var wander_direction: Vector3 = Vector3.ZERO
 
 # Animation settings
 var frame_timer: float = 0.0
-var current_frame: int = 1 # 0, 1, 2 (1 is standing/idle frame)
+var current_frame: int = 0 # 0: standing/idle, 1: walk frame 1, 2: walk frame 2
 var current_dir: int = 0   # 0: Down, 1: Left, 2: Right, 3: Up
-var anim_fps: float = 6.0
+var anim_fps: float = 4.0
 
 # Randomized subtype for visual variety (cat colors 0-7, cat1/cat2, parrot rows 0-7)
 var subtype_idx: int = 0
 var is_cat2: bool = false
+var _texture_cache: Dictionary = {}
 
 var sprite: Sprite3D
 
 func _ready() -> void:
+	# Cat scale: ~0.3m width. Sprite is ~32px, pixel_size=0.009 → 32*0.009=0.288m
 	scale = Vector3(4.0, 4.0, 4.0)
+	add_to_group("animals")
+	
+	if animal_type == AnimalType.CAT:
+		add_to_group("cats")
 	# 1. Tự động tạo Sprite3D nhận ánh sáng và đổ bóng phong cách retro
 	sprite = Sprite3D.new()
 	sprite.name = "Sprite3D"
@@ -92,11 +98,11 @@ func _physics_process(delta: float) -> void:
 		frame_timer += delta
 		if frame_timer >= 1.0 / anim_fps:
 			frame_timer = 0.0
-			current_frame = (current_frame + 1) % 4
+			current_frame = (current_frame + 1) % 2  # Only 2 walk frames (f0, f1)
 	else:
 		velocity.x = move_toward(velocity.x, 0.0, speed * delta)
 		velocity.z = move_toward(velocity.z, 0.0, speed * delta)
-		current_frame = 1 # Trả về frame đứng yên khi idle
+		current_frame = 0 # Trả về frame đứng yên khi idle
 
 	move_and_slide()
 	_update_sprite_texture()
@@ -134,10 +140,8 @@ func _update_sprite_texture() -> void:
 	if sprite == null:
 		return
 		
-	# Quy đổi frame vòng lặp 0, 1, 2, 3 -> 0, 1, 2, 1 (Tạo chu kỳ đi bộ tự nhiên)
+	# Quy đổi frame vòng lặp 0, 1 -> 0, 1 (2 walk frames)
 	var anim_frame := current_frame
-	if anim_frame == 3:
-		anim_frame = 1
 		
 	var path := ""
 	match animal_type:
@@ -155,5 +159,12 @@ func _update_sprite_texture() -> void:
 				parrot_row += 4 # Dùng các hàng hành động phụ để đa dạng hơn
 			path = "res://Assets/Animals_DesireFantasy/cropped/parrot_r%d_f%d.png" % [parrot_row, anim_frame]
 			
-	if ResourceLoader.exists(path):
-		sprite.texture = load(path)
+	if not _texture_cache.has(path):
+		if ResourceLoader.exists(path):
+			_texture_cache[path] = load(path) as Texture2D
+		else:
+			_texture_cache[path] = null
+			
+	var tex: Texture2D = _texture_cache[path]
+	if tex:
+		sprite.texture = tex

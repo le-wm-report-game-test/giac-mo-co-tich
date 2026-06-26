@@ -3,7 +3,7 @@ class_name GameCamera
 extends Node3D
 
 @export var target_position: Vector3 = Vector3.ZERO
-@export var camera_offset: Vector3 = Vector3(0.0, 10.0, 10.0)
+@export var camera_offset: Vector3 = Vector3(0.0, 18.0, 18.0)
 @export var camera_rotate: Vector3 = Vector3(-45.0, 0.0, 0.0)
 @export var follow_speed: float = 8.0
 @export var map_limit: float = 50.0
@@ -18,6 +18,8 @@ func _ready() -> void:
 	camera.current = true
 	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
 	camera.size = 20.0
+	camera.near = 0.01
+	camera.far = 180.0
 
 	camera.position = camera_offset
 	camera.rotation_degrees = camera_rotate
@@ -26,6 +28,12 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	var world_manager: Node = get_node_or_null("/root/World/WorldManager")
+	if world_manager and world_manager.get("camera_magnet_active"):
+		camera.position = camera_offset
+		camera.rotation_degrees = camera_rotate
+		return
+
 	var desired_position := get_target_position()
 
 	var next_pos := global_position.lerp(

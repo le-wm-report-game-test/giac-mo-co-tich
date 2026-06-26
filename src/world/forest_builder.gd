@@ -202,6 +202,7 @@ func _build_under_floor() -> void:
 	
 	# Đặt thấp hơn mặt đất phẳng một chút để tránh hiện tượng Z-fighting
 	mi.position = Vector3(0.0, -0.02, 0.0)
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(mi)
 
 
@@ -243,29 +244,39 @@ func _build_ground_collision() -> void:
 # Preload Wind Sway Shader
 var _wind_shader: Shader = preload("res://src/world/wind_sway.gdshader")
 
+func _configure_geometry_for_rendering(node: Node, cull_margin: float = 2.0) -> void:
+	if node is GeometryInstance3D:
+		var gi := node as GeometryInstance3D
+		gi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		gi.extra_cull_margin = maxf(gi.extra_cull_margin, cull_margin)
+	for child in node.get_children():
+		_configure_geometry_for_rendering(child, cull_margin)
+
+
+func _create_wind_material(original_material: Material) -> ShaderMaterial:
+	var tex: Texture2D = null
+	var color := Color(1.0, 1.0, 1.0, 1.0)
+	if original_material is BaseMaterial3D:
+		var base_mat := original_material as BaseMaterial3D
+		tex = base_mat.albedo_texture
+		color = base_mat.albedo_color
+	var shader_mat := ShaderMaterial.new()
+	shader_mat.shader = _wind_shader
+	if tex != null:
+		shader_mat.set_shader_parameter("albedo_texture", tex)
+	shader_mat.set_shader_parameter("albedo_color", color)
+	shader_mat.set_shader_parameter("alpha_multiplier", 1.0)
+	return shader_mat
+
+
 # Đệ quy duyệt qua các Mesh con và áp dụng ShaderMaterial giữ nguyên texture gốc và màu sắc từng surface
 func _apply_wind_shader(node: Node) -> void:
 	if node is MeshInstance3D:
+		_configure_geometry_for_rendering(node, 5.0)
 		var mesh: Mesh = node.mesh
 		if mesh != null:
 			for i in range(mesh.get_surface_count()):
-				var original_material = node.get_active_material(i)
-				
-				var tex: Texture2D = null
-				var color := Color(1.0, 1.0, 1.0, 1.0)
-				
-				if original_material is BaseMaterial3D:
-					tex = original_material.albedo_texture
-					color = original_material.albedo_color
-					
-				var shader_mat := ShaderMaterial.new()
-				shader_mat.shader = _wind_shader
-				if tex != null:
-					shader_mat.set_shader_parameter("albedo_texture", tex)
-				shader_mat.set_shader_parameter("albedo_color", color)
-				
-				# Gán đè vật liệu cho riêng surface index đó (không gán đè toàn bộ mesh)
-				node.set_surface_override_material(i, shader_mat)
+				node.set_surface_override_material(i, _create_wind_material(node.get_active_material(i)))
 					
 	for child in node.get_children():
 		_apply_wind_shader(child)
@@ -296,7 +307,7 @@ func _scatter_trees() -> void:
 		if scene == null:
 			continue
 
-		var scale_val: float = _rng.randf_range(0.8, 1.4)
+		var scale_val: float = _rng.randf_range(1.2, 2.0)  # Tree height 8-12m (base ~6m * 1.2-2.0)
 		var rot_y: float = _rng.randf_range(0.0, TAU)
 
 		# instantiate() giữ nguyên toàn bộ scene gốc (materials, textures)
@@ -306,6 +317,7 @@ func _scatter_trees() -> void:
 		tree_node.position = Vector3(x, height, z)
 		tree_node.rotation.y = rot_y
 		tree_node.scale = Vector3(scale_val, scale_val, scale_val)
+		tree_node.add_to_group("trees")
 		_apply_wind_shader(tree_node)
 		add_child(tree_node)
 
@@ -314,10 +326,10 @@ func _scatter_trees() -> void:
 		tree_body.position = tree_node.position
 		var tree_col := CollisionShape3D.new()
 		var tree_cap := CapsuleShape3D.new()
-		tree_cap.radius = 0.35 * scale_val
-		tree_cap.height = 3.0 * scale_val
+		tree_cap.radius = 0.5 * scale_val  # Thân cây to hơn
+		tree_cap.height = 4.0 * scale_val  # Cao hơn
 		tree_col.shape = tree_cap
-		tree_col.position.y = 1.5 * scale_val
+		tree_col.position.y = 2.0 * scale_val
 		tree_body.add_child(tree_col)
 		add_child(tree_body)
 
@@ -360,6 +372,8 @@ func _scatter_bushes() -> void:
 		var res_path := scene.resource_path
 		if "Bush_Common" in res_path or "Plant_1_Big" in res_path:
 			_apply_wind_shader(bush_node)
+		else:
+			_configure_geometry_for_rendering(bush_node, 2.0)
 			
 		add_child(bush_node)
 		placed += 1
@@ -417,6 +431,8 @@ func _scatter_mesh_group(
 		mi.scale = Vector3(scale_val, scale_val, scale_val)
 		if apply_wind:
 			_apply_wind_shader(mi)
+		else:
+			_configure_geometry_for_rendering(mi, 1.5)
 		add_child(mi)
 		placed += 1
 
@@ -458,6 +474,7 @@ func _scatter_boulders() -> void:
 		mi.position = Vector3(bp.x, height, bp.y)
 		mi.rotation.y = _rng.randf_range(0.0, TAU)
 		mi.scale = Vector3(scale_val, scale_val, scale_val)
+		_configure_geometry_for_rendering(mi, 2.0)
 		add_child(mi)
 
 		# Collision cho boulder
@@ -465,11 +482,44 @@ func _scatter_boulders() -> void:
 		boulder_body.position = mi.position
 		var boulder_col := CollisionShape3D.new()
 		var boulder_sphere := SphereShape3D.new()
-		boulder_sphere.radius = 0.7 * scale_val
+		boulder_sphere.radius = 1.2 * scale_val
 		boulder_col.shape = boulder_sphere
-		boulder_col.position.y = 0.5 * scale_val
+		boulder_col.position.y = 0.8 * scale_val
 		boulder_body.add_child(boulder_col)
 		add_child(boulder_body)
+		
+		# Also add collision for small rocks (rock_meshes) to block movement
+		# This is handled by the scatter_mesh_group function below
+
+	# Also add collision for scattered rocks
+	# We need to add StaticBody3D for each rock placed in scatter_mesh_group
+	# But since rocks use scatter_mesh_group which doesn't add collision,
+	# let's add a second pass here for rock collisions
+	var rock_positions: Array[Vector2] = [
+		Vector2(5.0, -3.0),
+		Vector2(-5.0, 6.0),
+		Vector2(10.0, 5.0),
+		Vector2(-10.0, -5.0),
+		Vector2(3.0, -10.0),
+		Vector2(-6.0, -8.0),
+		Vector2(8.0, -12.0),
+		Vector2(-12.0, 3.0),
+		Vector2(15.0, -5.0),
+		Vector2(-15.0, 8.0),
+		Vector2(0.0, -15.0),
+		Vector2(5.0, 15.0),
+	]
+	for rp in rock_positions:
+		var height := _get_hill_height(rp.x, rp.y)
+		var rock_body := StaticBody3D.new()
+		rock_body.position = Vector3(rp.x, height, rp.y)
+		var rock_col := CollisionShape3D.new()
+		var rock_sphere := SphereShape3D.new()
+		rock_sphere.radius = 0.6
+		rock_col.shape = rock_sphere
+		rock_col.position.y = 0.3
+		rock_body.add_child(rock_col)
+		add_child(rock_body)
 
 
 # ─── Helper: Zone Detection ─────────────────────────────────────────────────
@@ -559,6 +609,7 @@ func _spawn_multimesh(
 	var mmi := MultiMeshInstance3D.new()
 	mmi.name = node_name
 	mmi.multimesh = multimesh
+	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	if mat != null:
 		mmi.material_override = mat
 	add_child(mmi)
@@ -568,9 +619,8 @@ func _spawn_multimesh(
 func _spawn_animals() -> void:
 	var bot_script := preload("res://src/world/animal_bot.gd")
 	
-	# Spawn 4 bots per species
+	# Spawn 4 bots per species (Dog removed as requested)
 	var species_list := [
-		{"type": 0, "count": 4, "name": "Dog"},
 		{"type": 1, "count": 4, "name": "Cat"},
 		{"type": 2, "count": 4, "name": "Rabbit"},
 		{"type": 3, "count": 4, "name": "Parrot"}
