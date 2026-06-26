@@ -432,9 +432,10 @@ func _update_camera_magnet(delta: float) -> void:
 		clampf(3.0 * delta, 0.0, 1.0)
 	)
 
-# ══════════════════════════════════════════════════════════════════════════════
-# HUD SYSTEM
-# ══════════════════════════════════════════════════════════════════════════════
+func _create_solid_texture(color: Color, size: Vector2i) -> ImageTexture:
+	var img := Image.create(size.x, size.y, false, Image.FORMAT_RGBA8)
+	img.fill(color)
+	return ImageTexture.create_from_image(img)
 
 func _create_hud() -> void:
 	var ui := CanvasLayer.new()
@@ -461,7 +462,10 @@ func _create_hud() -> void:
 	hp_bar.max_value = 100.0
 	hp_bar.value = 100.0
 	hp_bar.size = Vector2(200, 20)
+	hp_bar.custom_minimum_size = Vector2(200, 20)
 	hp_bar.fill_mode = 0
+	hp_bar.texture_under = _create_solid_texture(Color(0.3, 0.0, 0.0), Vector2i(200, 20))
+	hp_bar.texture_progress = _create_solid_texture(Color(0.0, 0.8, 0.0), Vector2i(200, 20))
 	
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.3, 0.0, 0.0)
@@ -524,6 +528,9 @@ func _create_hud() -> void:
 	boss_hp_bar.max_value = 300.0
 	boss_hp_bar.value = 300.0
 	boss_hp_bar.size = Vector2(300, 25)
+	boss_hp_bar.custom_minimum_size = Vector2(300, 25)
+	boss_hp_bar.texture_under = _create_solid_texture(Color(0.3, 0.0, 0.0), Vector2i(300, 25))
+	boss_hp_bar.texture_progress = _create_solid_texture(Color(0.8, 0.1, 0.0), Vector2i(300, 25))
 	
 	var boss_bg := StyleBoxFlat.new()
 	boss_bg.bg_color = Color(0.3, 0.0, 0.0)
@@ -544,12 +551,9 @@ func _create_hud() -> void:
 	var minimap_script := preload("res://src/ui/minimap.gd")
 	minimap = minimap_script.new()
 	minimap.name = "Minimap"
-	minimap.anchor_left = 1.0
-	minimap.anchor_right = 1.0
-	minimap.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	minimap.position = Vector2(-140, 20)
 	ui.add_child(minimap)
 	minimap.setup(Vector2(120, 120))
+	minimap.position = Vector2(1920 - 120 - 20, 20)
 
 func _update_ui_orc_counter() -> void:
 	var label := get_node_or_null("UI/OrcCounter/OrcCountLabel") as Label

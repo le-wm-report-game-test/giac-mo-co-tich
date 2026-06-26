@@ -24,7 +24,6 @@ const BOSS_RADIUS: float = 6.0
 
 
 func setup(size_pixels: Vector2) -> void:
-	position = Vector2.ZERO
 	size = size_pixels
 	custom_minimum_size = size_pixels
 	queue_redraw()

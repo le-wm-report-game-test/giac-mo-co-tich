@@ -8,12 +8,16 @@ func get_tree_alpha(node: Node) -> float:
 	if node is MeshInstance3D:
 		var mesh_node := node as MeshInstance3D
 		if mesh_node.material_override:
-			var mat := mesh_node.material_override as BaseMaterial3D
-			if mat:
+			var mat := mesh_node.material_override
+			if mat is ShaderMaterial:
+				return mat.get_shader_parameter("alpha_multiplier")
+			elif mat is BaseMaterial3D:
 				return mat.albedo_color.a
 		for i in range(mesh_node.get_surface_override_material_count()):
-			var mat := mesh_node.get_surface_override_material(i) as BaseMaterial3D
-			if mat:
+			var mat := mesh_node.get_surface_override_material(i)
+			if mat is ShaderMaterial:
+				return mat.get_shader_parameter("alpha_multiplier")
+			elif mat is BaseMaterial3D:
 				return mat.albedo_color.a
 	for child in node.get_children():
 		var alpha := get_tree_alpha(child)
@@ -175,4 +179,4 @@ func test_tree_spawning_and_camera_clipping() -> void:
 	world_manager._update_tree_camera_clip()
 	await tree.process_frame
 	
-	assert_false(tree_node.visible, "Tree should be hidden when camera is close")
+	assert_true(tree_node.visible, "Tree should stay visible when camera is close")

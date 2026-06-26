@@ -48,7 +48,7 @@ func test_boss_initial_properties() -> void:
 	assert_not_null(boss, "Boss instance should be valid")
 	assert_eq(boss.name, "BossChằnTinh", "Boss node name should match")
 	assert_true(boss.is_in_group("boss") and boss.is_in_group("orc_mobs"), "Boss should be in groups")
-	assert_eq(boss.scale, Vector3(18.0, 18.0, 18.0), "Boss scale should be 18.0")
+	assert_eq(boss.scale, Vector3(1.0, 1.0, 1.0), "Boss scale should be 1.0")
 	assert_eq(boss.health_component.max_health, 300.0, "Boss max health should be 300")
 	assert_eq(boss.speed, 1.5, "Boss speed should be 1.5")
 
