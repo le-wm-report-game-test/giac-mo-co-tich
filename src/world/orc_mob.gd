@@ -10,7 +10,7 @@ enum State { IDLE, WANDER, CHASE, ATTACK, HURT, DEATH }
 @export var attack_range: float = 1.05
 @export var attack_cooldown_time: float = 1.5
 @export var max_health: float = 50.0
-@export var sprite_pixel_size: float = 0.014
+@export var sprite_pixel_size: float = 0.05
 @export var attack_damage: float = 10.0:
 	set(val):
 		attack_damage = val
@@ -39,8 +39,8 @@ func _ready() -> void:
 	# Giữ physics node ở scale 1; chỉ scale Sprite3D bằng pixel_size để hitbox không bị phóng đại.
 	scale = Vector3.ONE
 	if is_in_group("boss"):
-		sprite_pixel_size = maxf(sprite_pixel_size, 0.026)
-		attack_range = maxf(attack_range, 1.65)
+		sprite_pixel_size = maxf(sprite_pixel_size, 0.075)
+		attack_range = maxf(attack_range, 2.5)
 	add_to_group("orc_mobs")
 	strafe_dir = 1.0 if randf() > 0.5 else -1.0
 	for i in range(8):
@@ -52,12 +52,26 @@ func _ready() -> void:
 func _setup_nodes() -> void:
 	collision_layer = 4
 	collision_mask = 7
+	var is_boss := is_in_group("boss")
+	_setup_physics_collider(is_boss)
+	_setup_sprite_node()
+	_setup_health_component()
+	_setup_hurtbox(is_boss)
+	_setup_hitbox(is_boss)
+
+func _setup_physics_collider(is_boss: bool) -> void:
 	var col := CollisionShape3D.new()
-	col.shape = SphereShape3D.new()
-	col.shape.radius = 0.4
-	col.position.y = 0.4
+	var body_shape := SphereShape3D.new()
+	if is_boss:
+		body_shape.radius = 0.8
+		col.position.y = 0.8
+	else:
+		body_shape.radius = 0.4
+		col.position.y = 0.4
+	col.shape = body_shape
 	add_child(col)
-	
+
+func _setup_sprite_node() -> void:
 	sprite = Sprite3D.new()
 	sprite.billboard = StandardMaterial3D.BILLBOARD_FIXED_Y
 	sprite.shaded = true
@@ -69,34 +83,48 @@ func _setup_nodes() -> void:
 	sprite.pixel_size = sprite_pixel_size
 	sprite.position.y = maxf(0.5, sprite_pixel_size * 50.0)
 	add_child(sprite)
-	
+
+func _setup_health_component() -> void:
 	health_component = HealthComponent.new()
 	health_component.max_health = max_health
 	health_component.current_health = max_health
 	add_child(health_component)
 	health_component.died.connect(_on_died)
 	health_component.damaged.connect(_on_damaged)
-	
+
+func _setup_hurtbox(is_boss: bool) -> void:
 	hurtbox_component = HurtboxComponent.new()
 	hurtbox_component.collision_layer = 256
 	add_child(hurtbox_component)
 	hurtbox_component.health_component = health_component
 	var hurt_col := CollisionShape3D.new()
-	hurt_col.shape = CapsuleShape3D.new()
-	hurt_col.shape.radius = 0.5
-	hurt_col.shape.height = 1.2
-	hurt_col.position.y = 0.6
+	var hurt_shape := CapsuleShape3D.new()
+	if is_boss:
+		hurt_shape.radius = 0.9
+		hurt_shape.height = 2.4
+		hurt_col.position.y = 1.2
+	else:
+		hurt_shape.radius = 0.6
+		hurt_shape.height = 1.6
+		hurt_col.position.y = 0.8
+	hurt_col.shape = hurt_shape
 	hurtbox_component.add_child(hurt_col)
-	
+
+func _setup_hitbox(is_boss: bool) -> void:
 	hitbox_component = HitboxComponent.new()
 	hitbox_component.collision_mask = 128
 	hitbox_component.damage = attack_damage
 	hitbox_component.monitoring = false
 	add_child(hitbox_component)
 	hitbox_col = CollisionShape3D.new()
-	hitbox_col.shape = SphereShape3D.new()
-	hitbox_col.shape.radius = maxf(0.6, attack_range * 0.55)
-	hitbox_col.position.y = 0.6
+	var hit_shape := SphereShape3D.new()
+	if is_boss:
+		hit_shape.radius = 1.5
+		hitbox_col.position.y = 1.0
+	else:
+		hit_shape.radius = maxf(0.6, attack_range * 0.55)
+		hitbox_col.position.y = 0.6
+	hitbox_col.shape = hit_shape
 	hitbox_component.add_child(hitbox_col)
 	
 	# Load initial sprite

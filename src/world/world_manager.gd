@@ -22,6 +22,7 @@ var is_raining: bool = false
 var player_health_bar: Node = null
 var boss_health_bar: Node = null
 var orc_counter_label: Node = null
+var minimap: Minimap = null
 
 # ─── Tree Fade ───────────────────────────────────────────────────────────────
 var tree_list: Array[Node3D] = []
@@ -48,6 +49,11 @@ func _ready() -> void:
 	# Create HUD
 	_create_hud()
 	
+	# Create settings menu
+	var settings_menu := SettingsMenu.new()
+	settings_menu.name = "SettingsMenu"
+	add_child(settings_menu)
+	
 	# Configure Godot 3D lighting
 	_configure_lighting()
 	
@@ -60,6 +66,7 @@ func _process(delta: float) -> void:
 	_update_tree_fade()
 	_update_tree_camera_clip()
 	_update_camera_magnet(delta)
+	_update_minimap()
 
 # ══════════════════════════════════════════════════════════════════════════════
 # BOSS SYSTEM
@@ -97,8 +104,8 @@ func _spawn_boss() -> void:
 	boss.position = Vector3(-15.0, 0.2, -15.0)
 	
 	# Boss dùng sprite lớn hơn nhưng physics vẫn scale 1 để không phóng đại hitbox.
-	boss.set("sprite_pixel_size", 0.026)
-	boss.set("attack_range", 1.65)
+	boss.set("sprite_pixel_size", 0.075)
+	boss.set("attack_range", 2.5)
 	
 	get_parent().add_child(boss)
 	boss_instance = boss
@@ -302,7 +309,7 @@ func _configure_lighting() -> void:
 	if sun:
 		# Warm golden sunlight piercing through canopy
 		sun.light_color = Color(1.0, 0.92, 0.72)
-		sun.light_energy = 1.4
+		sun.light_energy = 1.68
 		sun.light_angular_distance = 0.5
 		sun.shadow_enabled = true
 		sun.shadow_bias = 0.02
@@ -345,7 +352,7 @@ func _configure_lighting() -> void:
 		
 		# Tonemap
 		env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
-		env.tonemap_exposure = 1.0
+		env.tonemap_exposure = 1.2
 		env.tonemap_white = 10.0
 	
 	# Add ambient light for shadow areas (under canopy)
@@ -354,7 +361,7 @@ func _configure_lighting() -> void:
 		ambient = DirectionalLight3D.new()
 		ambient.name = "AmbientLight"
 		ambient.light_color = Color(0.5, 0.6, 0.7)  # Cool sky bounce
-		ambient.light_energy = 0.18
+		ambient.light_energy = 0.216
 		ambient.light_indirect_energy = 0.5
 		ambient.shadow_enabled = false
 		get_node("/root/World").add_child(ambient)
@@ -371,11 +378,11 @@ func _update_weather_lighting(is_rainy: bool) -> void:
 	
 	if is_rainy:
 		# Darker, cooler during rain
-		tween.tween_property(sun, "light_energy", 0.7, 2.0)
+		tween.tween_property(sun, "light_energy", 0.84, 2.0)
 		tween.tween_property(sun, "light_color", Color(0.6, 0.65, 0.75), 2.0)
 	else:
 		# Back to warm sunlight
-		tween.tween_property(sun, "light_energy", 1.4, 3.0)
+		tween.tween_property(sun, "light_energy", 1.68, 3.0)
 		tween.tween_property(sun, "light_color", Color(1.0, 0.92, 0.72), 3.0)
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -532,6 +539,17 @@ func _create_hud() -> void:
 	boss_hp_bar.add_theme_stylebox_override("fill", boss_fill)
 	
 	boss_container.add_child(boss_hp_bar)
+	
+	# ─── Minimap HUD ───
+	var minimap_script := preload("res://src/ui/minimap.gd")
+	minimap = minimap_script.new()
+	minimap.name = "Minimap"
+	minimap.anchor_left = 1.0
+	minimap.anchor_right = 1.0
+	minimap.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	minimap.position = Vector2(-140, 20)
+	ui.add_child(minimap)
+	minimap.setup(Vector2(120, 120))
 
 func _update_ui_orc_counter() -> void:
 	var label := get_node_or_null("UI/OrcCounter/OrcCountLabel") as Label
@@ -695,3 +713,26 @@ func _update_tree_camera_clip() -> void:
 		# Không hard-hide cây khi camera tới gần: camera đã được nâng cao hơn canopy,
 		# còn occlusion của player xử lý bằng alpha trong _update_tree_fade().
 		tree.visible = true
+
+func _update_minimap() -> void:
+	if not minimap or not is_instance_valid(minimap):
+		return
+	var player := get_tree().get_first_node_in_group("player") as Node3D
+	if not player or not is_instance_valid(player):
+		return
+	var enemies: Array[Dictionary] = []
+	var orcs := get_tree().get_nodes_in_group("orc_mobs")
+	for orc in orcs:
+		if is_instance_valid(orc) and orc is Node3D and orc.get("current_state") != 5:
+			enemies.append({
+				"position": orc.global_position,
+				"is_boss": orc.is_in_group("boss")
+			})
+	var animals := get_tree().get_nodes_in_group("animals")
+	for animal in animals:
+		if is_instance_valid(animal) and animal is Node3D:
+			enemies.append({
+				"position": animal.global_position,
+				"is_boss": false
+			})
+	minimap.update_positions(player.global_position, enemies)

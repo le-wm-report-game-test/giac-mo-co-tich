@@ -17,7 +17,7 @@ func _ready() -> void:
 
 	camera.current = true
 	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
-	camera.size = 20.0
+	camera.size = 15.0
 	camera.near = 0.01
 	camera.far = 180.0
 
