@@ -511,13 +511,29 @@ func _scatter_boulders() -> void:
 	]
 	for rp in rock_positions:
 		var height := _get_hill_height(rp.x, rp.y)
+		var scale_val: float = _rng.randf_range(0.8, 1.5)
+		
+		# Spawn visual mesh
+		if not rock_meshes.is_empty():
+			var mesh_idx: int = _rng.randi() % rock_meshes.size()
+			var mesh: Mesh = rock_meshes[mesh_idx]
+			if mesh != null:
+				var mi := MeshInstance3D.new()
+				mi.mesh = mesh
+				mi.position = Vector3(rp.x, height, rp.y)
+				mi.rotation.y = _rng.randf_range(0.0, TAU)
+				mi.scale = Vector3(scale_val, scale_val, scale_val)
+				_configure_geometry_for_rendering(mi, 1.5)
+				add_child(mi)
+		
+		# Spawn collision body
 		var rock_body := StaticBody3D.new()
 		rock_body.position = Vector3(rp.x, height, rp.y)
 		var rock_col := CollisionShape3D.new()
 		var rock_sphere := SphereShape3D.new()
-		rock_sphere.radius = 0.6
+		rock_sphere.radius = 0.6 * scale_val
 		rock_col.shape = rock_sphere
-		rock_col.position.y = 0.3
+		rock_col.position.y = 0.3 * scale_val
 		rock_body.add_child(rock_col)
 		add_child(rock_body)
 
