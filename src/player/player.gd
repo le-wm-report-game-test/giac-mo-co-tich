@@ -323,6 +323,8 @@ func _update_sprite() -> void:
 		sprite.region_enabled = true
 		sprite.region_rect = Rect2(frame * frame_w, 0, frame_w, frame_h)
 		sprite.flip_h = not facing_right
+		# Dynamically adjust Y position so the bottom of the sprite always sits on the floor
+		sprite.position.y = (frame_h * sprite.pixel_size) / 2.0
 		_update_attack_hitbox_position()
 
 func _get_total_frames(prefix: String) -> int:
