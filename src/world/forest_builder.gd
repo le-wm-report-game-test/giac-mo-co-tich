@@ -424,7 +424,7 @@ func _scatter_decorations() -> void:
 	_scatter_mesh_group(grass_clump_meshes, grass_clump_count, false, null, 0.6, 1.1, true)
 	_scatter_mesh_group(flower_meshes, num_flowers, false, null, 0.8, 1.2, false)
 	_scatter_mesh_group(mushroom_meshes, num_mushrooms, false, null, 0.7, 1.1, false)
-	_scatter_mesh_group(rock_meshes, num_rocks, false, null, 0.8, 1.5, false)
+	_scatter_mesh_group(rock_meshes, num_rocks, false, null, 0.8, 1.5, false, 0.6, 0.3, "Rock")
 
 
 func _scatter_mesh_group(
@@ -434,7 +434,10 @@ func _scatter_mesh_group(
 	mat_override: StandardMaterial3D,
 	scale_min: float,
 	scale_max: float,
-	apply_wind: bool = false
+	apply_wind: bool = false,
+	collision_radius_scale: float = 0.0,
+	collision_height_offset_scale: float = 0.0,
+	name_prefix: String = "Decoration"
 ) -> void:
 	if meshes.is_empty():
 		return
@@ -468,11 +471,27 @@ func _scatter_mesh_group(
 		mi.position = Vector3(x, height, z)
 		mi.rotation.y = _rng.randf_range(0.0, TAU)
 		mi.scale = Vector3(scale_val, scale_val, scale_val)
+		mi.name = "%sMesh_%d" % [name_prefix, placed]
 		if apply_wind:
 			_apply_wind_shader(mi)
 		else:
 			_configure_geometry_for_rendering(mi, 1.5)
 		add_child(mi)
+
+		if collision_radius_scale > 0.0:
+			var body := StaticBody3D.new()
+			body.name = "%sBody_%d" % [name_prefix, placed]
+			body.position = mi.position
+			body.rotation.y = mi.rotation.y
+			body.add_to_group("rock_obstacles")
+			var col := CollisionShape3D.new()
+			var sphere := SphereShape3D.new()
+			sphere.radius = collision_radius_scale * scale_val
+			col.shape = sphere
+			col.position.y = collision_height_offset_scale * scale_val
+			body.add_child(col)
+			add_child(body)
+
 		placed += 1
 
 
@@ -497,7 +516,8 @@ func _scatter_boulders() -> void:
 		Vector2(8.0, 10.0),    # Rừng - cover di chuyển
 	]
 
-	for bp in boulder_positions:
+	for i in range(boulder_positions.size()):
+		var bp := boulder_positions[i]
 		if boulder_meshes.is_empty():
 			continue
 		var mesh_idx: int = _rng.randi() % boulder_meshes.size()
@@ -518,7 +538,9 @@ func _scatter_boulders() -> void:
 
 		# Collision cho boulder
 		var boulder_body := StaticBody3D.new()
+		boulder_body.name = "BoulderBody_%d" % i
 		boulder_body.position = mi.position
+		boulder_body.add_to_group("rock_obstacles")
 		var boulder_col := CollisionShape3D.new()
 		var boulder_sphere := SphereShape3D.new()
 		boulder_sphere.radius = 1.2 * scale_val
@@ -526,55 +548,6 @@ func _scatter_boulders() -> void:
 		boulder_col.position.y = 0.8 * scale_val
 		boulder_body.add_child(boulder_col)
 		add_child(boulder_body)
-		
-		# Also add collision for small rocks (rock_meshes) to block movement
-		# This is handled by the scatter_mesh_group function below
-
-	# Also add collision for scattered rocks
-	# We need to add StaticBody3D for each rock placed in scatter_mesh_group
-	# But since rocks use scatter_mesh_group which doesn't add collision,
-	# let's add a second pass here for rock collisions
-	var rock_positions: Array[Vector2] = [
-		Vector2(5.0, -3.0),
-		Vector2(-5.0, 6.0),
-		Vector2(10.0, 5.0),
-		Vector2(-10.0, -5.0),
-		Vector2(3.0, -10.0),
-		Vector2(-6.0, -8.0),
-		Vector2(8.0, -12.0),
-		Vector2(-12.0, 3.0),
-		Vector2(15.0, -5.0),
-		Vector2(-15.0, 8.0),
-		Vector2(0.0, -15.0),
-		Vector2(5.0, 15.0),
-	]
-	for rp in rock_positions:
-		var height := _get_hill_height(rp.x, rp.y)
-		var scale_val: float = _rng.randf_range(0.8, 1.5)
-		
-		# Spawn visual mesh
-		if not rock_meshes.is_empty():
-			var mesh_idx: int = _rng.randi() % rock_meshes.size()
-			var mesh: Mesh = rock_meshes[mesh_idx]
-			if mesh != null:
-				var mi := MeshInstance3D.new()
-				mi.mesh = mesh
-				mi.position = Vector3(rp.x, height, rp.y)
-				mi.rotation.y = _rng.randf_range(0.0, TAU)
-				mi.scale = Vector3(scale_val, scale_val, scale_val)
-				_configure_geometry_for_rendering(mi, 1.5)
-				add_child(mi)
-		
-		# Spawn collision body
-		var rock_body := StaticBody3D.new()
-		rock_body.position = Vector3(rp.x, height, rp.y)
-		var rock_col := CollisionShape3D.new()
-		var rock_sphere := SphereShape3D.new()
-		rock_sphere.radius = 0.6 * scale_val
-		rock_col.shape = rock_sphere
-		rock_col.position.y = 0.3 * scale_val
-		rock_body.add_child(rock_col)
-		add_child(rock_body)
 
 
 # ─── Helper: Zone Detection ─────────────────────────────────────────────────

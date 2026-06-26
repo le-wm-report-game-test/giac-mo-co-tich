@@ -67,6 +67,20 @@ func test_mob_spawning_map_boundaries() -> void:
 			assert_true(pos.x >= -map_half and pos.x <= map_half, "Mob X position should be within map boundaries")
 			assert_true(pos.z >= -map_half and pos.z <= map_half, "Mob Z position should be within map boundaries")
 
+func test_all_scattered_rocks_have_collision_bodies() -> void:
+	var fb := world_instance.get_node("Forest") as Node
+	var rock_mesh_count := 0
+	var rock_body_count := 0
+
+	for child in fb.get_children():
+		if child.name.begins_with("RockMesh_"):
+			rock_mesh_count += 1
+		elif child.name.begins_with("RockBody_"):
+			rock_body_count += 1
+
+	assert_eq(rock_mesh_count, 100, "There should be one visual mesh for each scattered rock")
+	assert_eq(rock_body_count, rock_mesh_count, "Every scattered rock should have a collision body")
+
 func test_full_map_obstruction() -> void:
 	# Stress-test: Bản đồ đầy vật cản vẫn chạy bình thường (thoát loop nhờ max_attempts)
 	var world_scene := load("res://src/world/world.tscn") as PackedScene
