@@ -4,9 +4,9 @@ render_mode blend_mix, depth_prepass_alpha, cull_disabled, diffuse_lambert, spec
 
 uniform sampler2D albedo_texture : source_color, filter_nearest_mipmap;
 uniform vec4 albedo_color : source_color = vec4(1.0);
-uniform float wind_speed = 0.75;
-uniform float wind_strength = 0.045;
-uniform float wind_frequency = 0.38;
+uniform float wind_speed = 1.2;
+uniform float wind_strength = 0.25;
+uniform float wind_frequency = 0.28;
 uniform float alpha_multiplier = 1.0;
 uniform float alpha_cutoff = 0.35;
 
