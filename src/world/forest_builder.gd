@@ -69,6 +69,7 @@ extends Node3D
 @export var num_mushrooms: int = 80
 @export var num_rocks: int = 100
 @export var num_boulders: int = 25
+@export var num_orcs: int = 14
 @export var random_seed: int = 2025
 @export_range(0.0, 1.0, 0.01) var large_tree_spawn_multiplier: float = 0.75
 @export_range(1.0, 3.0, 0.05) var large_tree_scale_threshold: float = 1.65
@@ -716,7 +717,6 @@ func _spawn_animals() -> void:
 # ─── Spawning Orc Mobs ──────────────────────────────────────────────────────
 func _spawn_orcs() -> void:
 	var orc_script := preload("res://src/world/orc_mob.gd")
-	var num_orcs := 8
 	for i in range(num_orcs):
 		var placed := false
 		var attempts := 0

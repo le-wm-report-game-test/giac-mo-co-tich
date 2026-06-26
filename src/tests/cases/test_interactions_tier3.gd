@@ -202,3 +202,28 @@ func test_player_attack_recovers_after_taking_damage() -> void:
 	player._start_attack()
 
 	assert_true(player.is_attacking, "Player should be able to start a new attack after recovering from damage")
+
+func test_player_hitbox_supports_diagonal_facing() -> void:
+	# Interaction 9: HÆ°á»›ng di chuyá»ƒn chÃ©o pháº£i cáº­p nháº­t hitbox theo 8 hÆ°á»›ng
+	var player := tree.get_first_node_in_group("player") as Player
+	assert_not_null(player, "Player must exist")
+
+	player._set_facing_from_world_direction(Vector3(1.0, 0.0, 1.0))
+	player._update_attack_hitbox_position()
+
+	var hitbox_pos := player.hitbox_shape.position
+	assert_true(hitbox_pos.x > 0.1, "Diagonal facing should push the hitbox forward on X")
+	assert_true(hitbox_pos.z > 0.1, "Diagonal facing should push the hitbox forward on Z")
+
+func test_player_walk_uses_eight_direction_movement_sheet() -> void:
+	# Interaction 10: Walk animation pháº£i dÃ¹ng frame crop sáº¯t tá»« asset 8 hÆ°á»›ng má»›i
+	var player := tree.get_first_node_in_group("player") as Player
+	assert_not_null(player, "Player must exist")
+
+	player.anim_state = Player.AnimState.WALK
+	player.anim_frame = 0
+	player._set_facing_from_world_direction(Vector3(-1.0, 0.0, -1.0))
+	player._update_sprite()
+
+	assert_false(player.sprite.region_enabled, "Walk animation should use a tightly cropped frame instead of a sheet region")
+	assert_true(player.sprite.texture.get_width() < 200, "Walk animation should use a tightly cropped movement frame")
