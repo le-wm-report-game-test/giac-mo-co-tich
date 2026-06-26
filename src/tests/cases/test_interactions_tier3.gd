@@ -180,3 +180,25 @@ func test_tree_spawning_and_camera_clipping() -> void:
 	await tree.process_frame
 	
 	assert_true(tree_node.visible, "Tree should stay visible when camera is close")
+
+func test_player_attack_recovers_after_taking_damage() -> void:
+	# Interaction 8: Player bá»‹ ngáº¯t Ä‘Ã²n do trÃºng damage váº«n pháº£i attack láº¡i Ä‘Æ°á»£c
+	var player := tree.get_first_node_in_group("player") as Player
+	assert_not_null(player, "Player must exist")
+
+	player._start_attack()
+	assert_true(player.is_attacking, "Player should enter attacking state")
+
+	player.health_component.take_damage(10.0, null)
+	await tree.process_frame
+
+	assert_false(player.is_attacking, "Player attack flag should reset after taking damage")
+	assert_eq(player.anim_state, Player.AnimState.HURT, "Player should enter HURT state after taking damage")
+
+	player.anim_state = Player.AnimState.IDLE
+	player.anim_frame = 0
+	player.anim_timer = 0.0
+	player.attack_cooldown = 0.0
+	player._start_attack()
+
+	assert_true(player.is_attacking, "Player should be able to start a new attack after recovering from damage")

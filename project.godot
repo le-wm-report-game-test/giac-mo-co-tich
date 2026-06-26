@@ -19,6 +19,12 @@ config/icon="res://icon.svg"
 
 EventBus="*res://src/common/event_bus.gd"
 
+[display]
+
+window/size/viewport_width=1280
+window/size/viewport_height=720
+window/stretch/mode="canvas_items"
+
 [filesystem]
 
 import/blender/enabled=false
@@ -30,10 +36,4 @@ import/blender/enabled=false
 [rendering]
 
 rendering_device/driver.windows="d3d12"
-
-[display]
-
-window/size/viewport_width=1920
-window/size/viewport_height=1080
-window/stretch/mode="canvas_items"
-window/stretch/aspect="keep"
+renderer/rendering_method="gl_compatibility"

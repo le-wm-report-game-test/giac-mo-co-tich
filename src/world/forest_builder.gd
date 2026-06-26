@@ -62,7 +62,7 @@ extends Node3D
 
 # ─── Forest Settings ───────────────────────────────────────────────────────
 @export_group("Forest Settings")
-@export var num_trees: int = 150
+@export var num_trees: int = 105
 @export var num_bushes: int = 200
 @export var num_grass_clumps: int = 350
 @export var num_flowers: int = 150
@@ -70,6 +70,11 @@ extends Node3D
 @export var num_rocks: int = 100
 @export var num_boulders: int = 25
 @export var random_seed: int = 2025
+@export_range(0.0, 1.0, 0.01) var large_tree_spawn_multiplier: float = 0.75
+@export_range(1.0, 3.0, 0.05) var large_tree_scale_threshold: float = 1.65
+@export_range(1.0, 8.0, 0.1) var tree_min_spacing: float = 4.2
+@export_range(0.0, 5.0, 0.1) var tree_large_spacing_bonus: float = 1.1
+@export_range(0.0, 1.0, 0.01) var grass_clump_density_multiplier: float = 0.90
 
 # ─── Map Constants ─────────────────────────────────────────────────────────
 const MAP_HALF: float = 50.0
@@ -289,7 +294,9 @@ func _scatter_trees() -> void:
 
 	var placed: int = 0
 	var attempts: int = 0
-	var max_attempts: int = num_trees * 10
+	var max_attempts: int = num_trees * 16
+	var tree_positions: Array[Vector2] = []
+	var tree_scales: Array[float] = []
 
 	while placed < num_trees and attempts < max_attempts:
 		attempts += 1
@@ -308,6 +315,14 @@ func _scatter_trees() -> void:
 			continue
 
 		var scale_val: float = _rng.randf_range(1.2, 2.0)  # Tree height 8-12m (base ~6m * 1.2-2.0)
+		var is_large_tree: bool = scale_val >= large_tree_scale_threshold
+		if is_large_tree and _rng.randf() > large_tree_spawn_multiplier:
+			continue
+
+		var tree_pos_2d := Vector2(x, z)
+		if not _can_place_tree(tree_pos_2d, scale_val, tree_positions, tree_scales):
+			continue
+
 		var rot_y: float = _rng.randf_range(0.0, TAU)
 
 		# instantiate() giữ nguyên toàn bộ scene gốc (materials, textures)
@@ -333,7 +348,29 @@ func _scatter_trees() -> void:
 		tree_body.add_child(tree_col)
 		add_child(tree_body)
 
+		tree_positions.append(tree_pos_2d)
+		tree_scales.append(scale_val)
 		placed += 1
+
+
+func _can_place_tree(
+	tree_pos: Vector2,
+	tree_scale: float,
+	existing_positions: Array[Vector2],
+	existing_scales: Array[float]
+) -> bool:
+	var required_spacing: float = tree_min_spacing
+	if tree_scale >= large_tree_scale_threshold:
+		required_spacing += tree_large_spacing_bonus
+
+	for i in range(existing_positions.size()):
+		var other_spacing: float = tree_min_spacing
+		if existing_scales[i] >= large_tree_scale_threshold:
+			other_spacing += tree_large_spacing_bonus
+		if tree_pos.distance_to(existing_positions[i]) < maxf(required_spacing, other_spacing):
+			return false
+
+	return true
 
 
 # ─── Scatter Bushes (MegaKit .gltf PackedScene) ─────────────────────────────
@@ -382,7 +419,8 @@ func _scatter_bushes() -> void:
 # ─── Scatter Decorations (cỏ clump, hoa, nấm, đá nhỏ) ─────────────────────
 func _scatter_decorations() -> void:
 	# Cỏ clump đung đưa nhẹ trong gió, các loại hoa/nấm/đá khác giữ tĩnh lặng
-	_scatter_mesh_group(grass_clump_meshes, num_grass_clumps, false, null, 0.6, 1.1, true)
+	var grass_clump_count: int = int(round(num_grass_clumps * grass_clump_density_multiplier))
+	_scatter_mesh_group(grass_clump_meshes, grass_clump_count, false, null, 0.6, 1.1, true)
 	_scatter_mesh_group(flower_meshes, num_flowers, false, null, 0.8, 1.2, false)
 	_scatter_mesh_group(mushroom_meshes, num_mushrooms, false, null, 0.7, 1.1, false)
 	_scatter_mesh_group(rock_meshes, num_rocks, false, null, 0.8, 1.5, false)

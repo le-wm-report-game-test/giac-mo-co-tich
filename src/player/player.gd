@@ -231,6 +231,15 @@ func _start_attack() -> void:
 				facing_right = false
 	_update_attack_hitbox_position()
 
+func _interrupt_attack(reset_cooldown: bool = false) -> void:
+	if not is_attacking and not hitbox_area.monitoring:
+		return
+	is_attacking = false
+	attack_window_active = false
+	hitbox_area.monitoring = false
+	if reset_cooldown:
+		attack_cooldown = maxf(attack_cooldown, 0.3)
+
 func _process_animation(delta: float) -> void:
 	anim_timer += delta
 	var fps := anim_fps
@@ -349,6 +358,7 @@ func _on_hitbox_area_entered(area: Area3D) -> void:
 func _on_damaged(amount: float, source: Node3D) -> void:
 	if anim_state == AnimState.DEATH:
 		return
+	_interrupt_attack()
 	anim_state = AnimState.HURT
 	anim_frame = 0
 	anim_timer = 0.0
@@ -358,11 +368,11 @@ func _on_damaged(amount: float, source: Node3D) -> void:
 	EventBus.player_took_damage.emit(amount, global_position)
 
 func _on_died() -> void:
+	_interrupt_attack()
 	anim_state = AnimState.DEATH
 	anim_frame = 0
 	anim_timer = 0.0
 	velocity = Vector3.ZERO
-	hitbox_area.monitoring = false
 	collision_layer = 0
 	collision_mask = 0
 	print("Player Died!")
