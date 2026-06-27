@@ -103,8 +103,8 @@ func _spawn_boss() -> void:
 	# Position boss at boss arena center
 	boss.position = Vector3(-15.0, 0.2, -15.0)
 	
-	# Boss dùng sprite lớn hơn nhưng physics vẫn scale 1 để không phóng đại hitbox.
-	boss.set("sprite_pixel_size", 0.11)
+	# Boss dùng sprite lớn hơn Orc thường nhưng physics vẫn scale 1 để không phóng đại hitbox.
+	boss.set("sprite_pixel_size", OrcMob.BOSS_SPRITE_PIXEL_SIZE)
 	boss.set("attack_range", 2.5)
 	
 	get_parent().add_child(boss)

@@ -4,13 +4,19 @@ extends CharacterBody3D
 
 enum State { IDLE, WANDER, CHASE, ATTACK, HURT, DEATH }
 
+const REGULAR_SPRITE_PIXEL_SIZE: float = 0.10
+const BOSS_SPRITE_PIXEL_SIZE: float = 0.15
+const SPRITE_FRAME_CENTER_Y_PX: float = 50.0
+const SPRITE_FEET_BASELINE_Y_PX: float = 56.0
+const SPRITE_GROUND_CLEARANCE: float = 0.03
+
 @export var speed: float = 2.0
 @export var gravity: float = 9.8
 @export var detection_range: float = 12.0
 @export var attack_range: float = 1.05
 @export var attack_cooldown_time: float = 1.5
 @export var max_health: float = 50.0
-@export var sprite_pixel_size: float = 0.075
+@export_range(0.01, 0.25, 0.005) var sprite_pixel_size: float = REGULAR_SPRITE_PIXEL_SIZE
 @export var attack_damage: float = 10.0:
 	set(val):
 		attack_damage = val
@@ -39,7 +45,7 @@ func _ready() -> void:
 	# Giữ physics node ở scale 1; chỉ scale Sprite3D bằng pixel_size để hitbox không bị phóng đại.
 	scale = Vector3.ONE
 	if is_in_group("boss"):
-		sprite_pixel_size = maxf(sprite_pixel_size, 0.11)
+		sprite_pixel_size = maxf(sprite_pixel_size, BOSS_SPRITE_PIXEL_SIZE)
 		attack_range = maxf(attack_range, 2.5)
 	add_to_group("orc_mobs")
 	strafe_dir = 1.0 if randf() > 0.5 else -1.0
@@ -81,9 +87,15 @@ func _setup_sprite_node() -> void:
 	sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	sprite.region_enabled = true
 	sprite.pixel_size = sprite_pixel_size
-	sprite.position.y = maxf(0.5, sprite_pixel_size * 50.0)
-	sprite.position.z = 0.25
+	# Asset 100x100 có nhiều vùng trong suốt; chân Orc thực nằm ở y=56, không phải đáy frame.
+	# Neo theo baseline thực để sprite đứng trên mặt đất và bóng không bị chiếu lệch từ độ cao ảo.
+	sprite.position.y = _get_grounded_sprite_y()
+	sprite.position.z = 0.0
 	add_child(sprite)
+
+func _get_grounded_sprite_y() -> float:
+	var feet_offset_px := SPRITE_FEET_BASELINE_Y_PX - SPRITE_FRAME_CENTER_Y_PX
+	return feet_offset_px * sprite_pixel_size + SPRITE_GROUND_CLEARANCE
 
 func _setup_health_component() -> void:
 	health_component = HealthComponent.new()

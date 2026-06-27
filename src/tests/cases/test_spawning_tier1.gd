@@ -45,6 +45,40 @@ func test_orc_spawning_exclusion_zone() -> void:
 			var dist := pos_2d.distance_to(spawn_center)
 			assert_true(dist >= 8.0, "Orc should not spawn within 8m of player spawn center")
 
+func test_orc_visual_matches_hurtbox_without_scaling_physics() -> void:
+	# Orc phải đủ lớn so với hurtbox nhưng không được scale CharacterBody/collider.
+	var forest := world_instance.get_node("Forest") as Node
+	var orc: OrcMob = null
+	for child in forest.get_children():
+		if child is OrcMob:
+			orc = child as OrcMob
+			break
+
+	assert_not_null(orc, "A spawned OrcMob is required for visual scale validation")
+	if orc == null:
+		return
+
+	assert_eq(orc.scale, Vector3.ONE, "Orc physics root must stay at unit scale")
+	assert_almost_eq(
+		orc.sprite_pixel_size,
+		OrcMob.REGULAR_SPRITE_PIXEL_SIZE,
+		0.0001,
+		"Regular Orc sprite must use the enlarged visual scale"
+	)
+	assert_almost_eq(
+		orc.sprite.pixel_size,
+		OrcMob.REGULAR_SPRITE_PIXEL_SIZE,
+		0.0001,
+		"Sprite3D must receive the configured visual scale"
+	)
+	assert_almost_eq(
+		orc.sprite.position.y,
+		OrcMob.SPRITE_GROUND_CLEARANCE + 6.0 * OrcMob.REGULAR_SPRITE_PIXEL_SIZE,
+		0.0001,
+		"Orc feet baseline must remain close to the ground"
+	)
+	assert_almost_eq(orc.sprite.position.z, 0.0, 0.0001, "Orc visual must align with its physics root")
+
 func test_animal_spawning_exclusion_zone() -> void:
 	# Đảm bảo không có thú vật sinh ra quá gần điểm hồi sinh (< 6m)
 	var fb := world_instance.get_node("Forest") as Node
