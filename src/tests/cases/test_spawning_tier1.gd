@@ -58,7 +58,7 @@ func test_animal_spawning_exclusion_zone() -> void:
 			assert_true(dist >= 6.0, "Animal should not spawn within 6m of player spawn center")
 
 func test_spawning_counts() -> void:
-	# Xác minh số lượng thực thể sinh ra đúng thiết kế (8 orcs, 12 animals)
+	# Xác minh số lượng thực thể sinh ra đúng thiết kế (14 orcs, 12 animals)
 	var fb := world_instance.get_node("Forest") as Node
 	var orcs_count := 0
 	var animals_count := 0
@@ -69,7 +69,7 @@ func test_spawning_counts() -> void:
 		elif child.name.begins_with("CatBot_") or child.name.begins_with("RabbitBot_") or child.name.begins_with("ParrotBot_"):
 			animals_count += 1
 			
-	assert_eq(orcs_count, 8, "There should be exactly 8 orcs spawned")
+	assert_eq(orcs_count, 14, "There should be exactly 14 orcs spawned")
 	assert_eq(animals_count, 12, "There should be exactly 12 animals spawned")
 
 func test_no_mob_spawn_on_hills() -> void:

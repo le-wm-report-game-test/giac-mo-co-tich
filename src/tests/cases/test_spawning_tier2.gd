@@ -67,6 +67,20 @@ func test_mob_spawning_map_boundaries() -> void:
 			assert_true(pos.x >= -map_half and pos.x <= map_half, "Mob X position should be within map boundaries")
 			assert_true(pos.z >= -map_half and pos.z <= map_half, "Mob Z position should be within map boundaries")
 
+func test_all_scattered_rocks_have_collision_bodies() -> void:
+	var fb := world_instance.get_node("Forest") as Node
+	var rock_mesh_count := 0
+	var rock_body_count := 0
+
+	for child in fb.get_children():
+		if child.name.begins_with("RockMesh_"):
+			rock_mesh_count += 1
+		elif child.name.begins_with("RockBody_"):
+			rock_body_count += 1
+
+	assert_eq(rock_mesh_count, 100, "There should be one visual mesh for each scattered rock")
+	assert_eq(rock_body_count, rock_mesh_count, "Every scattered rock should have a collision body")
+
 func test_full_map_obstruction() -> void:
 	# Stress-test: Bản đồ đầy vật cản vẫn chạy bình thường (thoát loop nhờ max_attempts)
 	var world_scene := load("res://src/world/world.tscn") as PackedScene
@@ -95,4 +109,68 @@ func test_animal_type_bounds() -> void:
 	
 	assert_not_null(test_bot.get_parent(), "Animal bot with invalid type should instantiate without crash")
 	test_bot.queue_free()
+	await tree.process_frame
+
+func test_tree_spacing_respects_minimum_distance() -> void:
+	# CÃ¢y sinh ra pháº£i cÃ³ khoáº£ng hở tá»‘i thiá»ƒu Ä‘á»ƒ khu rá»«ng bớt dÃ y
+	var world_scene := load("res://src/world/world.tscn") as PackedScene
+	var custom_world := world_scene.instantiate() as Node3D
+	var fb := custom_world.get_node("Forest") as Node
+
+	fb.set("num_trees", 40)
+	fb.set("num_bushes", 0)
+	fb.set("num_grass_clumps", 0)
+	fb.set("num_flowers", 0)
+	fb.set("num_mushrooms", 0)
+	fb.set("num_rocks", 0)
+	fb.set("num_boulders", 0)
+
+	tree.root.add_child(custom_world)
+	await tree.process_frame
+	await tree.process_frame
+
+	var tree_nodes: Array[Node3D] = []
+	for child in fb.get_children():
+		if child is Node3D and child.is_in_group("trees"):
+			tree_nodes.append(child as Node3D)
+
+	var min_spacing: float = fb.get("tree_min_spacing")
+	for i in range(tree_nodes.size()):
+		for j in range(i + 1, tree_nodes.size()):
+			var pos_a := Vector2(tree_nodes[i].global_position.x, tree_nodes[i].global_position.z)
+			var pos_b := Vector2(tree_nodes[j].global_position.x, tree_nodes[j].global_position.z)
+			assert_true(pos_a.distance_to(pos_b) >= min_spacing, "Trees should respect the configured minimum spacing")
+
+	custom_world.queue_free()
+	await tree.process_frame
+
+func test_grass_clump_density_multiplier_reduces_cluster_count() -> void:
+	# Sá»‘ cá»¥m cá» pháº£i giáº£m theo density multiplier
+	var world_scene := load("res://src/world/world.tscn") as PackedScene
+	var custom_world := world_scene.instantiate() as Node3D
+	var fb := custom_world.get_node("Forest") as Node
+
+	fb.set("num_trees", 0)
+	fb.set("num_bushes", 0)
+	fb.set("num_flowers", 0)
+	fb.set("num_mushrooms", 0)
+	fb.set("num_rocks", 0)
+	fb.set("num_boulders", 0)
+	fb.set("num_grass_clumps", 20)
+	fb.set("grass_clump_density_multiplier", 0.90)
+
+	tree.root.add_child(custom_world)
+	await tree.process_frame
+	await tree.process_frame
+
+	var grass_clump_count := 0
+	for child in fb.get_children():
+		if child is MeshInstance3D:
+			var mesh := (child as MeshInstance3D).mesh
+			if mesh != null and "Hilly_Prop_Grass_Clump_" in mesh.resource_path:
+				grass_clump_count += 1
+
+	assert_eq(grass_clump_count, 18, "Grass clump density multiplier should reduce spawned clumps by 10 percent")
+
+	custom_world.queue_free()
 	await tree.process_frame

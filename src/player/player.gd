@@ -9,17 +9,36 @@ extends CharacterBody3D
 @export var attack_damage: float = 25.0
 @export var attack_range: float = 1.15
 @export var max_health: float = 100.0
+@export var target_sprite_height: float = 1.9
 
 # Runtime velocity direction
 var _target_velocity: Vector3 = Vector3.ZERO
 
 # Animation
 enum AnimState { IDLE, WALK, ATTACK, HURT, DEATH }
+enum MoveDir { DOWN, UP, RIGHT, LEFT, DOWN_RIGHT, DOWN_LEFT, UP_RIGHT, UP_LEFT }
+
+const MOVEMENT_IDLE_FRAMES := 3
+const MOVEMENT_WALK_FRAMES := 4
+const MOVEMENT_FRAME_DIR := "res://Assets/player/thach_sanh/movement_frames"
+const MOVE_DIR_NAMES := {
+	MoveDir.DOWN: "down",
+	MoveDir.UP: "up",
+	MoveDir.RIGHT: "right",
+	MoveDir.LEFT: "left",
+	MoveDir.DOWN_RIGHT: "down_right",
+	MoveDir.DOWN_LEFT: "down_left",
+	MoveDir.UP_RIGHT: "up_right",
+	MoveDir.UP_LEFT: "up_left",
+}
+
 var anim_state: AnimState = AnimState.IDLE
 var anim_frame: int = 0
 var anim_timer: float = 0.0
 var anim_fps: float = 6.0
 var facing_right: bool = true
+var facing_direction: Vector3 = Vector3(0.0, 0.0, 1.0)
+var move_direction: MoveDir = MoveDir.DOWN
 
 # Attack
 var is_attacking: bool = false
@@ -79,8 +98,62 @@ func _configure_attack_hitbox() -> void:
 	_update_attack_hitbox_position()
 
 func _update_attack_hitbox_position() -> void:
-	var dir := 1.0 if facing_right else -1.0
-	hitbox_shape.position = Vector3(dir * attack_range * 0.45, 0.9, 0.0)
+	var snapped_dir := Vector2(facing_direction.x, facing_direction.z)
+	if snapped_dir == Vector2.ZERO:
+		snapped_dir = Vector2(1.0, 0.0) if facing_right else Vector2(-1.0, 0.0)
+	snapped_dir = snapped_dir.normalized()
+	hitbox_shape.position = Vector3(
+		snapped_dir.x * attack_range * 0.45,
+		0.9,
+		snapped_dir.y * attack_range * 0.45
+	)
+
+func _set_facing_from_world_direction(dir: Vector3) -> void:
+	var planar_dir := Vector3(dir.x, 0.0, dir.z)
+	if planar_dir.length_squared() <= 0.0001:
+		return
+	facing_direction = _snap_direction_to_octant(planar_dir.normalized())
+	move_direction = _get_move_direction_from_facing(facing_direction)
+	_update_facing_side_from_camera(facing_direction)
+
+func _snap_direction_to_octant(dir: Vector3) -> Vector3:
+	var angle: float = atan2(dir.z, dir.x)
+	var snapped_angle: float = round(angle / (PI / 4.0)) * (PI / 4.0)
+	return Vector3(cos(snapped_angle), 0.0, sin(snapped_angle)).normalized()
+
+func _get_move_direction_from_facing(dir: Vector3) -> MoveDir:
+	var x_positive := dir.x > 0.25
+	var x_negative := dir.x < -0.25
+	var z_positive := dir.z > 0.25
+	var z_negative := dir.z < -0.25
+
+	if x_positive and z_positive:
+		return MoveDir.DOWN_RIGHT
+	if x_negative and z_positive:
+		return MoveDir.DOWN_LEFT
+	if x_positive and z_negative:
+		return MoveDir.UP_RIGHT
+	if x_negative and z_negative:
+		return MoveDir.UP_LEFT
+	if x_positive:
+		return MoveDir.RIGHT
+	if x_negative:
+		return MoveDir.LEFT
+	if z_negative:
+		return MoveDir.UP
+	return MoveDir.DOWN
+
+func _update_facing_side_from_camera(dir: Vector3) -> void:
+	var camera := get_viewport().get_camera_3d()
+	if camera == null:
+		facing_right = dir.x >= 0.0
+		return
+	var cam_right := camera.global_transform.basis.x
+	cam_right.y = 0.0
+	cam_right = cam_right.normalized()
+	var side_dot := dir.dot(cam_right)
+	if absf(side_dot) > 0.05:
+		facing_right = side_dot >= 0.0
 
 func _setup_input_actions() -> void:
 	var actions: Dictionary = {
@@ -137,11 +210,7 @@ func _physics_process(delta: float) -> void:
 		_target_velocity.x = direction.x * speed
 		_target_velocity.z = direction.z * speed
 		
-		# Determine facing direction based on movement
-		if direction.x > 0.1:
-			facing_right = true
-		elif direction.x < -0.1:
-			facing_right = false
+		_set_facing_from_world_direction(direction)
 		
 		# Smooth acceleration
 		velocity.x = move_toward(velocity.x, _target_velocity.x, acceleration * delta)
@@ -172,7 +241,9 @@ func _handle_footprints(_delta: float) -> void:
 		return
 	var fp := Footprint.new()
 	get_parent().add_child(fp)
-	var right_dir := -sprite.global_transform.basis.x.normalized()
+	var right_dir := Vector3(facing_direction.z, 0.0, -facing_direction.x).normalized()
+	if right_dir == Vector3.ZERO:
+		right_dir = Vector3.RIGHT if facing_right else Vector3.LEFT
 	var offset_side := 0.12 if _footprint_left_side else -0.12
 	_footprint_left_side = not _footprint_left_side
 	var fp_pos := global_position + right_dir * offset_side
@@ -225,11 +296,17 @@ func _start_attack() -> void:
 		if hit != null:
 			var target_pos: Vector3 = hit
 			var diff: Vector3 = target_pos - global_position
-			if diff.x > 0.1:
-				facing_right = true
-			elif diff.x < -0.1:
-				facing_right = false
+			_set_facing_from_world_direction(diff)
 	_update_attack_hitbox_position()
+
+func _interrupt_attack(reset_cooldown: bool = false) -> void:
+	if not is_attacking and not hitbox_area.monitoring:
+		return
+	is_attacking = false
+	attack_window_active = false
+	hitbox_area.monitoring = false
+	if reset_cooldown:
+		attack_cooldown = maxf(attack_cooldown, 0.3)
 
 func _process_animation(delta: float) -> void:
 	anim_timer += delta
@@ -265,7 +342,7 @@ func _check_animation_end() -> void:
 			if anim_frame >= max_frames:
 				anim_frame = 0
 		AnimState.WALK:
-			var max_frames := 8
+			var max_frames := MOVEMENT_WALK_FRAMES
 			if anim_frame >= max_frames:
 				anim_frame = 0
 		AnimState.ATTACK:
@@ -287,6 +364,10 @@ func _check_animation_end() -> void:
 				set_physics_process(false)
 
 func _update_sprite() -> void:
+	if anim_state == AnimState.IDLE or anim_state == AnimState.WALK:
+		_update_movement_sprite()
+		return
+
 	var prefix := "thach_sanh_idle"
 	var frame := anim_frame
 	
@@ -323,9 +404,34 @@ func _update_sprite() -> void:
 		sprite.region_enabled = true
 		sprite.region_rect = Rect2(frame * frame_w, 0, frame_w, frame_h)
 		sprite.flip_h = not facing_right
+		sprite.pixel_size = target_sprite_height / frame_h
 		# Dynamically adjust Y position so the bottom of the sprite always sits on the floor
 		sprite.position.y = (frame_h * sprite.pixel_size) / 2.0
 		_update_attack_hitbox_position()
+
+func _update_movement_sprite() -> void:
+	var frame_count := MOVEMENT_IDLE_FRAMES if anim_state == AnimState.IDLE else MOVEMENT_WALK_FRAMES
+	var clamped_frame := clampi(anim_frame, 0, frame_count - 1)
+	var anim_name := "idle" if anim_state == AnimState.IDLE else "walk"
+	var dir_name: String = MOVE_DIR_NAMES.get(move_direction, "down")
+	var tex_path := "%s/%s_%s_%d.png" % [MOVEMENT_FRAME_DIR, dir_name, anim_name, clamped_frame]
+	if not _texture_cache.has(tex_path):
+		if ResourceLoader.exists(tex_path):
+			_texture_cache[tex_path] = load(tex_path) as Texture2D
+		else:
+			_texture_cache[tex_path] = null
+
+	var tex: Texture2D = _texture_cache[tex_path]
+	if tex == null:
+		return
+
+	sprite.texture = tex
+	sprite.region_enabled = false
+	sprite.flip_h = false
+	var frame_h := tex.get_height()
+	sprite.pixel_size = target_sprite_height / frame_h
+	sprite.position.y = (frame_h * sprite.pixel_size) / 2.0
+	_update_attack_hitbox_position()
 
 func _get_total_frames(prefix: String) -> int:
 	match prefix:
@@ -349,6 +455,7 @@ func _on_hitbox_area_entered(area: Area3D) -> void:
 func _on_damaged(amount: float, source: Node3D) -> void:
 	if anim_state == AnimState.DEATH:
 		return
+	_interrupt_attack()
 	anim_state = AnimState.HURT
 	anim_frame = 0
 	anim_timer = 0.0
@@ -358,11 +465,11 @@ func _on_damaged(amount: float, source: Node3D) -> void:
 	EventBus.player_took_damage.emit(amount, global_position)
 
 func _on_died() -> void:
+	_interrupt_attack()
 	anim_state = AnimState.DEATH
 	anim_frame = 0
 	anim_timer = 0.0
 	velocity = Vector3.ZERO
-	hitbox_area.monitoring = false
 	collision_layer = 0
 	collision_mask = 0
 	print("Player Died!")
