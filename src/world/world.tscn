@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://nme8v6d06rkr" path="res://src/world/world.gd" id="1_world_gd"]
 [ext_resource type="Script" uid="uid://cpmysducn2a6y" path="res://src/world/forest_builder.gd" id="2_forest_builder_gd"]
+[ext_resource type="Script" path="res://src/lighting/lighting_director.gd" id="3_lighting_director"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_w1"]
 sky_top_color = Color(0.384314, 0.545098, 0.85098, 1)
@@ -33,14 +34,17 @@ script = ExtResource("1_world_gd")
 environment = SubResource("Environment_w3")
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=746118024]
-transform = Transform3D(0.707107, -0.5, 0.5, 0, 0.707107, 0.707107, -0.707107, -0.5, 0.5, 0, 10, 0)
-light_color = Color(1, 0.960784, 0.862745, 1)
+transform = Transform3D(-0.3528887, -0.60526216, 0.71353155, -0.005147865, 0.7638371, 0.64538854, -0.9356511, 0.22407715, -0.2726653, 0, 10.837602, -4.015602)
+light_color = Color(0.99513334, 0.9612718, 0.87473345, 1)
 light_energy = 1.25
 light_angular_distance = 0.5
 shadow_enabled = true
 shadow_bias = 0.03
 shadow_normal_bias = 1.5
 shadow_blur = 1.5
+
+[node name="LightingDirector" type="Node3D" parent="."]
+script = ExtResource("3_lighting_director")
 
 [node name="SpawnPoint" type="Marker3D" parent="." unique_id=12824431]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)

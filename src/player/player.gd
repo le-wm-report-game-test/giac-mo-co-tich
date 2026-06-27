@@ -19,8 +19,11 @@ enum AnimState { IDLE, WALK, ATTACK, HURT, DEATH }
 enum MoveDir { DOWN, UP, RIGHT, LEFT, DOWN_RIGHT, DOWN_LEFT, UP_RIGHT, UP_LEFT }
 
 const MOVEMENT_IDLE_FRAMES := 3
-const MOVEMENT_WALK_FRAMES := 4
+const MOVEMENT_WALK_FRAMES := 8
 const MOVEMENT_FRAME_DIR := "res://Assets/player/thach_sanh/movement_frames"
+const WORLD_RENDER_MASK: int = 1
+const COMBAT_ACTOR_RENDER_MASK: int = 2
+const PLAYER_ACCENT_RENDER_MASK: int = 4
 const MOVE_DIR_NAMES := {
 	MoveDir.DOWN: "down",
 	MoveDir.UP: "up",
@@ -53,9 +56,12 @@ var invulnerable_duration: float = 0.5
 var _texture_cache: Dictionary = {}
 var _last_footprint_pos: Vector3 = Vector3.ZERO
 var _footprint_left_side: bool = false
+var dust_particles: CPUParticles3D = null
+var _sprite_feet_offsets: Dictionary = {}
 
 @onready var health_component: HealthComponent = $HealthComponent
 @onready var sprite: Sprite3D = $Visuals/Sprite3D
+@onready var attack_effect: Sprite3D = $Visuals/AttackEffect
 @onready var hitbox_area: Area3D = $HitboxArea
 @onready var hitbox_shape: CollisionShape3D = $HitboxArea/HitboxShape
 
@@ -75,8 +81,20 @@ func _ready() -> void:
 	sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
 	sprite.alpha_scissor_threshold = 0.12
 	sprite.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	sprite.layers = WORLD_RENDER_MASK | COMBAT_ACTOR_RENDER_MASK | PLAYER_ACCENT_RENDER_MASK
 	sprite.pixel_size = 0.0086  # Scale sprite to ~1.9m height (221px sprite * 0.0086 = 1.9m)
-	sprite.position.z = 0.25  # Shift forward to prevent clipping on slopes/stairs
+	sprite.position.z = 0.0  # Set to 0.0 to keep shadow aligned with character feet
+	
+	if attack_effect:
+		attack_effect.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		attack_effect.billboard = StandardMaterial3D.BILLBOARD_FIXED_Y
+		attack_effect.shaded = true
+		attack_effect.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+		attack_effect.alpha_scissor_threshold = 0.12
+		attack_effect.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		attack_effect.layers = WORLD_RENDER_MASK | COMBAT_ACTOR_RENDER_MASK | PLAYER_ACCENT_RENDER_MASK
+		attack_effect.position.z = 0.01  # Slightly in front of the player sprite to prevent z-fighting
+		attack_effect.visible = false
 	
 	# Setup collision (CapsuleShape3D for 1.8m human)
 	$CollisionShape3D.shape.height = 1.6
@@ -86,6 +104,52 @@ func _ready() -> void:
 	hitbox_area.monitoring = false
 	hitbox_area.area_entered.connect(_on_hitbox_area_entered)
 	_configure_attack_hitbox()
+	
+	# Initialize movement dust particles
+	dust_particles = CPUParticles3D.new()
+	dust_particles.name = "DustParticles"
+	
+	# Mesh: Small retro cube
+	var d_mesh := BoxMesh.new()
+	d_mesh.size = Vector3(0.04, 0.04, 0.04)
+	
+	var d_mat := StandardMaterial3D.new()
+	d_mat.shading_mode = StandardMaterial3D.SHADING_MODE_UNSHADED
+	d_mat.vertex_color_use_as_albedo = true
+	d_mesh.material = d_mat
+	
+	dust_particles.mesh = d_mesh
+	dust_particles.amount = 16
+	dust_particles.lifetime = 0.8
+	dust_particles.local_coords = false # trail stays stationary in world space
+	
+	# Light upward and backward drift
+	dust_particles.direction = Vector3.UP
+	dust_particles.spread = 30.0
+	dust_particles.gravity = Vector3(0, 0.15, 0)
+	dust_particles.initial_velocity_min = 0.3
+	dust_particles.initial_velocity_max = 0.6
+	
+	# Color gradient: Soft grey-beige fading to transparent
+	var d_gradient := Gradient.new()
+	d_gradient.offsets = PackedFloat32Array([0.0, 0.7, 1.0])
+	d_gradient.colors = PackedColorArray([
+		Color("#D9CBBC", 0.5), # Soft grey-beige
+		Color("#CFC0AF", 0.3), # Fading grey-beige
+		Color(0.85, 0.78, 0.72, 0.0) # Transparent
+	])
+	dust_particles.color_ramp = d_gradient
+	
+	# Scale curve: Shrink dust as it fades
+	var d_curve := Curve.new()
+	d_curve.add_point(Vector2(0.0, 1.0))
+	d_curve.add_point(Vector2(1.0, 0.0))
+	dust_particles.scale_amount_curve = d_curve
+	
+	# Setup position at feet and add to scene
+	dust_particles.position = Vector3(0.0, 0.02, 0.0)
+	dust_particles.emitting = false
+	add_child(dust_particles)
 	
 	_update_sprite()
 
@@ -231,6 +295,44 @@ func _physics_process(delta: float) -> void:
 	global_position.x = clampf(global_position.x, -48.0, 48.0)
 	global_position.z = clampf(global_position.z, -48.0, 48.0)
 	
+	# Snap visuals to actual physics collision ground height to prevent floating/shadow gaps
+	var visuals_node := get_node_or_null("Visuals") as Node3D
+	if visuals_node and is_inside_tree():
+		var space_state := get_world_3d().direct_space_state
+		var query := PhysicsRayQueryParameters3D.create(
+			global_position + Vector3(0.0, 1.0, 0.0),
+			global_position + Vector3(0.0, -1.0, 0.0),
+			1 # Collide with ground layer
+		)
+		var result := space_state.intersect_ray(query)
+		if result:
+			var base_y = result.position.y
+			var offset_y = 0.0
+			var forest := get_parent().get_node_or_null("Forest")
+			if forest and forest.has_method("_get_zone"):
+				var zone = forest._get_zone(global_position.x, global_position.z)
+				var is_path = (zone == 2) # Zone.PATH is 2
+				if not is_path:
+					offset_y = 0.2
+			visuals_node.global_position.y = base_y + offset_y
+		else:
+			# Fallback: check forest heightmap if raycast misses, adding visual offsets
+			var forest := get_parent().get_node_or_null("Forest")
+			if forest and forest.has_method("_get_hill_height"):
+				var height_offset: float = forest._get_hill_height(global_position.x, global_position.z)
+				var zone = forest._get_zone(global_position.x, global_position.z) if forest.has_method("_get_zone") else 0
+				# 2 corresponds to Zone.PATH. All other zones are grass-based (offset +0.2m)
+				var base_h := 0.0 if zone == 2 else 0.2
+				visuals_node.global_position.y = height_offset + base_h
+			else:
+				visuals_node.position.y = 0.0
+	elif visuals_node:
+		visuals_node.position.y = 0.0
+			
+	# Update dust particle emission based on movement state
+	if is_instance_valid(dust_particles):
+		dust_particles.emitting = (anim_state == AnimState.WALK)
+	
 	_process_animation(delta)
 	_handle_footprints(delta)
 
@@ -247,7 +349,11 @@ func _handle_footprints(_delta: float) -> void:
 	var offset_side := 0.12 if _footprint_left_side else -0.12
 	_footprint_left_side = not _footprint_left_side
 	var fp_pos := global_position + right_dir * offset_side
-	fp_pos.y = global_position.y + 0.02
+	var visuals_node := get_node_or_null("Visuals") as Node3D
+	if visuals_node:
+		fp_pos.y = visuals_node.global_position.y + 0.02
+	else:
+		fp_pos.y = global_position.y + 0.02
 	fp.global_position = fp_pos
 	_last_footprint_pos = global_position
 
@@ -329,9 +435,9 @@ func _process_animation(delta: float) -> void:
 		anim_frame += 1
 		_check_animation_end()
 	
-	# Enable hitbox during specific attack frame
+	# Enable hitbox during specific attack frame (frame index 2 is the strike point in 4-frame animation)
 	if anim_state == AnimState.ATTACK:
-		hitbox_area.monitoring = (anim_frame == 3)
+		hitbox_area.monitoring = (anim_frame == 2)
 	
 	_update_sprite()
 
@@ -346,7 +452,7 @@ func _check_animation_end() -> void:
 			if anim_frame >= max_frames:
 				anim_frame = 0
 		AnimState.ATTACK:
-			var max_frames := 5
+			var max_frames := 4
 			if anim_frame >= max_frames:
 				is_attacking = false
 				anim_state = AnimState.IDLE
@@ -354,93 +460,126 @@ func _check_animation_end() -> void:
 				attack_cooldown = 0.3
 				hitbox_area.monitoring = false
 		AnimState.HURT:
-			var max_frames := 3
+			var max_frames := 4
 			if anim_frame >= max_frames:
 				anim_state = AnimState.IDLE
 				anim_frame = 0
 		AnimState.DEATH:
-			var max_frames := 3
+			var max_frames := 4
 			if anim_frame >= max_frames:
 				set_physics_process(false)
 
 func _update_sprite() -> void:
-	if anim_state == AnimState.IDLE or anim_state == AnimState.WALK:
-		_update_movement_sprite()
-		return
-
-	var prefix := "thach_sanh_idle"
-	var frame := anim_frame
+	var frame_count := 1
+	var anim_name := "idle"
 	
 	match anim_state:
 		AnimState.IDLE:
-			prefix = "thach_sanh_idle"
-			frame = clampi(anim_frame, 0, 2)
+			frame_count = 3
+			anim_name = "idle"
 		AnimState.WALK:
-			prefix = "thach_sanh_walk"
-			frame = clampi(anim_frame, 0, 7)
+			frame_count = 8
+			anim_name = "walk"
 		AnimState.ATTACK:
-			prefix = "thach_sanh_attack"
-			frame = clampi(anim_frame, 0, 4)
+			frame_count = 4
+			anim_name = "attack"
 		AnimState.HURT:
-			prefix = "thach_sanh_hurt"
-			frame = clampi(anim_frame, 0, 2)
+			frame_count = 4
+			anim_name = "hurt"
 		AnimState.DEATH:
-			prefix = "thach_sanh_death"
-			frame = clampi(anim_frame, 0, 2)
-	
-	var path := "res://Assets/player/thach_sanh/%s.png" % prefix
-	if not _texture_cache.has(path):
-		if ResourceLoader.exists(path):
-			_texture_cache[path] = load(path) as Texture2D
-		else:
-			_texture_cache[path] = null
-			
-	var tex: Texture2D = _texture_cache[path]
-	if tex:
-		# Calculate region for the specific frame
-		var frame_w := tex.get_width() / _get_total_frames(prefix)
-		var frame_h := tex.get_height()
-		sprite.texture = tex
-		sprite.region_enabled = true
-		sprite.region_rect = Rect2(frame * frame_w, 0, frame_w, frame_h)
-		sprite.flip_h = not facing_right
-		sprite.pixel_size = target_sprite_height / frame_h
-		# Dynamically adjust Y position so the bottom of the sprite always sits on the floor
-		sprite.position.y = (frame_h * sprite.pixel_size) / 2.0
-		_update_attack_hitbox_position()
+			frame_count = 4
+			anim_name = "death"
 
-func _update_movement_sprite() -> void:
-	var frame_count := MOVEMENT_IDLE_FRAMES if anim_state == AnimState.IDLE else MOVEMENT_WALK_FRAMES
 	var clamped_frame := clampi(anim_frame, 0, frame_count - 1)
-	var anim_name := "idle" if anim_state == AnimState.IDLE else "walk"
 	var dir_name: String = MOVE_DIR_NAMES.get(move_direction, "down")
 	var tex_path := "%s/%s_%s_%d.png" % [MOVEMENT_FRAME_DIR, dir_name, anim_name, clamped_frame]
+	
 	if not _texture_cache.has(tex_path):
 		if ResourceLoader.exists(tex_path):
-			_texture_cache[tex_path] = load(tex_path) as Texture2D
+			var loaded_tex := load(tex_path) as Texture2D
+			_texture_cache[tex_path] = loaded_tex
+			if loaded_tex:
+				var img := loaded_tex.get_image()
+				if img:
+					var rect := img.get_used_rect()
+					var fh := loaded_tex.get_height()
+					_sprite_feet_offsets[loaded_tex] = (rect.position.y + rect.size.y) - (fh / 2.0)
+				else:
+					_sprite_feet_offsets[loaded_tex] = 0.0
 		else:
 			_texture_cache[tex_path] = null
 
 	var tex: Texture2D = _texture_cache[tex_path]
+	if tex == null:
+		# Fallback to down direction if specific direction is missing
+		var fallback_path := "%s/down_%s_%d.png" % [MOVEMENT_FRAME_DIR, anim_name, clamped_frame]
+		if not _texture_cache.has(fallback_path):
+			if ResourceLoader.exists(fallback_path):
+				var loaded_tex := load(fallback_path) as Texture2D
+				_texture_cache[fallback_path] = loaded_tex
+				if loaded_tex:
+					var img := loaded_tex.get_image()
+					if img:
+						var rect := img.get_used_rect()
+						var fh := loaded_tex.get_height()
+						_sprite_feet_offsets[loaded_tex] = (rect.position.y + rect.size.y) - (fh / 2.0)
+					else:
+						_sprite_feet_offsets[loaded_tex] = 0.0
+			else:
+				_texture_cache[fallback_path] = null
+		tex = _texture_cache[fallback_path]
+
 	if tex == null:
 		return
 
 	sprite.texture = tex
 	sprite.region_enabled = false
 	sprite.flip_h = false
+	
 	var frame_h := tex.get_height()
 	sprite.pixel_size = target_sprite_height / frame_h
-	sprite.position.y = (frame_h * sprite.pixel_size) / 2.0
+	
+	# Position the player's actual feet exactly on the floor by checking the bottom-most active pixel
+	var feet_offset_px: float = 0.0
+	if _sprite_feet_offsets.has(tex):
+		feet_offset_px = _sprite_feet_offsets[tex]
+	else:
+		var img := tex.get_image()
+		if img:
+			var rect := img.get_used_rect()
+			feet_offset_px = (rect.position.y + rect.size.y) - (frame_h / 2.0)
+			_sprite_feet_offsets[tex] = feet_offset_px
+		else:
+			_sprite_feet_offsets[tex] = 0.0
+			
+	sprite.position.y = feet_offset_px * sprite.pixel_size
+	
+	# Update attack effect visibility and texture
+	if attack_effect:
+		if anim_state == AnimState.ATTACK and (clamped_frame == 2 or clamped_frame == 3):
+			var effect_frame := clamped_frame - 2  # frame 2 -> effect 0, frame 3 -> effect 1
+			var eff_path := "%s/%s_effect_%d.png" % [MOVEMENT_FRAME_DIR, dir_name, effect_frame]
+			if not _texture_cache.has(eff_path):
+				if ResourceLoader.exists(eff_path):
+					_texture_cache[eff_path] = load(eff_path) as Texture2D
+				else:
+					_texture_cache[eff_path] = null
+			
+			var eff_tex: Texture2D = _texture_cache[eff_path]
+			if eff_tex:
+				attack_effect.texture = eff_tex
+				attack_effect.region_enabled = false
+				attack_effect.flip_h = false
+				var eff_h := eff_tex.get_height()
+				attack_effect.pixel_size = target_sprite_height / eff_h
+				attack_effect.position.y = sprite.position.y # align with player height
+				attack_effect.visible = true
+			else:
+				attack_effect.visible = false
+		else:
+			attack_effect.visible = false
+			
 	_update_attack_hitbox_position()
-
-func _get_total_frames(prefix: String) -> int:
-	match prefix:
-		"thach_sanh_idle": return 3
-		"thach_sanh_walk": return 8
-		"thach_sanh_attack": return 5
-		"thach_sanh_hurt": return 3
-		"thach_sanh_death": return 3
-	return 1
 
 func _on_hitbox_area_entered(area: Area3D) -> void:
 	if area is HurtboxComponent:

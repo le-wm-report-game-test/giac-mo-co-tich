@@ -26,6 +26,31 @@ func test_clear_to_rain() -> void:
 	assert_not_null(wm.rain_particles, "Rain particles node should be spawned")
 	assert_true(wm.rain_particles.emitting, "Rain particles should be emitting")
 	assert_eq(wm.rain_cycle_count, 1, "Rain cycle count should increment to 1")
+	var process_material := wm.rain_particles.process_material as ParticleProcessMaterial
+	assert_not_null(process_material, "Rain must use a particle process material")
+	assert_eq(process_material.emission_shape, ParticleProcessMaterial.EMISSION_SHAPE_BOX, "Rain should emit across a volume, not from one point")
+	assert_false(wm.rain_particles.local_coords, "Existing drops should remain in world space while the emitter follows the camera")
+
+func test_rain_volume_follows_and_covers_camera() -> void:
+	var wm := world_instance.get_node_or_null("WorldManager") as WorldManager
+	var camera_rig := tree.get_first_node_in_group("camera") as GameCamera
+	assert_not_null(wm, "WorldManager should exist")
+	assert_not_null(camera_rig, "GameCamera should exist")
+
+	wm._start_rain()
+	camera_rig.set_process(false)
+	camera_rig.global_position = Vector3(17.0, 2.0, -13.0)
+	camera_rig.camera.size = 25.0
+	wm._update_rain_coverage()
+
+	assert_almost_eq(wm.rain_particles.global_position.x, 17.0, 0.01, "Rain emitter should follow camera X")
+	assert_almost_eq(wm.rain_particles.global_position.z, -13.0, 0.01, "Rain emitter should follow camera Z")
+	var process_material := wm.rain_particles.process_material as ParticleProcessMaterial
+	var viewport_size := wm.get_viewport().get_visible_rect().size
+	var aspect_ratio := viewport_size.x / maxf(viewport_size.y, 1.0)
+	assert_true(process_material.emission_box_extents.x >= camera_rig.camera.size * aspect_ratio * 0.5, "Rain width should cover the zoomed viewport")
+	assert_true(wm.rain_particles.visibility_aabb.size.x > process_material.emission_box_extents.x * 2.0, "Rain culling bounds should contain the full emission volume")
+	assert_true(wm.rain_particles.visibility_aabb.size.z > process_material.emission_box_extents.z * 2.0, "Rain culling bounds should contain falling streaks at screen depth")
 
 func test_rain_to_clear() -> void:
 	var wm := world_instance.get_node_or_null("WorldManager") as WorldManager

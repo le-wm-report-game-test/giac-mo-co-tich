@@ -80,6 +80,9 @@ func test_player_damage_number_spawn() -> void:
 	assert_not_null(damage_label, "Damage label reference must be valid")
 	assert_eq(damage_label.text, "15", "Damage number text should match damage amount")
 	assert_eq(damage_label.z_index, 100, "Damage label z_index must be 100")
+	assert_true(damage_label is DamagePopup, "Damage label should use the reusable DamagePopup component")
+	assert_true(damage_label.get_theme_font_size("font_size") >= 44, "Damage font must be large enough to read during combat")
+	assert_true(damage_label.get_theme_constant("outline_size") >= 7, "Damage number needs a strong outline on forest backgrounds")
 
 func test_enemy_damage_number_spawn() -> void:
 	# Hiển thị số sát thương (trắng hoặc vàng crit) khi Enemy bị đánh
@@ -113,3 +116,28 @@ func test_enemy_damage_number_spawn() -> void:
 	
 	dummy_enemy.queue_free()
 	await tree.process_frame
+
+func test_critical_damage_number_has_impact_hierarchy() -> void:
+	# Critical hit phải có số lớn và nhãn nhấn mạnh riêng, không giả lập True Damage.
+	var world_manager: Node = world_instance.get_node_or_null("WorldManager")
+	var ui: CanvasLayer = world_manager.get_node_or_null("UI")
+
+	world_manager.call("_spawn_damage_number", 120.0, Vector3.ZERO, DamagePopup.Kind.CRITICAL)
+	await tree.process_frame
+
+	var popup: DamagePopup = null
+	for child in ui.get_children():
+		if child is DamagePopup and child.popup_kind == DamagePopup.Kind.CRITICAL:
+			popup = child as DamagePopup
+			break
+
+	assert_not_null(popup, "Critical damage should spawn a DamagePopup")
+	if popup == null:
+		return
+
+	assert_eq(popup.text, "120", "Critical popup should keep the numeric value separate from its tag")
+	assert_true(popup.get_theme_font_size("font_size") >= 60, "Critical damage must dominate the visual hierarchy")
+	assert_true(popup.get_theme_constant("outline_size") >= 10, "Critical damage needs a stronger outline")
+	var impact_tag := popup.get_node_or_null("ImpactTag") as Label
+	assert_not_null(impact_tag, "Critical damage must include an impact tag")
+	assert_eq(impact_tag.text, "CRITICAL!", "Critical tag must describe the actual combat event")

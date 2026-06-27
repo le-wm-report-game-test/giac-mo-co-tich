@@ -114,8 +114,8 @@ const HILL_ZONES: Array = [
 ]
 
 # ─── Materials ─────────────────────────────────────────────────────────────
-var _mat_grass: StandardMaterial3D
-var _mat_dirt: StandardMaterial3D
+var _mat_grass: ShaderMaterial
+var _mat_dirt: ShaderMaterial
 var _mat_tree: StandardMaterial3D
 
 var _rng: RandomNumberGenerator
@@ -139,17 +139,26 @@ func _ready() -> void:
 
 # ─── Materials Setup ────────────────────────────────────────────────────────
 func _setup_materials() -> void:
-	_mat_grass = StandardMaterial3D.new()
-	_mat_grass.albedo_color = Color(0.22, 0.55, 0.20)
-	_mat_grass.roughness = 0.9
-
-	_mat_dirt = StandardMaterial3D.new()
-	_mat_dirt.albedo_color = Color(0.60, 0.50, 0.35)
-	_mat_dirt.roughness = 1.0
+	_mat_grass = _create_ground_material(Color("#385637"), Color("#668455"), 0.92, 0.2)
+	_mat_dirt = _create_ground_material(Color("#6E543A"), Color("#A0774D"), 0.88, 0.18)
 
 	_mat_tree = StandardMaterial3D.new()
-	_mat_tree.albedo_color = Color(0.25, 0.50, 0.20)
+	_mat_tree.albedo_color = Color("#294A28")
 	_mat_tree.roughness = 0.85
+
+func _create_ground_material(
+	base_color: Color,
+	variation_color: Color,
+	roughness: float,
+	variation_strength: float
+) -> ShaderMaterial:
+	var material := ShaderMaterial.new()
+	material.shader = preload("res://src/world/ground_surface.gdshader")
+	material.set_shader_parameter("base_color", base_color)
+	material.set_shader_parameter("variation_color", variation_color)
+	material.set_shader_parameter("surface_roughness", roughness)
+	material.set_shader_parameter("variation_strength", variation_strength)
+	return material
 
 
 # ─── Ground Floor (MultiMesh cỏ phẳng + đường mòn) ─────────────────────────
@@ -202,7 +211,7 @@ func _build_under_floor() -> void:
 	
 	var mat := StandardMaterial3D.new()
 	# Màu xanh cỏ đậm hoặc đất tối để khi hở khe nhìn tự nhiên như đổ bóng
-	mat.albedo_color = Color(0.12, 0.18, 0.12)
+	mat.albedo_color = Color("#17251C")
 	mat.roughness = 1.0
 	mi.material_override = mat
 	
@@ -623,7 +632,7 @@ func _get_hill_height(x: float, z: float) -> float:
 func _spawn_multimesh(
 	mesh: Mesh,
 	transforms: Array[Transform3D],
-	mat: StandardMaterial3D,
+	mat: Material,
 	node_name: String
 ) -> void:
 	var multimesh := MultiMesh.new()

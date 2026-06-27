@@ -3,8 +3,8 @@ class_name GameCamera
 extends Node3D
 
 @export var target_position: Vector3 = Vector3.ZERO
-@export var camera_offset: Vector3 = Vector3(0.0, 18.0, 18.0)
-@export var camera_rotate: Vector3 = Vector3(-45.0, 0.0, 0.0)
+@export var camera_offset: Vector3 = Vector3(10.32, 18.0, 14.74)
+@export var camera_rotate: Vector3 = Vector3(-45.0, 35.0, 0.0)
 @export var follow_speed: float = 8.0
 @export var map_limit: float = 50.0
 
@@ -48,23 +48,33 @@ func _process(delta: float) -> void:
 		if viewport_size.y > 0.0:
 			aspect_ratio = viewport_size.x / viewport_size.y
 
-		# Vertical half span of orthogonal camera is size / 2.
-		# Since the camera is rotated downward by camera_rotate.x, the projection on Z-axis is divided by sin(angle)
+		# Dynamic viewport boundary clamping accounting for camera Y-rotation (yaw)
 		var angle_rad := deg_to_rad(abs(camera_rotate.x))
-		var half_depth := camera.size / (2.0 * sin(angle_rad)) if sin(angle_rad) > 0.0 else camera.size / 2.0
+		var span_depth := camera.size / sin(angle_rad) if sin(angle_rad) > 0.0 else camera.size
+		var span_width := camera.size * aspect_ratio
 		
-		# Horizontal half span is (size * aspect_ratio) / 2
-		var half_width := (camera.size * aspect_ratio) / 2.0
+		# Get projected unit vectors for camera's local X (right) and Z (forward) directions
+		var yaw_rad := deg_to_rad(camera_rotate.y)
+		var cam_right_proj := Vector3(cos(yaw_rad), 0.0, -sin(yaw_rad)).normalized()
+		var cam_forward_proj := Vector3(sin(yaw_rad), 0.0, cos(yaw_rad)).normalized()
+		
+		# Half vectors of the viewport footprint on the ground
+		var vec_w := cam_right_proj * (span_width / 2.0)
+		var vec_d := cam_forward_proj * (span_depth / 2.0)
+		
+		# Bounding extension of the rotated viewport rectangle along global axes
+		var max_x := absf(vec_w.x) + absf(vec_d.x)
+		var max_z := absf(vec_w.z) + absf(vec_d.z)
 
 		# Calculate clamp range
-		var x_min := -map_limit + half_width
-		var x_max := map_limit - half_width
+		var x_min := -map_limit + max_x
+		var x_max := map_limit - max_x
 		if x_min > x_max:
 			x_min = 0.0
 			x_max = 0.0
 
-		var z_min := -map_limit + half_depth
-		var z_max := map_limit - half_depth
+		var z_min := -map_limit + max_z
+		var z_max := map_limit - max_z
 		if z_min > z_max:
 			z_min = 0.0
 			z_max = 0.0

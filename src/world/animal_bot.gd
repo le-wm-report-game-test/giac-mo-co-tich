@@ -40,7 +40,7 @@ func _ready() -> void:
 	sprite.billboard = StandardMaterial3D.BILLBOARD_FIXED_Y
 	sprite.shaded = true # Rất quan trọng: Giúp sprite 2D nhận ánh sáng/bóng đổ 3D thật hơn
 	sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST # Pixel art sắc nét, không bị nhòe
-	sprite.position.z = 0.15 # Đẩy nhẹ về phía trước để tránh clipping trên dốc
+	sprite.position.z = 0.0 # Set to 0.0 to keep shadow aligned with feet
 	add_child(sprite)
 	
 	# Định vị trí Y của sprite dựa theo kích thước loài vật để chân chạm đất phẳng
@@ -177,3 +177,25 @@ func _update_sprite_texture() -> void:
 	var tex: Texture2D = _texture_cache[path]
 	if tex:
 		sprite.texture = tex
+	_update_sprite_height()
+
+func _get_base_sprite_y() -> float:
+	match animal_type:
+		AnimalType.CAT: return 0.32
+		AnimalType.DOG: return 0.16
+		AnimalType.RABBIT: return 0.34
+		AnimalType.PARROT: return 0.32
+	return 0.0
+
+func _update_sprite_height() -> void:
+	if sprite == null:
+		return
+	var base_y = _get_base_sprite_y()
+	var offset_y = 0.0
+	var forest = get_parent().get_node_or_null("Forest")
+	if forest and forest.has_method("_get_zone"):
+		var zone = forest._get_zone(global_position.x, global_position.z)
+		var is_path = (zone == 2) # Zone.PATH is 2
+		if not is_path:
+			offset_y = 0.2
+	sprite.position.y = base_y + offset_y

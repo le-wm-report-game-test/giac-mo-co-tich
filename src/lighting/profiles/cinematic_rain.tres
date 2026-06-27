@@ -1,0 +1,31 @@
+[gd_resource type="Resource" script_class="LightingProfile" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/lighting/lighting_profile.gd" id="1_profile"]
+
+[resource]
+script = ExtResource("1_profile")
+profile_name = &"rain"
+transition_seconds = 2.5
+sun_color = Color(0.49, 0.65, 0.69, 1)
+sun_energy = 0.52
+sun_rotation_degrees = Vector3(-55, -135, 0)
+sun_volumetric_energy = 0.42
+ambient_color = Color(0.29, 0.43, 0.5, 1)
+ambient_energy = 0.24
+fog_density = 0.016
+fog_albedo = Color(0.34, 0.53, 0.6, 1)
+fog_emission = Color(0.025, 0.065, 0.08, 1)
+fog_emission_energy = 0.025
+sky_top_color = Color(0.04, 0.11, 0.15, 1)
+sky_horizon_color = Color(0.24, 0.4, 0.46, 1)
+ground_bottom_color = Color(0.02, 0.04, 0.035, 1)
+ground_horizon_color = Color(0.09, 0.2, 0.2, 1)
+exposure = 0.9
+contrast = 1.06
+saturation = 0.74
+actor_fill_color = Color(0.58, 0.72, 0.72, 1)
+actor_fill_energy = 0.5
+player_accent_color = Color(0.88, 0.77, 0.57, 1)
+player_accent_energy = 0.24
+navigation_accent_color = Color(0.9, 0.52, 0.25, 1)
+navigation_accent_energy = 1.2

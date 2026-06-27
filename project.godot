@@ -29,6 +29,10 @@ window/stretch/mode="canvas_items"
 
 import/blender/enabled=false
 
+[gui]
+
+theme/custom_font="res://Assets/UI/Fonts/Anton/Anton-Regular.ttf"
+
 [physics]
 
 3d/physics_engine="Jolt Physics"

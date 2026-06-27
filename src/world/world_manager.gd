@@ -18,6 +18,11 @@ var rain_particles: GPUParticles3D = null
 var lightning_timer: float = 0.0
 var is_raining: bool = false
 
+const RAIN_PARTICLE_AMOUNT: int = 800
+const RAIN_EMITTER_HEIGHT: float = 20.0
+const RAIN_COVERAGE_MARGIN: float = 4.0
+const RAIN_DEPTH_MARGIN: float = 9.0
+
 # ─── HUD References ──────────────────────────────────────────────────────────
 var player_health_bar: Node = null
 var boss_health_bar: Node = null
@@ -63,6 +68,7 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	_update_weather(delta)
+	_update_rain_coverage()
 	_update_tree_fade()
 	_update_tree_camera_clip()
 	_update_camera_magnet(delta)
@@ -76,6 +82,9 @@ func _on_enemy_died(enemy: Node3D) -> void:
 	if enemy.is_in_group("boss"):
 		_hide_boss_health_bar()
 		boss_instance = null
+		var lighting := get_tree().get_first_node_in_group("lighting_director") as LightingDirector
+		if lighting != null:
+			lighting.clear_active_objective()
 		return
 
 	if enemy.is_in_group("orc_mobs") and not enemy.is_in_group("boss"):
@@ -97,7 +106,7 @@ func _spawn_boss() -> void:
 	boss.add_to_group("orc_mobs")
 	
 	# Script will be added via set_script
-	var boss_script := preload("res://src/world/orc_mob.gd")
+	var boss_script := preload("res://src/world/chan_tinh_mob.gd")
 	boss.set_script(boss_script)
 	
 	# Position boss at boss arena center
@@ -133,6 +142,9 @@ func _spawn_boss() -> void:
 	_activate_camera_magnet(Vector3(-15.0, 0.0, -15.0), 25.0, 8.0)
 	
 	EventBus.boss_spawned.emit(boss)
+	var lighting := get_tree().get_first_node_in_group("lighting_director") as LightingDirector
+	if lighting != null:
+		lighting.set_active_objective(boss.global_position)
 
 # ══════════════════════════════════════════════════════════════════════════════
 # WEATHER SYSTEM
@@ -172,8 +184,6 @@ func _start_rain() -> void:
 	
 	EventBus.weather_changed.emit(weather_state)
 	_create_rain_particles()
-	_apply_ambient_darkening(0.6)
-	_update_weather_lighting(true)
 	
 	var audio := get_node_or_null("/root/World/AudioManager") as AudioManager
 	if audio:
@@ -185,17 +195,16 @@ func _end_rain() -> void:
 	weather_timer = 300.0
 	
 	if rain_particles:
-		rain_particles.emitting = false
+		var particles_to_release := rain_particles
+		rain_particles = null
+		particles_to_release.emitting = false
 		var tween := create_tween()
 		tween.tween_interval(2.0)
-		tween.tween_callback(func(): 
-			if rain_particles:
-				rain_particles.queue_free()
-				rain_particles = null
+		tween.tween_callback(func():
+			if is_instance_valid(particles_to_release):
+				particles_to_release.queue_free()
 		)
 	
-	_apply_ambient_darkening(1.0)
-	_update_weather_lighting(false)
 	print("Rain ended...")
 	EventBus.weather_changed.emit("clear")
 	
@@ -205,38 +214,87 @@ func _end_rain() -> void:
 
 func _create_rain_particles() -> void:
 	if rain_particles:
-		rain_particles.emitting = false
-		rain_particles.queue_free()
+		var stale_particles := rain_particles
+		rain_particles = null
+		stale_particles.emitting = false
+		stale_particles.queue_free()
 	
 	rain_particles = GPUParticles3D.new()
 	rain_particles.name = "RainParticles"
 	rain_particles.emitting = true
-	rain_particles.amount = 1000
-	rain_particles.lifetime = 2.0
+	rain_particles.amount = RAIN_PARTICLE_AMOUNT
+	rain_particles.lifetime = 1.2
 	rain_particles.one_shot = false
-	rain_particles.preprocess = 1.0
-	rain_particles.position = Vector3(0, 20, 0)
+	rain_particles.preprocess = 1.2
+	rain_particles.local_coords = false
+	rain_particles.fixed_fps = 30
+	rain_particles.interpolate = true
+	rain_particles.fract_delta = true
+	rain_particles.draw_order = GPUParticles3D.DRAW_ORDER_LIFETIME
 	
 	var material := ParticleProcessMaterial.new()
-	material.gravity = Vector3(0, -30, 5)
-	material.initial_velocity_min = 20.0
-	material.initial_velocity_max = 30.0
+	material.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+	material.emission_box_extents = Vector3(18.0, 1.5, 20.0)
+	material.gravity = Vector3(-5.0, -22.0, 2.0)
+	material.initial_velocity_min = 14.0
+	material.initial_velocity_max = 20.0
 	material.angle_min = 0.0
 	material.angle_max = 0.0
-	material.scale_min = 0.5
-	material.scale_max = 1.0
-	material.color = Color(0.7, 0.8, 1.0, 0.4)
+	material.scale_min = 0.8
+	material.scale_max = 1.15
+	material.color = Color(0.66, 0.78, 1.0, 0.52)
 	material.direction = Vector3.DOWN
-	material.spread = 15.0
+	material.spread = 4.0
 	
 	var quad := QuadMesh.new()
-	quad.size = Vector2(0.05, 0.3)
+	quad.size = Vector2(0.032, 0.45)
+	var streak_material := StandardMaterial3D.new()
+	streak_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	streak_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	streak_material.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	streak_material.vertex_color_use_as_albedo = true
+	streak_material.no_depth_test = true
+	quad.material = streak_material
 	
 	rain_particles.draw_pass_1 = quad
 	rain_particles.process_material = material
 	rain_particles.sorting_offset = 0
 	
 	get_parent().add_child(rain_particles)
+	_update_rain_coverage()
+
+func _update_rain_coverage() -> void:
+	if not is_instance_valid(rain_particles) or not rain_particles.emitting:
+		return
+	var camera := get_viewport().get_camera_3d()
+	var camera_rig := get_tree().get_first_node_in_group("camera") as GameCamera
+	if not camera or not camera_rig:
+		return
+
+	# Vùng phát bám tâm gameplay thay vì tọa độ map cố định, nên camera đi đâu cũng có mưa.
+	var anchor := camera_rig.global_position
+	rain_particles.global_position = Vector3(anchor.x, anchor.y + RAIN_EMITTER_HEIGHT, anchor.z)
+
+	var viewport_size := get_viewport().get_visible_rect().size
+	var aspect_ratio := viewport_size.x / maxf(viewport_size.y, 1.0)
+	var vertical_span := camera.size if camera.projection == Camera3D.PROJECTION_ORTHOGONAL else 18.0
+	var camera_tilt_sine := maxf(sin(absf(camera.global_rotation.x)), 0.35)
+	var half_width := vertical_span * aspect_ratio * 0.5 + RAIN_COVERAGE_MARGIN
+	var half_depth := vertical_span / (2.0 * camera_tilt_sine) + RAIN_DEPTH_MARGIN
+	var emission_extents := Vector3(half_width, 1.5, half_depth)
+
+	var process_material := rain_particles.process_material as ParticleProcessMaterial
+	if process_material:
+		process_material.emission_box_extents = emission_extents
+
+	# GPUParticles dùng AABB này để culling; phải chứa cả vùng phát và quãng rơi của hạt.
+	var cull_margin := Vector3(2.0, 8.0, 2.0)
+	var cull_extents := Vector3(
+		emission_extents.x + cull_margin.x,
+		RAIN_EMITTER_HEIGHT + cull_margin.y,
+		emission_extents.z + cull_margin.z
+	)
+	rain_particles.visibility_aabb = AABB(-cull_extents, cull_extents * 2.0)
 
 func _strike_lightning() -> void:
 	print("⚡ LIGHTNING STRIKE!")
@@ -285,105 +343,22 @@ func immediate_mesh_create_lightning(from: Vector3, to: Vector3) -> Mesh:
 	cylinder.height = from.distance_to(to)
 	return cylinder
 
-func _apply_ambient_darkening(factor: float) -> void:
-	var world_env := get_node_or_null("/root/World/WorldEnvironment")
-	if world_env and world_env.environment:
-		var tween := create_tween()
-		tween.tween_method(func(v): 
-			world_env.environment.adjustment_brightness = v
-		, world_env.environment.adjustment_brightness, factor, 2.0)
-
-# ══════════════════════════════════════════════════════════════════════════════
-# GODOT 3D LIGHTING CONFIG — using built-in DirectionalLight3D + WorldEnvironment
-# ══════════════════════════════════════════════════════════════════════════════
-
 func _configure_lighting() -> void:
-	# The world.tscn already has DirectionalLight3D + WorldEnvironment with:
-	# - SSAO (ambient occlusion)
-	# - SSIL (indirect lighting)
-	# - Glow/Bloom
-	# - Volumetric Fog
-	# We just tune them for a lush jungle atmosphere
-	
-	var sun := get_node_or_null("/root/World/DirectionalLight3D") as DirectionalLight3D
-	if sun:
-		# Warm golden sunlight piercing through canopy
-		sun.light_color = Color(1.0, 0.92, 0.72)
-		sun.light_energy = 1.68
-		sun.light_angular_distance = 0.5
-		sun.shadow_enabled = true
-		sun.shadow_bias = 0.02
-		sun.shadow_normal_bias = 1.2
-		sun.shadow_blur = 2.0
-		sun.directional_shadow_max_distance = 80.0
-	
-	# Configure WorldEnvironment for jungle atmosphere
-	var world_env := get_node_or_null("/root/World/WorldEnvironment") as WorldEnvironment
-	if world_env and world_env.environment:
-		if not world_env.environment.is_local_to_scene():
-			world_env.environment = world_env.environment.duplicate()
-		var env := world_env.environment
-		
-		# SSAO — soft shadows under trees
-		env.ssao_enabled = true
-		env.ssao_radius = 1.8
-		env.ssao_intensity = 1.2
-		env.ssao_power = 1.5
-		env.ssao_detail = 0.5
-		
-		# SSIL — bounced light from jungle floor
-		env.ssil_enabled = true
-		env.ssil_radius = 3.0
-		env.ssil_intensity = 0.8
-		
-		# Glow — subtle atmospheric bloom (levels 0,1 active; rest off)
-		env.glow_enabled = true
-		env.glow_bloom = 0.12
-		env.glow_blend_mode = Environment.GLOW_BLEND_MODE_ADDITIVE
-		env.glow_hdr_threshold = 0.8
-		env.glow_hdr_scale = 1.5
-		
-		# Volumetric fog — misty jungle atmosphere
-		env.volumetric_fog_enabled = true
-		env.volumetric_fog_density = 0.012
-		env.volumetric_fog_albedo = Color(0.65, 0.82, 0.75)  # Slightly green tint
-		env.volumetric_fog_emission = Color(0.6, 0.7, 0.5)
-		env.volumetric_fog_emission_energy = 0.3
-		
-		# Tonemap
-		env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
-		env.tonemap_exposure = 1.2
-		env.tonemap_white = 10.0
-	
-	# Add ambient light for shadow areas (under canopy)
-	var ambient := get_node_or_null("/root/World/AmbientLight")
-	if not ambient:
-		ambient = DirectionalLight3D.new()
-		ambient.name = "AmbientLight"
-		ambient.light_color = Color(0.5, 0.6, 0.7)  # Cool sky bounce
-		ambient.light_energy = 0.216
-		ambient.light_indirect_energy = 0.5
-		ambient.shadow_enabled = false
-		get_node("/root/World").add_child(ambient)
-		ambient.owner = get_node("/root/World")
+	var lighting := get_tree().get_first_node_in_group("lighting_director") as LightingDirector
+	if lighting != null:
+		lighting.refresh_from_scene()
 
+
+# Backward-compatible entry point for tests and weather callers.
 func _update_weather_lighting(is_rainy: bool) -> void:
-	"""Adjust lighting when rain starts/stops"""
-	var sun := get_node_or_null("/root/World/DirectionalLight3D") as DirectionalLight3D
-	if not sun:
+	var lighting := get_tree().get_first_node_in_group("lighting_director") as LightingDirector
+	if lighting == null:
 		return
-	
-	var tween := create_tween()
-	tween.set_parallel(true)
-	
-	if is_rainy:
-		# Darker, cooler during rain
-		tween.tween_property(sun, "light_energy", 0.84, 2.0)
-		tween.tween_property(sun, "light_color", Color(0.6, 0.65, 0.75), 2.0)
-	else:
-		# Back to warm sunlight
-		tween.tween_property(sun, "light_energy", 1.68, 3.0)
-		tween.tween_property(sun, "light_color", Color(1.0, 0.92, 0.72), 3.0)
+	if not is_rainy:
+		lighting.set_weather(&"clear")
+		return
+	lighting.set_weather(StringName(weather_state))
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # CAMERA MAGNET SYSTEM
@@ -585,42 +560,29 @@ func _hide_boss_health_bar() -> void:
 # ══════════════════════════════════════════════════════════════════════════════
 
 func _on_player_took_damage(amount: float, position: Vector3) -> void:
-	_spawn_damage_number(amount, position, Color.RED, false)
+	_spawn_damage_number(amount, position, DamagePopup.Kind.PLAYER_HIT)
 
 func _on_enemy_damaged(enemy: Node3D, amount: float, position: Vector3) -> void:
 	var is_critical := randf() < 0.15
 	if is_critical:
 		amount *= 2.0
-	_spawn_damage_number(amount, position, Color.YELLOW if is_critical else Color.WHITE, is_critical)
+	var popup_kind: DamagePopup.Kind = DamagePopup.Kind.CRITICAL if is_critical else DamagePopup.Kind.ENEMY_HIT
+	_spawn_damage_number(amount, position, popup_kind)
 
-func _spawn_damage_number(amount: float, world_pos: Vector3, color: Color, is_critical: bool) -> void:
+func _spawn_damage_number(amount: float, world_pos: Vector3, popup_kind: DamagePopup.Kind) -> void:
 	var camera := get_viewport().get_camera_3d()
 	if not camera:
 		return
 	
 	var screen_pos := camera.unproject_position(world_pos + Vector3(0, 1.5, 0))
-	
-	var label := Label.new()
-	label.text = str(int(amount))
-	label.add_theme_color_override("font_color", color)
-	label.add_theme_font_size_override("font_size", 24 if is_critical else 18)
-	label.position = screen_pos - Vector2(20, 10)
-	label.z_index = 100
-	
-	if is_critical:
-		label.text += " CRIT!"
-		label.add_theme_color_override("font_outline_color", Color.BLACK)
-		label.add_theme_constant_override("outline_size", 2)
-	
 	var ui := get_node_or_null("UI")
-	if ui:
-		ui.add_child(label)
-		var tween := create_tween()
-		tween.set_parallel(true)
-		tween.tween_property(label, "position:y", label.position.y - 50, 1.0)
-		tween.tween_property(label, "modulate:a", 0.0, 1.0)
-		tween.chain()
-		tween.tween_callback(label.queue_free)
+	if not ui:
+		return
+
+	var popup := DamagePopup.new()
+	popup.configure(amount, screen_pos, popup_kind)
+	ui.add_child(popup)
+	popup.play()
 
 # ══════════════════════════════════════════════════════════════════════════════
 # TREE FADE (70% mờ khi người nấp sau cây)
@@ -646,6 +608,12 @@ func _update_tree_fade() -> void:
 	var player := get_tree().get_first_node_in_group("player") as Node3D
 	if not player:
 		return
+	var game_camera := get_tree().get_first_node_in_group("camera") as GameCamera
+	var toward_camera := Vector3.ZERO
+	if game_camera != null and game_camera.camera != null:
+		toward_camera = game_camera.camera.global_position - player.global_position
+		toward_camera.y = 0.0
+		toward_camera = toward_camera.normalized()
 	
 	for tree in tree_list:
 		if not is_instance_valid(tree):
@@ -655,15 +623,37 @@ func _update_tree_fade() -> void:
 		var diff_z := player.global_position.z - tree.global_position.z
 		var diff_x := player.global_position.x - tree.global_position.x
 		
-		# Check if player is behind the tree (rough check)
-		# Mở rộng vùng check để phát hiện tốt hơn
-		var is_behind: bool = absf(diff_x) < 2.5 and absf(diff_z) < 4.0 and diff_z < 0.0
+		# Giữ tương thích với rule cũ và bổ sung kiểm tra đúng theo hướng camera orthographic.
+		var is_behind_legacy: bool = absf(diff_x) < 2.5 and absf(diff_z) < 4.0 and diff_z < 0.0
+		var is_camera_occluder := false
+		if toward_camera != Vector3.ZERO and _tree_has_rendered_geometry(tree):
+			var player_to_tree := tree.global_position - player.global_position
+			player_to_tree.y = 0.0
+			var depth_toward_camera := player_to_tree.dot(toward_camera)
+			var lateral_offset := (player_to_tree - toward_camera * depth_toward_camera).length()
+			is_camera_occluder = (
+				depth_toward_camera > 0.0
+				and depth_toward_camera < 14.0
+				and lateral_offset < 4.25
+			)
 		
-		if is_behind and dist < 4.0:
-			# Fade tree to 70% transparent (only 30% visible)
+		if is_behind_legacy and dist < 4.0:
+			# Giữ hành vi fade gần đã được gameplay và test suite phụ thuộc.
 			_set_tree_alpha(tree, 0.3)
+		elif is_camera_occluder:
+			# Cây cao có thể che player từ xa. Ẩn hoàn toàn canopy đang chắn camera
+			# để không tạo screen-door noise quanh silhouette của player.
+			_set_tree_alpha(tree, 0.0)
 		else:
 			_set_tree_alpha(tree, 1.0)
+
+func _tree_has_rendered_geometry(node: Node) -> bool:
+	if node is MeshInstance3D and (node as MeshInstance3D).mesh != null:
+		return true
+	for child in node.get_children():
+		if _tree_has_rendered_geometry(child):
+			return true
+	return false
 
 func _set_tree_alpha(node: Node, alpha: float) -> void:
 	if node is MeshInstance3D:

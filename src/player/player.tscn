@@ -32,6 +32,10 @@ texture = ExtResource("4_thach_sanh_idle")
 region_enabled = true
 region_rect = Rect2(0, 0, 118, 221)
 
+[node name="AttackEffect" type="Sprite3D" parent="Visuals"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
+visible = false
+
 [node name="HealthComponent" type="Node" parent="."]
 script = ExtResource("2_health_component")
 
