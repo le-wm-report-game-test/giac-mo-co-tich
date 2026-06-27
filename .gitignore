@@ -1,3 +1,37 @@
 # Godot 4+ specific ignores
 .godot/
 /android/
+
+# Godot export and temporary files
+export.cfg
+export_credentials.cfg
+*.tmp
+
+# Godot 3 specific legacy folder (just in case)
+.import/
+
+# Python compiled bytecode and cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Log files (e.g. test logs)
+*.log
+
+# Zip archives (raw download files, assets should be extracted)
+*.zip
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# IDEs and Text Editors
+.vs/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+.vscode/
