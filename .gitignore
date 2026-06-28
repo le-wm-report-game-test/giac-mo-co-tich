@@ -21,6 +21,16 @@ export_credentials.cfg
 *~*.so
 *~*.dylib
 
+# Terrain3D native binaries: built once from the addon's own build script,
+# then reused locally. Tracking 14 platform-specific binaries bloats the
+# repo without giving cross-platform devs anything they can use. Build from
+# source for your target platform (`addons/terrain_3d/SConstruct`).
+addons/terrain_3d/bin/libterrain.*.dll
+addons/terrain_3d/bin/libterrain.*.so
+addons/terrain_3d/bin/libterrain.*.dylib
+addons/terrain_3d/bin/libterrain.*.wasm
+addons/terrain_3d/bin/libterrain.*.framework/
+
 # Godot 3 specific legacy folder (just in case)
 .import/
 
