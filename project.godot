@@ -8,6 +8,8 @@
 
 config_version=5
 
+"ï»¿config_version"=5
+
 [application]
 
 config/name="GiacMoCoTich"
@@ -29,6 +31,10 @@ GameSaveHook="*res://src/save/GameSaveHook.gd"
 window/size/viewport_width=1920
 window/size/viewport_height=1080
 window/stretch/mode="canvas_items"
+
+[dotnet]
+
+project/assembly_name="GiacMoCoTich"
 
 [editor_plugins]
 
@@ -56,3 +62,4 @@ theme/custom_font="res://Assets/UI/Fonts/Anton/Anton-Regular.ttf"
 [rendering]
 
 rendering_device/driver.windows="d3d12"
+renderer/rendering_method="gl_compatibility"

@@ -22,9 +22,28 @@ const RAIN_PARTICLE_AMOUNT: int = 800
 const RAIN_EMITTER_HEIGHT: float = 20.0
 const RAIN_COVERAGE_MARGIN: float = 4.0
 const RAIN_DEPTH_MARGIN: float = 9.0
+const PLAYER_HUD_TEXTURE_PATH := "res://Assets/items/hud_and_orc_panel_v1.png"
+const PLAYER_HUD_TEXTURE_SIZE := Vector2(853.0, 292.0)
+const PLAYER_HUD_TARGET_WIDTH := 290.0
+#const PLAYER_HUD_FILL_POSITION := Vector2(214.0, 72.0)
+#const PLAYER_HUD_FILL_SIZE := Vector2(532.0, 66.0)
+const PLAYER_HUD_FILL_POSITION = Vector2(214.0, 83.0)
+const PLAYER_HUD_FILL_SIZE = Vector2(518.0, 40.0)
+
+const PLAYER_HUD_FILL_COLOR := Color(0.78, 0.08, 0.1, 1.0)
+#const ORC_COUNTER_TEXT_POSITION := Vector2(260.0, 188.0)
+#const ORC_COUNTER_TEXT_SIZE := Vector2(170.0, 44.0)
+const ORC_COUNTER_TEXT_POSITION := Vector2(150.0, 195.0)
+const ORC_COUNTER_TEXT_SIZE := Vector2(300.0, 44.0)
+const MINIMAP_FRAME_TEXTURE_PATH := "res://Assets/items/map.png"
+const MINIMAP_FRAME_TEXTURE_SIZE := Vector2(500.0, 500.0)
+const MINIMAP_SCREEN_SIZE := Vector2(120.0, 120.0)
+const MINIMAP_INNER_POSITION := Vector2(58.0, 58.0)
+const MINIMAP_INNER_SIZE := Vector2(379.0, 379.0)
 
 # ─── HUD References ──────────────────────────────────────────────────────────
 var player_health_bar: Node = null
+var player_health_fill: ColorRect = null
 var boss_health_bar: Node = null
 var orc_counter_label: Node = null
 var minimap: Minimap = null
@@ -42,7 +61,7 @@ var camera_magnet_timer: float = 0.0
 func _ready() -> void:
 	# Đăng ký group để SaveManager có thể tìm thấy
 	add_to_group("world_manager")
-	
+
 	# Connect to event bus
 	var eb := get_node("/root/EventBus")
 	if eb:
@@ -61,6 +80,31 @@ func _ready() -> void:
 	var settings_menu := SettingsMenu.new()
 	settings_menu.name = "SettingsMenu"
 	add_child(settings_menu)
+
+# Phím tắt Debug để kiểm tra nhanh thời tiết và sấm sét
+func _unhandled_input(event: InputEvent) -> void:
+	# Chỉ hoạt động khi chạy chạy thử trong Godot Editor (Debug build)
+	if OS.is_debug_build() and event is InputEventKey and event.pressed:
+		if event.keycode == KEY_K:
+			print("DEBUG: Kích hoạt mưa bão (Storm) ngay lập tức!")
+			_start_storm_instantly()
+		elif event.keycode == KEY_L:
+			print("DEBUG: Gọi sét đánh ngay lập tức!")
+			_strike_lightning()
+
+# Bật bão ngay lập tức
+func _start_storm_instantly() -> void:
+	is_raining = true
+	weather_state = "storm"
+	weather_duration = 180.0 # Bão kéo dài 3 phút
+	lightning_timer = 1.0 # Sét đánh sau 1 giây
+	
+	EventBus.weather_changed.emit(weather_state)
+	_create_rain_particles()
+	
+	var audio := get_node_or_null("/root/World/AudioManager") as AudioManager
+	if audio:
+		audio.play_ambience("rain_ambience")
 	
 	# Configure Godot 3D lighting
 	_configure_lighting()
@@ -302,49 +346,46 @@ func _update_rain_coverage() -> void:
 func _strike_lightning() -> void:
 	print("⚡ LIGHTNING STRIKE!")
 	
-	var x := randf_range(-45.0, 45.0)
-	var z := randf_range(-45.0, 45.0)
-	var strike_pos := Vector3(x, 0.0, z)
+	var strike_pos := Vector3.ZERO
+	var player := get_tree().get_first_node_in_group("player") as Node3D
 	
-	# Flash effect
+	if player:
+		# 15% cơ hội sét đánh thẳng vào người chơi (có vòng báo trước để tránh né)
+		# 85% cơ hội sét đánh ngẫu nhiên xung quanh người chơi trong phạm vi 10m - 22m
+		if randf() < 0.15:
+			strike_pos = player.global_position
+		else:
+			var angle := randf() * TAU
+			var dist := randf_range(10.0, 22.0)
+			strike_pos = player.global_position + Vector3(cos(angle) * dist, 0.0, sin(angle) * dist)
+	else:
+		# Nếu không tìm thấy player, sét đánh ngẫu nhiên trên map
+		var x := randf_range(-45.0, 45.0)
+		var z := randf_range(-45.0, 45.0)
+		strike_pos = Vector3(x, 0.0, z)
+		
+	# Đảm bảo sét đánh trên mặt đất (y = 0)
+	strike_pos.y = 0.0
+	
+	# Tạo tia sét
+	var bolt := LightningBolt.new()
+	bolt.position = strike_pos
+	get_parent().add_child(bolt)
+
+# Hiệu ứng chớp trắng toàn màn hình khi sét đánh
+func trigger_screen_flash() -> void:
 	var flash := ColorRect.new()
-	flash.color = Color(1.0, 1.0, 1.0, 0.8)
+	flash.color = Color(1.0, 1.0, 1.0, 0.75)
 	flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	flash.size = get_viewport().get_visible_rect().size
 	var ui_layer := get_node_or_null("UI")
 	if ui_layer:
 		ui_layer.add_child(flash)
 		var tween := create_tween()
-		tween.tween_property(flash, "color:a", 0.0, 0.3)
+		tween.tween_property(flash, "color:a", 0.0, 0.25)
 		tween.tween_callback(flash.queue_free)
 	else:
 		flash.queue_free()
-	
-	# Lightning bolt visual
-	var bolt := MeshInstance3D.new()
-	var bolt_mesh := immediate_mesh_create_lightning(strike_pos, strike_pos + Vector3(0, 15, 0))
-	if bolt_mesh:
-		bolt.mesh = bolt_mesh
-		get_parent().add_child(bolt)
-		var bt := create_tween()
-		bt.tween_interval(0.2)
-		bt.tween_callback(bolt.queue_free)
-	
-	var player := get_tree().get_first_node_in_group("player") as Node3D
-	if player and player.global_position.distance_to(strike_pos) < 5.0:
-		if player.has_method("_on_damaged"):
-			player._on_damaged(20.0, null)
-	
-	var audio := get_node_or_null("/root/World/AudioManager") as AudioManager
-	if audio:
-		audio.play_sfx("thunder", strike_pos, 0.2)
-
-func immediate_mesh_create_lightning(from: Vector3, to: Vector3) -> Mesh:
-	var cylinder := CylinderMesh.new()
-	cylinder.top_radius = 0.1
-	cylinder.bottom_radius = 0.1
-	cylinder.height = from.distance_to(to)
-	return cylinder
 
 func _configure_lighting() -> void:
 	var lighting := get_tree().get_first_node_in_group("lighting_director") as LightingDirector
@@ -406,75 +447,187 @@ func _create_solid_texture(color: Color, size: Vector2i) -> ImageTexture:
 	img.fill(color)
 	return ImageTexture.create_from_image(img)
 
+func _create_player_health_fill_material(fill_size: Vector2) -> ShaderMaterial:
+	var shader := Shader.new()
+	shader.code = """
+shader_type canvas_item;
+render_mode unshaded;
+
+uniform vec2 bar_size = vec2(1.0, 1.0);
+uniform vec4 fill_color : source_color = vec4(0.78, 0.08, 0.1, 1.0);
+uniform float fill_ratio : hint_range(0.0, 1.0) = 1.0;
+
+float rounded_box_sdf(vec2 point, vec2 center, vec2 half_extents, float radius) {
+	vec2 q = abs(point - center) - (half_extents - vec2(radius));
+	return length(max(q, vec2(0.0))) + min(max(q.x, q.y), 0.0) - radius;
+}
+
+void fragment() {
+	float fill_width = clamp(fill_ratio, 0.0, 1.0) * bar_size.x;
+	if (fill_width > 0.0) {
+		vec2 pixel = UV * bar_size;
+		vec2 half_extents = vec2(fill_width * 0.5, bar_size.y * 0.5);
+		vec2 center = vec2(half_extents.x, half_extents.y);
+		float radius = min(bar_size.y * 0.5, half_extents.x);
+		float dist = rounded_box_sdf(pixel, center, half_extents, radius);
+		float alpha = 1.0 - smoothstep(0.0, 1.0, dist);
+		COLOR = vec4(fill_color.rgb, fill_color.a * alpha);
+	} else {
+		COLOR = vec4(0.0);
+	}
+}
+"""
+
+	var material := ShaderMaterial.new()
+	material.shader = shader
+	material.set_shader_parameter("bar_size", fill_size)
+	material.set_shader_parameter("fill_color", PLAYER_HUD_FILL_COLOR)
+	material.set_shader_parameter("fill_ratio", 1.0)
+	return material
+
+func _update_player_health_fill(current: float, max_h: float) -> void:
+	var ratio := 0.0
+	if max_h > 0.0:
+		ratio = clampf(current / max_h, 0.0, 1.0)
+
+	if is_instance_valid(player_health_fill):
+		var material := player_health_fill.material as ShaderMaterial
+		if material:
+			material.set_shader_parameter("fill_ratio", ratio)
+
 func _create_hud() -> void:
+	var existing_ui := get_node_or_null("UI")
+	if existing_ui:
+		remove_child(existing_ui)
+		existing_ui.queue_free()
+
 	var ui := CanvasLayer.new()
 	ui.name = "UI"
 	ui.layer = 10
 	add_child(ui)
 	
 	# ─── Player Health Bar ───
-	var hp_container := HBoxContainer.new()
+	var hp_texture := load(PLAYER_HUD_TEXTURE_PATH) as Texture2D
+	var hp_scale := PLAYER_HUD_TARGET_WIDTH / PLAYER_HUD_TEXTURE_SIZE.x
+	var hp_screen_size := Vector2(
+		round(PLAYER_HUD_TEXTURE_SIZE.x * hp_scale),
+		round(PLAYER_HUD_TEXTURE_SIZE.y * hp_scale)
+	)
+	var hp_fill_position := Vector2(
+		round(PLAYER_HUD_FILL_POSITION.x * hp_scale),
+		round(PLAYER_HUD_FILL_POSITION.y * hp_scale)
+	)
+	var hp_fill_size := Vector2(
+		max(1.0, round(PLAYER_HUD_FILL_SIZE.x * hp_scale)),
+		max(1.0, round(PLAYER_HUD_FILL_SIZE.y * hp_scale))
+	)
+
+	var hp_container := Control.new()
 	hp_container.name = "PlayerHealthContainer"
+	hp_container.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	hp_container.position = Vector2(20, 20)
-	hp_container.add_theme_constant_override("separation", 5)
+	hp_container.custom_minimum_size = hp_screen_size
+	hp_container.size = hp_screen_size
+	hp_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hp_container.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	ui.add_child(hp_container)
-	
-	var hp_label := Label.new()
-	hp_label.text = "HP:"
-	hp_label.add_theme_color_override("font_color", Color.WHITE)
-	hp_label.add_theme_font_size_override("font_size", 16)
-	hp_container.add_child(hp_label)
+
+	var hp_background := TextureRect.new()
+	hp_background.name = "PlayerHealthBackground"
+	hp_background.set_anchors_preset(Control.PRESET_FULL_RECT)
+	hp_background.offset_left = 0.0
+	hp_background.offset_top = 0.0
+	hp_background.offset_right = 0.0
+	hp_background.offset_bottom = 0.0
+	hp_background.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	hp_background.stretch_mode = TextureRect.STRETCH_SCALE
+	hp_background.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	hp_background.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hp_background.texture = hp_texture
+	hp_container.add_child(hp_background)
+
+	var hp_mask := Control.new()
+	hp_mask.name = "PlayerHealthMask"
+	hp_mask.position = hp_fill_position
+	hp_mask.custom_minimum_size = hp_fill_size
+	hp_mask.size = hp_fill_size
+	hp_mask.clip_contents = true
+	hp_mask.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hp_container.add_child(hp_mask)
+
+	var hp_fill := ColorRect.new()
+	hp_fill.name = "PlayerHealthFill"
+	hp_fill.set_anchors_preset(Control.PRESET_FULL_RECT)
+	hp_fill.offset_left = 0.0
+	hp_fill.offset_top = 0.0
+	hp_fill.offset_right = 0.0
+	hp_fill.offset_bottom = 0.0
+	hp_fill.color = Color(1.0, 1.0, 1.0, 0.0)
+	hp_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hp_fill.material = _create_player_health_fill_material(hp_fill_size)
+	hp_mask.add_child(hp_fill)
+	player_health_fill = hp_fill
 	
 	var hp_bar := TextureProgressBar.new()
 	hp_bar.name = "PlayerHealthBar"
 	hp_bar.min_value = 0.0
 	hp_bar.max_value = 100.0
 	hp_bar.value = 100.0
-	hp_bar.size = Vector2(200, 20)
-	hp_bar.custom_minimum_size = Vector2(200, 20)
-	hp_bar.fill_mode = 0
-	hp_bar.texture_under = _create_solid_texture(Color(0.3, 0.0, 0.0), Vector2i(200, 20))
-	hp_bar.texture_progress = _create_solid_texture(Color(0.0, 0.8, 0.0), Vector2i(200, 20))
-	
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.3, 0.0, 0.0)
-	style.border_color = Color(0.8, 0.8, 0.8)
-	style.border_width_left = 2
-	style.border_width_right = 2
-	style.border_width_top = 2
-	style.border_width_bottom = 2
-	hp_bar.add_theme_stylebox_override("background", style)
-	
-	var fill_style := StyleBoxFlat.new()
-	fill_style.bg_color = Color(0.0, 0.8, 0.0)
-	hp_bar.add_theme_stylebox_override("fill", fill_style)
-	
-	hp_container.add_child(hp_bar)
+	hp_bar.set_anchors_preset(Control.PRESET_FULL_RECT)
+	hp_bar.offset_left = 0.0
+	hp_bar.offset_top = 0.0
+	hp_bar.offset_right = 0.0
+	hp_bar.offset_bottom = 0.0
+	hp_bar.custom_minimum_size = hp_fill_size
+	hp_bar.fill_mode = TextureProgressBar.FILL_LEFT_TO_RIGHT
+	hp_bar.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	hp_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hp_bar.tint_under = Color(1.0, 1.0, 1.0, 0.0)
+	hp_bar.tint_progress = Color.WHITE
+	hp_bar.tint_over = Color(1.0, 1.0, 1.0, 0.0)
+	hp_bar.texture_under = _create_solid_texture(Color(0.0, 0.0, 0.0, 0.0), Vector2i(int(hp_fill_size.x), int(hp_fill_size.y)))
+	hp_bar.texture_progress = _create_solid_texture(PLAYER_HUD_FILL_COLOR, Vector2i(int(hp_fill_size.x), int(hp_fill_size.y)))
+	hp_bar.texture_over = _create_solid_texture(Color(0.0, 0.0, 0.0, 0.0), Vector2i(int(hp_fill_size.x), int(hp_fill_size.y)))
+	hp_bar.visible = false
+	hp_mask.add_child(hp_bar)
+	player_health_bar = hp_bar
 	
 	var hp_text := Label.new()
 	hp_text.name = "PlayerHealthText"
 	hp_text.text = "100/100"
-	hp_text.add_theme_color_override("font_color", Color.WHITE)
-	hp_text.add_theme_font_size_override("font_size", 14)
+	hp_text.visible = false
 	hp_container.add_child(hp_text)
 	
 	# ─── Orc Counter ───
-	var orc_counter := HBoxContainer.new()
+	var orc_counter := Control.new()
 	orc_counter.name = "OrcCounter"
-	orc_counter.position = Vector2(20, 50)
-	ui.add_child(orc_counter)
-	
-	var orc_label := Label.new()
-	orc_label.text = "Quái đã diệt: "
-	orc_label.add_theme_color_override("font_color", Color.WHITE)
-	orc_label.add_theme_font_size_override("font_size", 14)
-	orc_counter.add_child(orc_label)
+	orc_counter.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	orc_counter.position = Vector2(
+		round(ORC_COUNTER_TEXT_POSITION.x * hp_scale),
+		round(ORC_COUNTER_TEXT_POSITION.y * hp_scale)
+	)
+	orc_counter.custom_minimum_size = Vector2(
+		round(ORC_COUNTER_TEXT_SIZE.x * hp_scale),
+		round(ORC_COUNTER_TEXT_SIZE.y * hp_scale)
+	)
+	orc_counter.size = orc_counter.custom_minimum_size
+	orc_counter.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hp_container.add_child(orc_counter)
 	
 	var orc_count_label := Label.new()
 	orc_count_label.name = "OrcCountLabel"
-	orc_count_label.text = "0/%d" % orcs_to_kill_for_boss
-	orc_count_label.add_theme_color_override("font_color", Color.YELLOW)
-	orc_count_label.add_theme_font_size_override("font_size", 14)
+	orc_count_label.set_anchors_preset(Control.PRESET_FULL_RECT)
+	orc_count_label.offset_left = 0.0
+	orc_count_label.offset_top = 0.0
+	orc_count_label.offset_right = 0.0
+	orc_count_label.offset_bottom = 0.0
+	orc_count_label.text = "Orc Killed: 0/%d" % orcs_to_kill_for_boss
+	orc_count_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	orc_count_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	orc_count_label.add_theme_color_override("font_color", Color(0.92, 0.88, 0.74, 1.0))
+	orc_count_label.add_theme_constant_override("outline_size", 2)
+	orc_count_label.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0, 0.9))
+	orc_count_label.add_theme_font_size_override("font_size", max(12, int(round(18.0 * hp_scale))))
 	orc_counter.add_child(orc_count_label)
 	
 	# ─── Boss Health Bar (hidden initially) ───
@@ -517,17 +670,61 @@ func _create_hud() -> void:
 	boss_container.add_child(boss_hp_bar)
 	
 	# ─── Minimap HUD ───
+	var minimap_container := Control.new()
+	minimap_container.name = "MinimapContainer"
+	minimap_container.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	minimap_container.position = Vector2(1920 - MINIMAP_SCREEN_SIZE.x - 20.0, 20.0)
+	minimap_container.custom_minimum_size = MINIMAP_SCREEN_SIZE
+	minimap_container.size = MINIMAP_SCREEN_SIZE
+	minimap_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ui.add_child(minimap_container)
+
+	var minimap_frame := TextureRect.new()
+	minimap_frame.name = "MinimapFrame"
+	minimap_frame.set_anchors_preset(Control.PRESET_FULL_RECT)
+	minimap_frame.offset_left = 0.0
+	minimap_frame.offset_top = 0.0
+	minimap_frame.offset_right = 0.0
+	minimap_frame.offset_bottom = 0.0
+	minimap_frame.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	minimap_frame.stretch_mode = TextureRect.STRETCH_SCALE
+	minimap_frame.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	minimap_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	minimap_frame.texture = load(MINIMAP_FRAME_TEXTURE_PATH) as Texture2D
+	minimap_container.add_child(minimap_frame)
+
+	var minimap_scale := MINIMAP_SCREEN_SIZE.x / MINIMAP_FRAME_TEXTURE_SIZE.x
+	var minimap_inner_position := Vector2(
+		round(MINIMAP_INNER_POSITION.x * minimap_scale),
+		round(MINIMAP_INNER_POSITION.y * minimap_scale)
+	)
+	var minimap_inner_size := Vector2(
+		round(MINIMAP_INNER_SIZE.x * minimap_scale),
+		round(MINIMAP_INNER_SIZE.y * minimap_scale)
+	)
+
+	var minimap_mask := Control.new()
+	minimap_mask.name = "MinimapMask"
+	minimap_mask.position = minimap_inner_position
+	minimap_mask.custom_minimum_size = minimap_inner_size
+	minimap_mask.size = minimap_inner_size
+	minimap_mask.clip_contents = true
+	minimap_mask.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	minimap_container.add_child(minimap_mask)
+
 	var minimap_script := preload("res://src/ui/minimap.gd")
 	minimap = minimap_script.new()
 	minimap.name = "Minimap"
-	ui.add_child(minimap)
-	minimap.setup(Vector2(120, 120))
-	minimap.position = Vector2(1920 - 120 - 20, 20)
+	minimap.show_panel_background = false
+	minimap.show_panel_border = false
+	minimap_mask.add_child(minimap)
+	minimap.setup(minimap_inner_size)
+	minimap.position = Vector2.ZERO
 
 func _update_ui_orc_counter() -> void:
 	var label := get_node_or_null("UI/OrcCounter/OrcCountLabel") as Label
 	if label:
-		label.text = "%d/%d" % [orcs_killed, orcs_to_kill_for_boss]
+		label.text = "Orc Killed: %d/%d" % [orcs_killed, orcs_to_kill_for_boss]
 
 func _on_player_health_changed(current: float, max_h: float) -> void:
 	var bar := get_node_or_null("UI/PlayerHealthContainer/PlayerHealthBar") as TextureProgressBar
@@ -535,6 +732,7 @@ func _on_player_health_changed(current: float, max_h: float) -> void:
 		bar.min_value = minf(0.0, current)
 		bar.max_value = maxf(max_h, current)
 		bar.value = current
+	_update_player_health_fill(current, max_h)
 	var text := get_node_or_null("UI/PlayerHealthContainer/PlayerHealthText") as Label
 	if text:
 		text.text = "%d/%d" % [current, max_h]

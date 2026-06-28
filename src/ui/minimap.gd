@@ -5,6 +5,8 @@ extends Control
 
 @export var radar_range: float = 30.0
 @export var map_limit: float = 48.0
+@export var show_panel_background: bool = true
+@export var show_panel_border: bool = true
 
 # Cache dữ liệu vị trí để _draw() sử dụng
 var _player_pos: Vector3 = Vector3.ZERO
@@ -47,7 +49,8 @@ func _world_to_canvas(world_pos: Vector3) -> Vector2:
 
 
 func _draw() -> void:
-	_draw_background()
+	if show_panel_background or show_panel_border:
+		_draw_background()
 	_draw_grid()
 	
 	if not _player_valid:
@@ -77,10 +80,10 @@ func _draw() -> void:
 
 
 func _draw_background() -> void:
-	# Nền tối semi-transparent
-	draw_rect(Rect2(Vector2.ZERO, size), BG_COLOR)
-	# Border trắng
-	draw_rect(Rect2(Vector2.ZERO, size), BORDER_COLOR, false, 1.0)
+	if show_panel_background:
+		draw_rect(Rect2(Vector2.ZERO, size), BG_COLOR)
+	if show_panel_border:
+		draw_rect(Rect2(Vector2.ZERO, size), BORDER_COLOR, false, 1.0)
 
 
 func _draw_grid() -> void:
