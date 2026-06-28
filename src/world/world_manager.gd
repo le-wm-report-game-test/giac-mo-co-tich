@@ -42,7 +42,7 @@ var camera_magnet_timer: float = 0.0
 func _ready() -> void:
 	# Đăng ký group để SaveManager có thể tìm thấy
 	add_to_group("world_manager")
-	
+
 	# Connect to event bus
 	var eb := get_node("/root/EventBus")
 	if eb:
@@ -61,6 +61,31 @@ func _ready() -> void:
 	var settings_menu := SettingsMenu.new()
 	settings_menu.name = "SettingsMenu"
 	add_child(settings_menu)
+
+# Phím tắt Debug để kiểm tra nhanh thời tiết và sấm sét
+func _unhandled_input(event: InputEvent) -> void:
+	# Chỉ hoạt động khi chạy chạy thử trong Godot Editor (Debug build)
+	if OS.is_debug_build() and event is InputEventKey and event.pressed:
+		if event.keycode == KEY_K:
+			print("DEBUG: Kích hoạt mưa bão (Storm) ngay lập tức!")
+			_start_storm_instantly()
+		elif event.keycode == KEY_L:
+			print("DEBUG: Gọi sét đánh ngay lập tức!")
+			_strike_lightning()
+
+# Bật bão ngay lập tức
+func _start_storm_instantly() -> void:
+	is_raining = true
+	weather_state = "storm"
+	weather_duration = 180.0 # Bão kéo dài 3 phút
+	lightning_timer = 1.0 # Sét đánh sau 1 giây
+	
+	EventBus.weather_changed.emit(weather_state)
+	_create_rain_particles()
+	
+	var audio := get_node_or_null("/root/World/AudioManager") as AudioManager
+	if audio:
+		audio.play_ambience("rain_ambience")
 	
 	# Configure Godot 3D lighting
 	_configure_lighting()
@@ -302,49 +327,46 @@ func _update_rain_coverage() -> void:
 func _strike_lightning() -> void:
 	print("⚡ LIGHTNING STRIKE!")
 	
-	var x := randf_range(-45.0, 45.0)
-	var z := randf_range(-45.0, 45.0)
-	var strike_pos := Vector3(x, 0.0, z)
+	var strike_pos := Vector3.ZERO
+	var player := get_tree().get_first_node_in_group("player") as Node3D
 	
-	# Flash effect
+	if player:
+		# 15% cơ hội sét đánh thẳng vào người chơi (có vòng báo trước để tránh né)
+		# 85% cơ hội sét đánh ngẫu nhiên xung quanh người chơi trong phạm vi 10m - 22m
+		if randf() < 0.15:
+			strike_pos = player.global_position
+		else:
+			var angle := randf() * TAU
+			var dist := randf_range(10.0, 22.0)
+			strike_pos = player.global_position + Vector3(cos(angle) * dist, 0.0, sin(angle) * dist)
+	else:
+		# Nếu không tìm thấy player, sét đánh ngẫu nhiên trên map
+		var x := randf_range(-45.0, 45.0)
+		var z := randf_range(-45.0, 45.0)
+		strike_pos = Vector3(x, 0.0, z)
+		
+	# Đảm bảo sét đánh trên mặt đất (y = 0)
+	strike_pos.y = 0.0
+	
+	# Tạo tia sét
+	var bolt := LightningBolt.new()
+	bolt.position = strike_pos
+	get_parent().add_child(bolt)
+
+# Hiệu ứng chớp trắng toàn màn hình khi sét đánh
+func trigger_screen_flash() -> void:
 	var flash := ColorRect.new()
-	flash.color = Color(1.0, 1.0, 1.0, 0.8)
+	flash.color = Color(1.0, 1.0, 1.0, 0.75)
 	flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	flash.size = get_viewport().get_visible_rect().size
 	var ui_layer := get_node_or_null("UI")
 	if ui_layer:
 		ui_layer.add_child(flash)
 		var tween := create_tween()
-		tween.tween_property(flash, "color:a", 0.0, 0.3)
+		tween.tween_property(flash, "color:a", 0.0, 0.25)
 		tween.tween_callback(flash.queue_free)
 	else:
 		flash.queue_free()
-	
-	# Lightning bolt visual
-	var bolt := MeshInstance3D.new()
-	var bolt_mesh := immediate_mesh_create_lightning(strike_pos, strike_pos + Vector3(0, 15, 0))
-	if bolt_mesh:
-		bolt.mesh = bolt_mesh
-		get_parent().add_child(bolt)
-		var bt := create_tween()
-		bt.tween_interval(0.2)
-		bt.tween_callback(bolt.queue_free)
-	
-	var player := get_tree().get_first_node_in_group("player") as Node3D
-	if player and player.global_position.distance_to(strike_pos) < 5.0:
-		if player.has_method("_on_damaged"):
-			player._on_damaged(20.0, null)
-	
-	var audio := get_node_or_null("/root/World/AudioManager") as AudioManager
-	if audio:
-		audio.play_sfx("thunder", strike_pos, 0.2)
-
-func immediate_mesh_create_lightning(from: Vector3, to: Vector3) -> Mesh:
-	var cylinder := CylinderMesh.new()
-	cylinder.top_radius = 0.1
-	cylinder.bottom_radius = 0.1
-	cylinder.height = from.distance_to(to)
-	return cylinder
 
 func _configure_lighting() -> void:
 	var lighting := get_tree().get_first_node_in_group("lighting_director") as LightingDirector
