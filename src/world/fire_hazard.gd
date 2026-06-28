@@ -16,8 +16,8 @@ func _ready() -> void:
 	monitoring = true
 	monitorable = false
 	
-	# Thiết lập va chạm: Chỉ nhận diện lớp chứa Hurtbox (thường là Player/Enemy)
-	# Mặc định chúng ta để Area3D quét tất cả các Area khác
+	# Nhận diện va chạm với Player (Layer 8 = 128) và Enemy (Layer 9 = 256)
+	collision_mask = 128 | 256
 	
 	_setup_collision_shape()
 	_setup_fire_particles()
@@ -82,9 +82,8 @@ func _setup_fire_particles() -> void:
 	_particles.local_coords = false
 	
 	var process_mat := ParticleProcessMaterial.new()
-	process_mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_CYLINDER
-	process_mat.emission_cylinder_radius = fire_radius * 0.7
-	process_mat.emission_cylinder_height = 0.1
+	process_mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+	process_mat.emission_box_extents = Vector3(fire_radius * 0.6, 0.05, fire_radius * 0.6)
 	process_mat.gravity = Vector3(0.0, 3.0, 0.0) # Bay lên khá nhanh
 	process_mat.direction = Vector3.UP
 	process_mat.spread = 10.0

@@ -59,6 +59,31 @@ func _ready() -> void:
 	var settings_menu := SettingsMenu.new()
 	settings_menu.name = "SettingsMenu"
 	add_child(settings_menu)
+
+# Phím tắt Debug để kiểm tra nhanh thời tiết và sấm sét
+func _unhandled_input(event: InputEvent) -> void:
+	# Chỉ hoạt động khi chạy chạy thử trong Godot Editor (Debug build)
+	if OS.is_debug_build() and event is InputEventKey and event.pressed:
+		if event.keycode == KEY_K:
+			print("DEBUG: Kích hoạt mưa bão (Storm) ngay lập tức!")
+			_start_storm_instantly()
+		elif event.keycode == KEY_L:
+			print("DEBUG: Gọi sét đánh ngay lập tức!")
+			_strike_lightning()
+
+# Bật bão ngay lập tức
+func _start_storm_instantly() -> void:
+	is_raining = true
+	weather_state = "storm"
+	weather_duration = 180.0 # Bão kéo dài 3 phút
+	lightning_timer = 1.0 # Sét đánh sau 1 giây
+	
+	EventBus.weather_changed.emit(weather_state)
+	_create_rain_particles()
+	
+	var audio := get_node_or_null("/root/World/AudioManager") as AudioManager
+	if audio:
+		audio.play_ambience("rain_ambience")
 	
 	# Configure Godot 3D lighting
 	_configure_lighting()
@@ -323,8 +348,8 @@ func _strike_lightning() -> void:
 	
 	# Tạo tia sét
 	var bolt := LightningBolt.new()
+	bolt.position = strike_pos
 	get_parent().add_child(bolt)
-	bolt.global_position = strike_pos
 
 # Hiệu ứng chớp trắng toàn màn hình khi sét đánh
 func trigger_screen_flash() -> void:

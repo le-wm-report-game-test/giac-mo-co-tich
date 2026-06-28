@@ -7,7 +7,6 @@ extends Node3D
 @export var damage_amount: float = 25.0
 @export var fire_hazard_scene: PackedScene = null
 
-var _strike_pos: Vector3 = Vector3.ZERO
 var _light: OmniLight3D = null
 var _particles: GPUParticles3D = null
 var _mesh_instance: MeshInstance3D = null
@@ -18,8 +17,6 @@ var _flicker_timer: float = 0.0
 var _has_struck: bool = false
 
 func _ready() -> void:
-	_strike_pos = global_position
-	
 	# 1. Khởi tạo sẵn tia sét nhưng ẩn đi
 	_setup_lightning_mesh()
 	_mesh_instance.visible = false
@@ -211,7 +208,7 @@ func _setup_sparks() -> void:
 
 func _deal_strike_damage() -> void:
 	var player := get_tree().get_first_node_in_group("player") as Node3D
-	if player and player.global_position.distance_to(_strike_pos) < damage_radius:
+	if player and player.global_position.distance_to(global_position) < damage_radius:
 		var hurtbox := player.get_node_or_null("HurtboxComponent") as HurtboxComponent
 		if hurtbox:
 			hurtbox.receive_hit(damage_amount, self)
@@ -219,7 +216,7 @@ func _deal_strike_damage() -> void:
 			player.take_damage(damage_amount)
 			
 	for enemy in get_tree().get_nodes_in_group("enemies"):
-		if enemy is Node3D and enemy.global_position.distance_to(_strike_pos) < damage_radius:
+		if enemy is Node3D and enemy.global_position.distance_to(global_position) < damage_radius:
 			var hurtbox := enemy.get_node_or_null("HurtboxComponent") as HurtboxComponent
 			if hurtbox:
 				hurtbox.receive_hit(damage_amount, self)
@@ -232,18 +229,16 @@ func _spawn_fire_hazard() -> void:
 		fire_hazard = FireHazard.new()
 		
 	get_parent().add_child(fire_hazard)
-	fire_hazard.global_position = _strike_pos
+	fire_hazard.global_position = global_position
 
 func _play_thunder_sound() -> void:
 	var audio := get_node_or_null("/root/World/AudioManager")
 	if audio and audio.has_method("play_sfx"):
-		audio.play_sfx("thunder", _strike_pos, 0.2)
+		audio.play_sfx("thunder", global_position, 0.2)
 
 func _trigger_screen_flash() -> void:
-	# Tìm WorldManager đang hoạt động để tạo hiệu ứng chớp màn hình trắng
 	var world_mgr := get_tree().get_first_node_in_group("world_manager") as Node
 	if not world_mgr:
-		# Tìm kiếm theo tên nếu không có group
 		world_mgr = get_parent().get_node_or_null("WorldManager")
 		
 	if world_mgr and world_mgr.has_method("trigger_screen_flash"):
