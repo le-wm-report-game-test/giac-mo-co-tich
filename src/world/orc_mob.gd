@@ -514,11 +514,6 @@ func _on_damaged(amount: float, source: Node3D) -> void:
 	
 	# Emit damage event for floating numbers
 	EventBus.enemy_damaged.emit(self, amount, global_position)
-	
-	# Play hurt sound
-	var audio := get_node_or_null("/root/World/AudioManager") as AudioManager
-	if audio:
-		audio.play_sfx("hurt", global_position, 0.15)
 
 func _on_died() -> void:
 	current_state = State.DEATH
@@ -530,11 +525,6 @@ func _on_died() -> void:
 	hurtbox_component.collision_layer = 0
 	hitbox_component.collision_mask = 0
 	hitbox_component.monitoring = false
-	
-	# Play death sound
-	var audio := get_node_or_null("/root/World/AudioManager") as AudioManager
-	if audio:
-		audio.play_sfx("death", global_position, 0.1)
 	
 	# Notify world
 	EventBus.enemy_died.emit(self)
