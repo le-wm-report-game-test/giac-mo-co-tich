@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://d3ahxabf4073g"
-path="res://.godot/imported/hud_and_orc_panel.png-97308aa7039b0331b688419d9c8cc5de.ctex"
+uid="uid://3d0koyfq1soj"
+path="res://.godot/imported/hud_and_orc_panel_v1.png-2b6576dbb50ce22478f811a5c7a56ad5.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/items/hud_and_orc_panel.png"
-dest_files=["res://.godot/imported/hud_and_orc_panel.png-97308aa7039b0331b688419d9c8cc5de.ctex"]
+source_file="res://Assets/items/hud_and_orc_panel_v1.png"
+dest_files=["res://.godot/imported/hud_and_orc_panel_v1.png-2b6576dbb50ce22478f811a5c7a56ad5.ctex"]
 
 [params]
 
