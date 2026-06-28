@@ -269,37 +269,24 @@ func _physics_process(delta: float) -> void:
 	global_position.x = clampf(global_position.x, -48.0, 48.0)
 	global_position.z = clampf(global_position.z, -48.0, 48.0)
 	
-	# Snap visuals to actual physics collision ground height to prevent floating/shadow gaps
+	# Snap visuals to actual physics collision ground height to prevent floating/shadow gaps.
+	# The ForestBuilder now exposes the same heightmap that the collision uses, so we
+	# can read ground height directly (no raycast guesswork) and keep visuals aligned.
 	var visuals_node := get_node_or_null("Visuals") as Node3D
 	if visuals_node and is_inside_tree():
-		var space_state := get_world_3d().direct_space_state
-		var query := PhysicsRayQueryParameters3D.create(
-			global_position + Vector3(0.0, 0.3, 0.0),
-			global_position + Vector3(0.0, -0.5, 0.0),
-			1 # Collide with ground layer
-		)
-		var result := space_state.intersect_ray(query)
-		if result:
-			var base_y = result.position.y
-			var offset_y = 0.0
-			var forest := get_parent().get_node_or_null("Forest")
-			if forest and forest.has_method("_get_zone"):
-				var zone = forest._get_zone(global_position.x, global_position.z)
-				var is_path = (zone == 2) # Zone.PATH is 2
-				if not is_path:
-					offset_y = 0.2
-			visuals_node.global_position.y = base_y + offset_y
+		var forest := get_parent().get_node_or_null("Forest")
+		if forest and forest.has_method("_get_hill_height"):
+			var terrain_h: float = forest._get_hill_height(global_position.x, global_position.z)
+			# ForestBuilder.Zone.PATH == 2. Grass zones lift the sprite +0.2m so
+			# the sprite feet visually touch the heightmap top.
+			var base_h: float = 0.2
+			if forest.has_method("_get_zone"):
+				var zone_value: int = int(forest._get_zone(global_position.x, global_position.z))
+				if zone_value == 2:
+					base_h = 0.0
+			visuals_node.global_position.y = terrain_h + base_h
 		else:
-			# Fallback: check forest heightmap if raycast misses, adding visual offsets
-			var forest := get_parent().get_node_or_null("Forest")
-			if forest and forest.has_method("_get_hill_height"):
-				var height_offset: float = forest._get_hill_height(global_position.x, global_position.z)
-				var zone = forest._get_zone(global_position.x, global_position.z) if forest.has_method("_get_zone") else 0
-				# 2 corresponds to Zone.PATH. All other zones are grass-based (offset +0.2m)
-				var base_h := 0.0 if zone == 2 else 0.2
-				visuals_node.global_position.y = height_offset + base_h
-			else:
-				visuals_node.position.y = 0.0
+			visuals_node.global_position.y = global_position.y
 	elif visuals_node:
 		visuals_node.position.y = 0.0
 			

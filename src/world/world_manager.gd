@@ -373,39 +373,30 @@ func _activate_camera_magnet(target_pos: Vector3, zoom_size: float, duration: fl
 	
 	var game_cam := get_tree().get_first_node_in_group("camera") as GameCamera
 	if game_cam:
-		# Store original zoom
 		game_cam.set_meta("original_zoom", game_cam.camera.size)
-		# Zoom out to show arena
-		var tween := create_tween()
-		if tween:
-			tween.tween_method(func(v): game_cam.camera.size = v, game_cam.camera.size, zoom_size, 1.0)
+		game_cam.activate_magnet(target_pos, zoom_size)
 
 func _update_camera_magnet(delta: float) -> void:
 	if not camera_magnet_active:
 		return
-	
+
 	camera_magnet_timer -= delta
-	
+
 	if camera_magnet_timer <= 0.0:
 		# Restore normal camera
 		camera_magnet_active = false
 		var game_cam := get_tree().get_first_node_in_group("camera") as GameCamera
-		if game_cam and game_cam.camera:
-			var original_zoom: float = game_cam.get_meta("original_zoom", 20.0)
-			var tween := create_tween()
-			if tween:
-				tween.tween_method(func(v): game_cam.camera.size = v, game_cam.camera.size, original_zoom, 1.0)
+		if game_cam:
+			game_cam.deactivate_magnet()
 		return
-		
-	var game_cam := get_tree().get_first_node_in_group("camera") as GameCamera
-	if not game_cam:
-		return
-	
-	# Override camera target to magnet position
-	game_cam.global_position = game_cam.global_position.lerp(
-		camera_magnet_target,
-		clampf(3.0 * delta, 0.0, 1.0)
-	)
+
+	# NOTE: we deliberately do NOT touch game_cam.global_position here.
+	# game_camera.gd's `magnet_pcam` (a PhantomCamera3D with priority 20)
+	# owns the cinematic cut: it tweens from the player follow anchor to the
+	# boss anchor using its own easing. Lerping the camera global_position
+	# by hand fights the pcam tween and used to fling the camera off-map on
+	# the way to the boss. Just keep the magnet active so game_camera.gd's
+	# _process keeps returning early and the pcam tween finishes cleanly.
 
 func _create_solid_texture(color: Color, size: Vector2i) -> ImageTexture:
 	var img := Image.create(size.x, size.y, false, Image.FORMAT_RGBA8)
