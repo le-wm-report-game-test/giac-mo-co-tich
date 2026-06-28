@@ -185,10 +185,10 @@ func _update_facing_side_from_camera(dir: Vector3) -> void:
 
 func _setup_input_actions() -> void:
 	var actions: Dictionary = {
-		"move_left": KEY_A,
+		"move_left":  KEY_A,
 		"move_right": KEY_D,
-		"move_up": KEY_W,
-		"move_down": KEY_S
+		"move_up":    KEY_W,
+		"move_down":  KEY_S
 	}
 	
 	for action: String in actions:
@@ -203,10 +203,26 @@ func _setup_input_actions() -> void:
 		event.keycode = actions[action]
 		InputMap.action_add_event(action_name, event)
 
+	# Đăng ký action tấn công với phím Space
+	if not InputMap.has_action(&"attack"):
+		InputMap.add_action(&"attack")
+	else:
+		InputMap.action_erase_events(&"attack")
+	var space_event := InputEventKey.new()
+	space_event.physical_keycode = KEY_SPACE
+	space_event.keycode          = KEY_SPACE
+	InputMap.action_add_event(&"attack", space_event)
+
 func _input(event: InputEvent) -> void:
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
-		if anim_state != AnimState.DEATH and not is_attacking and attack_cooldown <= 0.0:
-			_start_attack()
+	if anim_state == AnimState.DEATH or is_attacking or attack_cooldown > 0.0:
+		return
+	# Chuột trái hoặc phím Space đều kích hoạt tấn công
+	var mouse_attack: bool = event is InputEventMouseButton \
+		and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT \
+		and event.pressed
+	var key_attack: bool = event.is_action_pressed(&"attack")
+	if mouse_attack or key_attack:
+		_start_attack()
 
 func _physics_process(delta: float) -> void:
 	# Cooldowns

@@ -51,7 +51,7 @@ func _create_ui() -> void:
 	_panel.anchor_bottom = 0.5
 	_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
-	_panel.custom_minimum_size = Vector2(440, 580)
+	_panel.custom_minimum_size = Vector2(540, 580)
 	
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.12, 0.12, 0.14, 0.98)
@@ -163,20 +163,36 @@ func _add_option(parent: Control, label_text: String, items: Array[String], sele
 	container.add_child(opt)
 
 func _create_action_buttons(parent: Control) -> void:
-	var hbox := HBoxContainer.new()
+	var hbox: HBoxContainer = HBoxContainer.new()
 	hbox.add_theme_constant_override("separation", 20)
 	hbox.alignment = BoxContainer.ALIGNMENT_CENTER
 	parent.add_child(hbox)
-	var resume_btn := Button.new()
+	
+	var resume_btn: Button = Button.new()
 	resume_btn.text = "TIẾP TỤC / RESUME"
 	resume_btn.custom_minimum_size = Vector2(150, 35)
 	resume_btn.pressed.connect(toggle_menu)
 	hbox.add_child(resume_btn)
-	var quit_btn := Button.new()
+	
+	var main_menu_btn: Button = Button.new()
+	main_menu_btn.text = "VỀ MENU / MAIN MENU"
+	main_menu_btn.custom_minimum_size = Vector2(150, 35)
+	main_menu_btn.pressed.connect(_on_main_menu_pressed)
+	hbox.add_child(main_menu_btn)
+	
+	var quit_btn: Button = Button.new()
 	quit_btn.text = "THOÁT / QUIT"
 	quit_btn.custom_minimum_size = Vector2(150, 35)
-	quit_btn.pressed.connect(func(): get_tree().quit())
+	quit_btn.pressed.connect(func() -> void: get_tree().quit())
 	hbox.add_child(quit_btn)
+
+func _on_main_menu_pressed() -> void:
+	get_tree().paused = false
+	# Lưu tiến độ trước khi về menu
+	SaveManager.trigger_save()
+	var err: Error = get_tree().change_scene_to_file("res://src/ui/MainMenu.tscn")
+	if err != OK:
+		push_error("Failed to load main menu scene: %s" % error_string(err))
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_cancel"):
