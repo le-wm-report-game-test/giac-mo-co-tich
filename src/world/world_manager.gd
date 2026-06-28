@@ -35,6 +35,11 @@ const PLAYER_HUD_FILL_COLOR := Color(0.78, 0.08, 0.1, 1.0)
 #const ORC_COUNTER_TEXT_SIZE := Vector2(170.0, 44.0)
 const ORC_COUNTER_TEXT_POSITION := Vector2(150.0, 195.0)
 const ORC_COUNTER_TEXT_SIZE := Vector2(300.0, 44.0)
+const MINIMAP_FRAME_TEXTURE_PATH := "res://Assets/items/map.png"
+const MINIMAP_FRAME_TEXTURE_SIZE := Vector2(500.0, 500.0)
+const MINIMAP_SCREEN_SIZE := Vector2(120.0, 120.0)
+const MINIMAP_INNER_POSITION := Vector2(58.0, 58.0)
+const MINIMAP_INNER_SIZE := Vector2(379.0, 379.0)
 
 # ─── HUD References ──────────────────────────────────────────────────────────
 var player_health_bar: Node = null
@@ -649,12 +654,56 @@ func _create_hud() -> void:
 	boss_container.add_child(boss_hp_bar)
 	
 	# ─── Minimap HUD ───
+	var minimap_container := Control.new()
+	minimap_container.name = "MinimapContainer"
+	minimap_container.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	minimap_container.position = Vector2(1920 - MINIMAP_SCREEN_SIZE.x - 20.0, 20.0)
+	minimap_container.custom_minimum_size = MINIMAP_SCREEN_SIZE
+	minimap_container.size = MINIMAP_SCREEN_SIZE
+	minimap_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ui.add_child(minimap_container)
+
+	var minimap_frame := TextureRect.new()
+	minimap_frame.name = "MinimapFrame"
+	minimap_frame.set_anchors_preset(Control.PRESET_FULL_RECT)
+	minimap_frame.offset_left = 0.0
+	minimap_frame.offset_top = 0.0
+	minimap_frame.offset_right = 0.0
+	minimap_frame.offset_bottom = 0.0
+	minimap_frame.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	minimap_frame.stretch_mode = TextureRect.STRETCH_SCALE
+	minimap_frame.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	minimap_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	minimap_frame.texture = load(MINIMAP_FRAME_TEXTURE_PATH) as Texture2D
+	minimap_container.add_child(minimap_frame)
+
+	var minimap_scale := MINIMAP_SCREEN_SIZE.x / MINIMAP_FRAME_TEXTURE_SIZE.x
+	var minimap_inner_position := Vector2(
+		round(MINIMAP_INNER_POSITION.x * minimap_scale),
+		round(MINIMAP_INNER_POSITION.y * minimap_scale)
+	)
+	var minimap_inner_size := Vector2(
+		round(MINIMAP_INNER_SIZE.x * minimap_scale),
+		round(MINIMAP_INNER_SIZE.y * minimap_scale)
+	)
+
+	var minimap_mask := Control.new()
+	minimap_mask.name = "MinimapMask"
+	minimap_mask.position = minimap_inner_position
+	minimap_mask.custom_minimum_size = minimap_inner_size
+	minimap_mask.size = minimap_inner_size
+	minimap_mask.clip_contents = true
+	minimap_mask.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	minimap_container.add_child(minimap_mask)
+
 	var minimap_script := preload("res://src/ui/minimap.gd")
 	minimap = minimap_script.new()
 	minimap.name = "Minimap"
-	ui.add_child(minimap)
-	minimap.setup(Vector2(120, 120))
-	minimap.position = Vector2(1920 - 120 - 20, 20)
+	minimap.show_panel_background = false
+	minimap.show_panel_border = false
+	minimap_mask.add_child(minimap)
+	minimap.setup(minimap_inner_size)
+	minimap.position = Vector2.ZERO
 
 func _update_ui_orc_counter() -> void:
 	var label := get_node_or_null("UI/OrcCounter/OrcCountLabel") as Label
