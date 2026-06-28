@@ -7,7 +7,7 @@ const GAME_SCENE_PATH: String = "res://Scenes/Game.tscn"
 const BG_PATH: String = "res://Assets/OpenScreenAssets/Background_Screen.png"
 const BTN_START_PATH: String = "res://Assets/OpenScreenAssets/Start_Button.png"
 const BTN_CONTINUE_PATH: String = "res://Assets/OpenScreenAssets/Continue_Button.png"
-const BTN_SETTINGS_PATH: String = "res://assets/btn_settings.png"
+const BTN_SETTINGS_PATH: String = "res://Assets/OpenScreenAssets/Setting_Button.png"
 const BTN_QUIT_PATH: String = "res://assets/btn_quit.png"
 
 # Âm thanh khi hover chuột qua các nút
@@ -74,10 +74,10 @@ func _ready() -> void:
 	
 	# 4. Định nghĩa dữ liệu nút bấm
 	var buttons_data: Array[Dictionary] = [
-		{"name": "Start", "label": "BẮT ĐẦU / START", "texture": BTN_START_PATH, "pressed": _on_play_pressed},
+		{"name": "Start",    "label": "BẮT ĐẦU / START",     "texture": BTN_START_PATH,    "pressed": _on_play_pressed},
 		{"name": "Continue", "label": "TIẾP TỤC / CONTINUE", "texture": BTN_CONTINUE_PATH, "pressed": _on_continue_pressed},
-		{"name": "Settings", "label": "CÀI ĐẶT / SETTINGS", "texture": BTN_SETTINGS_PATH, "pressed": _on_settings_pressed},
-		{"name": "Quit", "label": "THOÁT / QUIT", "texture": BTN_QUIT_PATH, "pressed": _on_quit_pressed}
+		{"name": "Settings", "label": "CÀI ĐẶT / SETTINGS",  "texture": BTN_SETTINGS_PATH, "pressed": _on_settings_pressed, "target_height": 130.0},
+		{"name": "Quit",     "label": "THOÁT / QUIT",        "texture": BTN_QUIT_PATH,     "pressed": _on_quit_pressed}
 	]
 	
 	# 5. Sinh nút bấm động và kết nối sự kiện
@@ -93,8 +93,13 @@ func _ready() -> void:
 			tex_btn.texture_normal = normal_tex
 			tex_btn.ignore_texture_size = true
 			tex_btn.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
-			var ts := normal_tex.get_size()
-			tex_btn.custom_minimum_size = Vector2(412, 412 * ts.y / ts.x)
+			var ts: Vector2 = normal_tex.get_size()
+			# Nếu có target_height, cố định height rồi tính width theo tỷ lệ ảnh
+			if data.has("target_height"):
+				var h: float = float(data["target_height"])
+				tex_btn.custom_minimum_size = Vector2(h * ts.x / ts.y, h)
+			else:
+				tex_btn.custom_minimum_size = Vector2(412.0, 412.0 * ts.y / ts.x)
 			btn = tex_btn
 		else:
 			var std_btn := Button.new()
