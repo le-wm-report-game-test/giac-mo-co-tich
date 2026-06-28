@@ -12,7 +12,7 @@ config_version=5
 
 config/name="GiacMoCoTich"
 run/main_scene="res://src/world/world.tscn"
-config/features=PackedStringArray("4.6", "Forward Plus")
+config/features=PackedStringArray("4.7", "Forward Plus")
 config/icon="res://icon.svg"
 
 [autoload]
@@ -26,6 +26,10 @@ PhantomCameraManager="*uid://duq6jhf6unyis"
 window/size/viewport_width=1920
 window/size/viewport_height=1080
 window/stretch/mode="canvas_items"
+
+[dotnet]
+
+project/assembly_name="GiacMoCoTich"
 
 [editor_plugins]
 
