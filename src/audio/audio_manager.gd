@@ -3,310 +3,179 @@
 class_name AudioManager
 extends Node
 
-# Audio buses
+const ProceduralAudioGenerator = preload("res://src/audio/procedural_audio_generator.gd")
+
 const BUS_MASTER: String = "Master"
 const BUS_MUSIC: String = "Music"
 const BUS_SFX: String = "SFX"
 const BUS_AMBIENCE: String = "Ambience"
 
-# Volume levels
 var sfx_volume: float = 0.8
 var music_volume: float = 0.5
 var ambience_volume: float = 0.6
 
-# Audio players pool
 var _sfx_players: Array[AudioStreamPlayer3D] = []
 var _ambience_player: AudioStreamPlayer3D = null
 var _music_player: AudioStreamPlayer = null
+var _footstep_player: AudioStreamPlayer3D = null
+var _footstep_timeout: float = 0.0
 
-# Cached procedural sounds
-var _procedural_sounds: Dictionary = {}
+var _sounds: Dictionary = {}
 
 func _ready() -> void:
-	# Create audio buses if they don't exist
+	_load_initial_volumes()
 	_setup_audio_buses()
-	
-	# Create 3D audio player pool (8 concurrent SFX)
+	_create_players()
+	_generate_procedural_sounds()
+	_load_assets()
+	_connect_event_bus()
+
+func _process(delta: float) -> void:
+	if _footstep_timeout > 0.0:
+		_footstep_timeout -= delta
+		if _footstep_timeout <= 0.0 and _footstep_player and _footstep_player.playing:
+			_footstep_player.stop()
+
+func _load_initial_volumes() -> void:
+	var settings = get_node_or_null("/root/World/WorldManager/SettingsMenu")
+	if settings:
+		music_volume = settings.music_volume
+		sfx_volume = settings.sfx_volume
+		ambience_volume = settings.ambience_volume
+
+func _setup_audio_buses() -> void:
+	var buses := {BUS_MUSIC: music_volume, BUS_SFX: sfx_volume, BUS_AMBIENCE: ambience_volume}
+	for b_name in buses:
+		var idx := AudioServer.get_bus_index(b_name)
+		if idx == -1:
+			AudioServer.add_bus()
+			idx = AudioServer.bus_count - 1
+			AudioServer.set_bus_name(idx, b_name)
+		AudioServer.set_bus_volume_db(idx, linear_to_db(buses[b_name]))
+
+func _create_players() -> void:
 	for i in range(8):
 		var player := AudioStreamPlayer3D.new()
 		player.name = "SFXPlayer_%d" % i
 		player.bus = BUS_SFX
-		player.max_distance = 30.0
+		player.volume_db = 8.0 # Boost SFX volume (+8 dB)
+		player.unit_size = 12.0 # Make sound carry further before attenuating
+		player.max_distance = 50.0
 		player.attenuation_model = AudioStreamPlayer3D.ATTENUATION_INVERSE_SQUARE_DISTANCE
 		add_child(player)
 		_sfx_players.append(player)
 	
-	# Create ambience player
 	_ambience_player = AudioStreamPlayer3D.new()
 	_ambience_player.name = "AmbiencePlayer"
 	_ambience_player.bus = BUS_AMBIENCE
-	_ambience_player.max_distance = 50.0
+	_ambience_player.volume_db = 4.0 # Boost ambience volume (+4 dB)
+	_ambience_player.unit_size = 20.0 # Make environment sound carry much further
+	_ambience_player.max_distance = 80.0
+	_ambience_player.attenuation_model = AudioStreamPlayer3D.ATTENUATION_INVERSE_SQUARE_DISTANCE
 	add_child(_ambience_player)
 	
-	# Create music player (2D - non-spatial)
 	_music_player = AudioStreamPlayer.new()
 	_music_player.name = "MusicPlayer"
 	_music_player.bus = BUS_MUSIC
 	add_child(_music_player)
-	
-	# Generate procedural sounds
-	_generate_procedural_sounds()
-	
-	# Connect to event bus
-	var eb := get_node("/root/EventBus")
-	if eb:
-		eb.player_spawned.connect(_on_player_spawned)
 
-func _setup_audio_buses() -> void:
-	var bus_layout := AudioServer.generate_bus_layout()
-	
-	# Check if buses exist
-	var has_music := false
-	var has_sfx := false
-	var has_ambience := false
-	
-	for i in range(AudioServer.bus_count):
-		var bus_name := AudioServer.get_bus_name(i)
-		if bus_name == BUS_MUSIC: has_music = true
-		if bus_name == BUS_SFX: has_sfx = true
-		if bus_name == BUS_AMBIENCE: has_ambience = true
-	
-	# Add missing buses
-	if not has_sfx:
-		AudioServer.add_bus(AudioServer.bus_count)
-		AudioServer.set_bus_name(AudioServer.bus_count - 1, BUS_SFX)
-		AudioServer.set_bus_volume_db(AudioServer.bus_count - 1, linear_to_db(sfx_volume))
-	
-	if not has_music:
-		AudioServer.add_bus(AudioServer.bus_count)
-		AudioServer.set_bus_name(AudioServer.bus_count - 1, BUS_MUSIC)
-		AudioServer.set_bus_volume_db(AudioServer.bus_count - 1, linear_to_db(music_volume))
-	
-	if not has_ambience:
-		AudioServer.add_bus(AudioServer.bus_count)
-		AudioServer.set_bus_name(AudioServer.bus_count - 1, BUS_AMBIENCE)
-		AudioServer.set_bus_volume_db(AudioServer.bus_count - 1, linear_to_db(ambience_volume))
+	_footstep_player = AudioStreamPlayer3D.new()
+	_footstep_player.name = "FootstepPlayer"
+	_footstep_player.bus = BUS_SFX
+	_footstep_player.volume_db = 10.0 # Boost volume by +10 dB
+	_footstep_player.unit_size = 15.0 # Make sound carry further before attenuating
+	_footstep_player.max_distance = 60.0
+	_footstep_player.attenuation_model = AudioStreamPlayer3D.ATTENUATION_INVERSE_SQUARE_DISTANCE
+	add_child(_footstep_player)
 
 func _generate_procedural_sounds() -> void:
-	# Generate sword swing sound (synthetic whoosh)
-	_procedural_sounds["sword_swing"] = _generate_whoosh_sound(0.3, 200.0, 2000.0)
-	
-	# Generate hit sound (impact thud)
-	_procedural_sounds["hit"] = _generate_impact_sound(0.15)
-	
-	# Generate hurt sound (grunt)
-	_procedural_sounds["hurt"] = _generate_grunt_sound(0.3)
-	
-	# Generate death sound
-	_procedural_sounds["death"] = _generate_death_sound(0.5)
-	
-	# Generate pickup sound
-	_procedural_sounds["pickup"] = _generate_pickup_sound(0.2)
-	
-	# Generate rain ambience
-	_procedural_sounds["rain_ambience"] = _generate_noise_sound(5.0, 0.3)
-	
-	# Generate thunder
-	_procedural_sounds["thunder"] = _generate_thunder_sound(1.5)
-	
-	# Generate boss roar
-	_procedural_sounds["boss_roar"] = _generate_boss_roar(1.0)
-	
-	print("Procedural sounds generated: %d" % _procedural_sounds.size())
+	_sounds["sword_swing"] = ProceduralAudioGenerator.generate_whoosh_sound(0.3, 200.0, 2000.0)
+	_sounds["hit"] = ProceduralAudioGenerator.generate_impact_sound(0.15)
+	_sounds["hurt"] = ProceduralAudioGenerator.generate_grunt_sound(0.3)
+	_sounds["death"] = ProceduralAudioGenerator.generate_death_sound(0.5)
+	_sounds["pickup"] = ProceduralAudioGenerator.generate_pickup_sound(0.2)
+	_sounds["rain_ambience"] = ProceduralAudioGenerator.generate_noise_sound(5.0, 0.3)
+	_sounds["thunder"] = ProceduralAudioGenerator.generate_thunder_sound(1.5)
+	_sounds["boss_roar"] = ProceduralAudioGenerator.generate_boss_roar(1.0)
 
-func _generate_whoosh_sound(duration: float, freq_start: float, freq_end: float) -> AudioStreamWAV:
-	var sample_rate := 22050
-	var num_samples := int(sample_rate * duration)
-	var data := PackedByteArray()
-	data.resize(num_samples * 2)  # 16-bit mono
+func _load_assets() -> void:
+	var assets := {
+		"sword_swing": "res://Assets/audio/sound_attack.mp3",
+		"hit": "res://Assets/audio/punch.mp3",
+		"hurt": "res://Assets/audio/heavy-grunt.mp3",
+		"thunder": "res://Assets/audio/thunder.mp3",
+		"footstep": "res://Assets/audio/walk_on_grass.mp3",
+		"intro_music": "res://Assets/audio/intro.mp3"
+	}
+	for s_name in assets:
+		var _ok = load_external_sound(s_name, assets[s_name])
 	
-	for i in range(num_samples):
-		var t := float(i) / sample_rate
-		var progress := float(i) / num_samples
-		var freq := lerpf(freq_start, freq_end, progress)
-		var amp := sin(progress * PI) * 0.4  # Fade in/out
-		var sample := sin(t * freq * TAU) * amp * 0.5
-		sample += (randf() - 0.5) * 0.1 * amp  # Add noise
-		var val := clampi(int(sample * 32767), -32767, 32767)
-		data.encode_s16(i * 2, val)
-	
-	var wav := AudioStreamWAV.new()
-	wav.data = data
-	wav.format = AudioStreamWAV.FORMAT_16_BITS
-	wav.mix_rate = sample_rate
-	wav.stereo = false
-	return wav
+	for key in ["intro_music", "footstep"]:
+		var stream = _sounds.get(key)
+		if stream and "loop" in stream:
+			stream.loop = true
 
-func _generate_impact_sound(duration: float) -> AudioStreamWAV:
-	var sample_rate := 22050
-	var num_samples := int(sample_rate * duration)
-	var data := PackedByteArray()
-	data.resize(num_samples * 2)
-	
-	for i in range(num_samples):
-		var t := float(i) / sample_rate
-		var progress := float(i) / num_samples
-		var amp := exp(-progress * 15.0)  # Quick decay
-		var sample := (randf() - 0.5) * amp * 0.8  # Noise burst
-		sample += sin(t * 80.0 * TAU) * amp * 0.3  # Low thud
-		var val := clampi(int(sample * 32767), -32767, 32767)
-		data.encode_s16(i * 2, val)
-	
-	var wav := AudioStreamWAV.new()
-	wav.data = data
-	wav.format = AudioStreamWAV.FORMAT_16_BITS
-	wav.mix_rate = sample_rate
-	wav.stereo = false
-	return wav
+func _connect_event_bus() -> void:
+	var eb := get_node_or_null("/root/EventBus")
+	if not eb: return
+	eb.player_spawned.connect(_on_player_spawned)
+	eb.player_died.connect(_on_player_died)
+	eb.player_took_damage.connect(_on_player_took_damage)
+	eb.player_stepped.connect(_on_player_stepped)
+	eb.enemy_damaged.connect(_on_enemy_damaged)
+	eb.enemy_died.connect(_on_enemy_died)
+	eb.boss_spawned.connect(_on_boss_spawned)
+	eb.weather_changed.connect(_on_weather_changed)
 
-func _generate_grunt_sound(duration: float) -> AudioStreamWAV:
-	var sample_rate := 22050
-	var num_samples := int(sample_rate * duration)
-	var data := PackedByteArray()
-	data.resize(num_samples * 2)
-	
-	for i in range(num_samples):
-		var progress := float(i) / num_samples
-		var amp := sin(progress * PI) * 0.6
-		var freq := lerpf(120.0, 80.0, progress)
-		var sample := sin(float(i) / sample_rate * freq * TAU) * amp
-		sample += (randf() - 0.5) * 0.15 * amp
-		var val := clampi(int(sample * 32767), -32767, 32767)
-		data.encode_s16(i * 2, val)
-	
-	var wav := AudioStreamWAV.new()
-	wav.data = data
-	wav.format = AudioStreamWAV.FORMAT_16_BITS
-	wav.mix_rate = sample_rate
-	wav.stereo = false
-	return wav
+func _on_player_spawned(_player: CharacterBody3D) -> void:
+	var music_stream = _sounds.get("intro_music")
+	if music_stream: play_music(music_stream)
+	var wm := get_node_or_null("/root/World/WorldManager")
+	if wm and wm.get("is_raining"): play_ambience("rain_ambience")
 
-func _generate_death_sound(duration: float) -> AudioStreamWAV:
-	var sample_rate := 22050
-	var num_samples := int(sample_rate * duration)
-	var data := PackedByteArray()
-	data.resize(num_samples * 2)
-	
-	for i in range(num_samples):
-		var progress := float(i) / num_samples
-		var amp := exp(-progress * 8.0)
-		var freq := lerpf(150.0, 40.0, progress)
-		var sample := sin(float(i) / sample_rate * freq * TAU) * amp * 0.5
-		sample += (randf() - 0.5) * 0.2 * amp
-		var val := clampi(int(sample * 32767), -32767, 32767)
-		data.encode_s16(i * 2, val)
-	
-	var wav := AudioStreamWAV.new()
-	wav.data = data
-	wav.format = AudioStreamWAV.FORMAT_16_BITS
-	wav.mix_rate = sample_rate
-	wav.stereo = false
-	return wav
+func _on_player_died() -> void:
+	var player := get_tree().get_first_node_in_group("player") as Node3D
+	if player: play_sfx("death", player.global_position, 0.1)
+	stop_music()
 
-func _generate_pickup_sound(duration: float) -> AudioStreamWAV:
-	var sample_rate := 22050
-	var num_samples := int(sample_rate * duration)
-	var data := PackedByteArray()
-	data.resize(num_samples * 2)
-	
-	for i in range(num_samples):
-		var progress := float(i) / num_samples
-		var amp := sin(progress * PI) * 0.5
-		var freq := lerpf(400.0, 800.0, progress)
-		var sample := sin(float(i) / sample_rate * freq * TAU) * amp
-		var val := clampi(int(sample * 32767), -32767, 32767)
-		data.encode_s16(i * 2, val)
-	
-	var wav := AudioStreamWAV.new()
-	wav.data = data
-	wav.format = AudioStreamWAV.FORMAT_16_BITS
-	wav.mix_rate = sample_rate
-	wav.stereo = false
-	return wav
+func _on_player_took_damage(_amount: float, pos: Vector3) -> void:
+	play_sfx("hurt", pos, 0.15)
 
-func _generate_noise_sound(duration: float, volume: float) -> AudioStreamWAV:
-	var sample_rate := 22050
-	var num_samples := int(sample_rate * duration)
-	var data := PackedByteArray()
-	data.resize(num_samples * 2)
-	
-	for i in range(num_samples):
-		var sample := (randf() - 0.5) * volume * 0.5
-		var val := clampi(int(sample * 32767), -32767, 32767)
-		data.encode_s16(i * 2, val)
-	
-	var wav := AudioStreamWAV.new()
-	wav.data = data
-	wav.format = AudioStreamWAV.FORMAT_16_BITS
-	wav.mix_rate = sample_rate
-	wav.stereo = false
-	return wav
+func _on_player_stepped(pos: Vector3) -> void:
+	if _footstep_player:
+		_footstep_player.global_position = pos
+		if not _footstep_player.playing and _sounds.has("footstep"):
+			_footstep_player.stream = _sounds["footstep"]
+			_footstep_player.play()
+		_footstep_timeout = 0.8
 
-func _generate_thunder_sound(duration: float) -> AudioStreamWAV:
-	var sample_rate := 22050
-	var num_samples := int(sample_rate * duration)
-	var data := PackedByteArray()
-	data.resize(num_samples * 2)
-	
-	for i in range(num_samples):
-		var progress := float(i) / num_samples
-		var amp := exp(-progress * 5.0) * 0.8
-		var sample := (randf() - 0.5) * amp * 0.6
-		sample += sin(float(i) / sample_rate * 60.0 * TAU) * amp * 0.4
-		var val := clampi(int(sample * 32767), -32767, 32767)
-		data.encode_s16(i * 2, val)
-	
-	var wav := AudioStreamWAV.new()
-	wav.data = data
-	wav.format = AudioStreamWAV.FORMAT_16_BITS
-	wav.mix_rate = sample_rate
-	wav.stereo = false
-	return wav
+func _on_enemy_damaged(_enemy: Node3D, _amount: float, pos: Vector3) -> void:
+	play_sfx("hit", pos, 0.1)
 
-func _generate_boss_roar(duration: float) -> AudioStreamWAV:
-	var sample_rate := 22050
-	var num_samples := int(sample_rate * duration)
-	var data := PackedByteArray()
-	data.resize(num_samples * 2)
-	
-	for i in range(num_samples):
-		var progress := float(i) / num_samples
-		var amp := sin(progress * PI) * 0.7
-		var freq := lerpf(80.0, 150.0, progress)
-		var sample := sin(float(i) / sample_rate * freq * TAU) * amp * 0.5
-		sample += sin(float(i) / sample_rate * freq * 1.5 * TAU) * amp * 0.3
-		sample += (randf() - 0.5) * 0.2 * amp
-		var val := clampi(int(sample * 32767), -32767, 32767)
-		data.encode_s16(i * 2, val)
-	
-	var wav := AudioStreamWAV.new()
-	wav.data = data
-	wav.format = AudioStreamWAV.FORMAT_16_BITS
-	wav.mix_rate = sample_rate
-	wav.stereo = false
-	return wav
+func _on_enemy_died(enemy: Node3D) -> void:
+	play_sfx("death", enemy.global_position, 0.1)
 
-# ─── Public API ──────────────────────────────────────────────────────────────
+func _on_boss_spawned(boss: Node3D) -> void:
+	play_sfx("boss_roar", boss.global_position, 0.0)
+	play_sfx("thunder", boss.global_position, 0.1)
 
-func play_sfx(sound_name: String, position: Vector3, pitch_variation: float = 0.1) -> void:
-	if not _procedural_sounds.has(sound_name):
-		push_warning("Sound not found: %s" % sound_name)
-		return
-	
+func _on_weather_changed(weather_type: String) -> void:
+	if weather_type == "rain": play_ambience("rain_ambience")
+	else: stop_ambience()
+
+func play_sfx(sound_name: String, position: Vector3, pitch_var: float = 0.1) -> void:
+	if not _sounds.has(sound_name): return
 	var player := _get_free_sfx_player()
-	if not player:
-		return
-	
-	player.stream = _procedural_sounds[sound_name]
+	if not player: return
+	player.stream = _sounds[sound_name]
 	player.global_position = position
-	player.pitch_scale = 1.0 + randf_range(-pitch_variation, pitch_variation)
+	player.pitch_scale = 1.0 + randf_range(-pitch_var, pitch_var)
 	player.play()
 
-func play_ambience(sound_name: String, position: Vector3 = Vector3.ZERO) -> void:
-	if not _procedural_sounds.has(sound_name):
-		return
-	_ambience_player.stream = _procedural_sounds[sound_name]
-	_ambience_player.global_position = position
+func play_ambience(sound_name: String, pos: Vector3 = Vector3.ZERO) -> void:
+	if not _sounds.has(sound_name): return
+	_ambience_player.stream = _sounds[sound_name]
+	_ambience_player.global_position = pos
 	_ambience_player.play()
 
 func stop_ambience() -> void:
@@ -321,32 +190,28 @@ func stop_music() -> void:
 
 func _get_free_sfx_player() -> AudioStreamPlayer3D:
 	for player in _sfx_players:
-		if not player.playing:
-			return player
-	# If all busy, reuse the oldest
+		if not player.playing: return player
 	return _sfx_players[0]
 
-func _on_player_spawned(player: Node3D) -> void:
-	# Play ambience at player position
-	play_ambience("rain_ambience")
-	
-	# Connect to player attack
-	if player.has_signal("attack_performed"):
-		player.attack_performed.connect(func():
-			play_sfx("sword_swing", player.global_position)
-		)
-
-# External sound loading (for when user downloads actual audio files)
 func load_external_sound(sound_name: String, file_path: String) -> bool:
-	if not FileAccess.file_exists(file_path):
-		push_error("Sound file not found: %s" % file_path)
-		return false
-	
+	if not FileAccess.file_exists(file_path): return false
 	var stream := load(file_path) as AudioStream
-	if not stream:
-		push_error("Failed to load sound: %s" % file_path)
-		return false
-	
-	_procedural_sounds[sound_name] = stream
-	print("Loaded external sound: %s -> %s" % [sound_name, file_path])
+	if not stream: return false
+	_sounds[sound_name] = stream
 	return true
+
+func set_music_volume(vol: float) -> void:
+	music_volume = clampf(vol, 0.0, 1.0)
+	_set_bus_vol(BUS_MUSIC, music_volume)
+
+func set_sfx_volume(vol: float) -> void:
+	sfx_volume = clampf(vol, 0.0, 1.0)
+	_set_bus_vol(BUS_SFX, sfx_volume)
+
+func set_ambience_volume(vol: float) -> void:
+	ambience_volume = clampf(vol, 0.0, 1.0)
+	_set_bus_vol(BUS_AMBIENCE, ambience_volume)
+
+func _set_bus_vol(bus_name: String, vol: float) -> void:
+	var idx := AudioServer.get_bus_index(bus_name)
+	if idx != -1: AudioServer.set_bus_volume_db(idx, linear_to_db(vol))

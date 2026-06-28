@@ -11,13 +11,17 @@ var lighting_quality: String = DEFAULT_LIGHTING_QUALITY
 var window_mode_index: int = 0
 var fps_index: int = 0
 
+# Audio settings
+var music_volume: float = 0.5
+var sfx_volume: float = 0.8
+var ambience_volume: float = 0.6
+
 var _overlay: ColorRect
 var _panel: PanelContainer
 var _brightness_label: Label
-var _brightness_slider: HSlider
-var _lighting_quality_option: OptionButton
-var _window_mode_option: OptionButton
-var _fps_option: OptionButton
+var _music_label: Label
+var _sfx_label: Label
+var _ambience_label: Label
 var _suppress_save: bool = true
 
 func _ready() -> void:
@@ -34,14 +38,12 @@ func toggle_menu() -> void:
 	get_tree().paused = is_open
 
 func _create_ui() -> void:
-	# Semi-transparent backdrop overlay
 	_overlay = ColorRect.new()
 	_overlay.color = Color(0.05, 0.05, 0.05, 0.75)
 	_overlay.anchor_right = 1.0
 	_overlay.anchor_bottom = 1.0
 	add_child(_overlay)
 	
-	# Main Panel Centered
 	_panel = PanelContainer.new()
 	_panel.anchor_left = 0.5
 	_panel.anchor_top = 0.5
@@ -49,7 +51,7 @@ func _create_ui() -> void:
 	_panel.anchor_bottom = 0.5
 	_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
-	_panel.custom_minimum_size = Vector2(440, 450)
+	_panel.custom_minimum_size = Vector2(440, 580)
 	
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.12, 0.12, 0.14, 0.98)
@@ -64,117 +66,115 @@ func _create_ui() -> void:
 	style.corner_radius_bottom_right = 10
 	style.content_margin_left = 20
 	style.content_margin_right = 20
-	style.content_margin_top = 20
-	style.content_margin_bottom = 20
+	style.content_margin_top = 15
+	style.content_margin_bottom = 15
 	_panel.add_theme_stylebox_override("panel", style)
 	add_child(_panel)
 	
 	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 15)
+	vbox.add_theme_constant_override("separation", 10)
 	_panel.add_child(vbox)
 	
-	# Title
 	var title := Label.new()
 	title.text = "CÀI ĐẶT / SETTINGS"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 20)
+	title.add_theme_font_size_override("font_size", 18)
 	title.add_theme_color_override("font_color", Color(0.95, 0.75, 0.2))
 	vbox.add_child(title)
 	
-	# Add controls
+	# Display & Visuals
 	_create_brightness_control(vbox)
-	_create_lighting_quality_control(vbox)
-	_create_window_mode_control(vbox)
-	_create_fps_control(vbox)
+	_add_option(vbox, "Chất lượng ánh sáng / Lighting Quality:", ["Cinematic", "Performance"], 1 if lighting_quality == "Performance" else 0, _on_lighting_quality_selected)
+	_add_option(vbox, "Chế độ hiển thị (1920x1080) / Window Mode:", ["Cửa sổ (Windowed)", "Không viền (Borderless)", "Toàn màn hình (Fullscreen)"], window_mode_index, _on_window_mode_selected)
+	_add_option(vbox, "Giới hạn FPS / FPS Limit:", ["Không giới hạn (Unlimited)", "30 FPS", "60 FPS", "120 FPS"], fps_index, _on_fps_selected)
+	
+	# Audio Controls
+	_create_audio_controls(vbox)
+	
+	# Buttons
 	_create_action_buttons(vbox)
 
 func _create_brightness_control(parent: Control) -> void:
 	var container := VBoxContainer.new()
-	container.add_theme_constant_override("separation", 5)
 	parent.add_child(container)
-	
 	_brightness_label = Label.new()
 	_brightness_label.text = "Độ sáng / Brightness: %d%%" % int(brightness * 100)
-	_brightness_label.add_theme_font_size_override("font_size", 14)
+	_brightness_label.add_theme_font_size_override("font_size", 12)
 	container.add_child(_brightness_label)
-	
-	_brightness_slider = HSlider.new()
-	_brightness_slider.min_value = 0.85
-	_brightness_slider.max_value = 1.15
-	_brightness_slider.step = 0.01
-	_brightness_slider.value = brightness
-	_brightness_slider.value_changed.connect(_on_brightness_changed)
-	container.add_child(_brightness_slider)
+	var slider := HSlider.new()
+	slider.min_value = 0.85
+	slider.max_value = 1.15
+	slider.step = 0.01
+	slider.value = brightness
+	slider.value_changed.connect(_on_brightness_changed)
+	container.add_child(slider)
 
-func _create_lighting_quality_control(parent: Control) -> void:
+func _create_audio_controls(parent: Control) -> void:
+	var title := Label.new()
+	title.text = "ÂM THANH / AUDIO"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 14)
+	title.add_theme_color_override("font_color", Color(0.85, 0.65, 0.15))
+	parent.add_child(title)
+	
+	_music_label = Label.new()
+	_music_label.add_theme_font_size_override("font_size", 12)
+	_add_audio_slider(parent, _music_label, "Nhạc nền / Music", music_volume, _on_music_volume_changed)
+	
+	_sfx_label = Label.new()
+	_sfx_label.add_theme_font_size_override("font_size", 12)
+	_add_audio_slider(parent, _sfx_label, "Hiệu ứng / SFX", sfx_volume, _on_sfx_volume_changed)
+	
+	_ambience_label = Label.new()
+	_ambience_label.add_theme_font_size_override("font_size", 12)
+	_add_audio_slider(parent, _ambience_label, "Môi trường / Ambience", ambience_volume, _on_ambience_volume_changed)
+	
+	_update_audio_labels()
+
+func _add_audio_slider(parent: Control, label: Label, _text_lbl: String, val: float, callback: Callable) -> void:
 	var container := VBoxContainer.new()
-	container.add_theme_constant_override("separation", 5)
 	parent.add_child(container)
-
-	var label := Label.new()
-	label.text = "Chất lượng ánh sáng / Lighting Quality:"
-	label.add_theme_font_size_override("font_size", 14)
 	container.add_child(label)
+	var slider := HSlider.new()
+	slider.min_value = 0.0
+	slider.max_value = 1.0
+	slider.step = 0.01
+	slider.value = val
+	slider.value_changed.connect(callback)
+	container.add_child(slider)
 
-	_lighting_quality_option = OptionButton.new()
-	_lighting_quality_option.add_item("Cinematic")
-	_lighting_quality_option.add_item("Performance")
-	_lighting_quality_option.selected = 1 if lighting_quality == "Performance" else 0
-	_lighting_quality_option.item_selected.connect(_on_lighting_quality_selected)
-	container.add_child(_lighting_quality_option)
+func _update_audio_labels() -> void:
+	_music_label.text = "Nhạc nền / Music Volume: %d%%" % int(music_volume * 100)
+	_sfx_label.text = "Hiệu ứng / SFX Volume: %d%%" % int(sfx_volume * 100)
+	_ambience_label.text = "Môi trường / Ambience Volume: %d%%" % int(ambience_volume * 100)
 
-func _create_window_mode_control(parent: Control) -> void:
+func _add_option(parent: Control, label_text: String, items: Array[String], selected_idx: int, callback: Callable) -> void:
 	var container := VBoxContainer.new()
-	container.add_theme_constant_override("separation", 5)
 	parent.add_child(container)
-	
-	var label := Label.new()
-	label.text = "Chế độ hiển thị (1920x1080) / Window Mode:"
-	label.add_theme_font_size_override("font_size", 14)
-	container.add_child(label)
-	
-	_window_mode_option = OptionButton.new()
-	_window_mode_option.add_item("Cửa sổ (Windowed 1920x1080)")
-	_window_mode_option.add_item("Không viền (Borderless 1920x1080)")
-	_window_mode_option.add_item("Toàn màn hình (Fullscreen 1920x1080)")
-	_window_mode_option.item_selected.connect(_on_window_mode_selected)
-	_window_mode_option.selected = window_mode_index
-	container.add_child(_window_mode_option)
-
-func _create_fps_control(parent: Control) -> void:
-	var container := VBoxContainer.new()
-	container.add_theme_constant_override("separation", 5)
-	parent.add_child(container)
-	
-	var label := Label.new()
-	label.text = "Giới hạn FPS / FPS Limit:"
-	label.add_theme_font_size_override("font_size", 14)
-	container.add_child(label)
-	
-	_fps_option = OptionButton.new()
-	_fps_option.add_item("Không giới hạn (Unlimited)")
-	_fps_option.add_item("30 FPS")
-	_fps_option.add_item("60 FPS")
-	_fps_option.add_item("120 FPS")
-	_fps_option.item_selected.connect(_on_fps_selected)
-	_fps_option.selected = fps_index
-	container.add_child(_fps_option)
+	var lbl := Label.new()
+	lbl.text = label_text
+	lbl.add_theme_font_size_override("font_size", 12)
+	container.add_child(lbl)
+	var opt := OptionButton.new()
+	for item in items:
+		opt.add_item(item)
+	opt.selected = selected_idx
+	opt.item_selected.connect(callback)
+	container.add_child(opt)
 
 func _create_action_buttons(parent: Control) -> void:
 	var hbox := HBoxContainer.new()
 	hbox.add_theme_constant_override("separation", 20)
 	hbox.alignment = BoxContainer.ALIGNMENT_CENTER
 	parent.add_child(hbox)
-	
 	var resume_btn := Button.new()
 	resume_btn.text = "TIẾP TỤC / RESUME"
-	resume_btn.custom_minimum_size = Vector2(150, 40)
+	resume_btn.custom_minimum_size = Vector2(150, 35)
 	resume_btn.pressed.connect(toggle_menu)
 	hbox.add_child(resume_btn)
-	
 	var quit_btn := Button.new()
 	quit_btn.text = "THOÁT / QUIT"
-	quit_btn.custom_minimum_size = Vector2(150, 40)
+	quit_btn.custom_minimum_size = Vector2(150, 35)
 	quit_btn.pressed.connect(func(): get_tree().quit())
 	hbox.add_child(quit_btn)
 
@@ -224,11 +224,40 @@ func _on_fps_selected(index: int) -> void:
 		Engine.max_fps = 120
 	_save_settings()
 
+func _on_music_volume_changed(value: float) -> void:
+	music_volume = clampf(value, 0.0, 1.0)
+	_update_audio_labels()
+	var audio := get_node_or_null("/root/World/AudioManager") as AudioManager
+	if audio:
+		audio.set_music_volume(music_volume)
+	_save_settings()
+
+func _on_sfx_volume_changed(value: float) -> void:
+	sfx_volume = clampf(value, 0.0, 1.0)
+	_update_audio_labels()
+	var audio := get_node_or_null("/root/World/AudioManager") as AudioManager
+	if audio:
+		audio.set_sfx_volume(sfx_volume)
+	_save_settings()
+
+func _on_ambience_volume_changed(value: float) -> void:
+	ambience_volume = clampf(value, 0.0, 1.0)
+	_update_audio_labels()
+	var audio := get_node_or_null("/root/World/AudioManager") as AudioManager
+	if audio:
+		audio.set_ambience_volume(ambience_volume)
+	_save_settings()
+
 func _apply_settings() -> void:
 	_apply_brightness()
 	_on_lighting_quality_selected(1 if lighting_quality == "Performance" else 0)
 	_on_window_mode_selected(window_mode_index)
 	_on_fps_selected(fps_index)
+	var audio := get_node_or_null("/root/World/AudioManager") as AudioManager
+	if audio:
+		audio.set_music_volume(music_volume)
+		audio.set_sfx_volume(sfx_volume)
+		audio.set_ambience_volume(ambience_volume)
 
 func _apply_brightness() -> void:
 	var director := get_tree().get_first_node_in_group("lighting_director") as LightingDirector
@@ -250,6 +279,10 @@ func _load_settings() -> void:
 	lighting_quality = saved_quality if saved_quality in ["Cinematic", "Performance"] else DEFAULT_LIGHTING_QUALITY
 	window_mode_index = clampi(int(config.get_value("display", "window_mode", 0)), 0, 2)
 	fps_index = clampi(int(config.get_value("display", "fps_limit", 0)), 0, 3)
+	
+	music_volume = clampf(float(config.get_value("audio", "music_volume", 0.5)), 0.0, 1.0)
+	sfx_volume = clampf(float(config.get_value("audio", "sfx_volume", 0.8)), 0.0, 1.0)
+	ambience_volume = clampf(float(config.get_value("audio", "ambience_volume", 0.6)), 0.0, 1.0)
 
 func _save_settings() -> void:
 	if _suppress_save:
@@ -259,6 +292,11 @@ func _save_settings() -> void:
 	config.set_value("display", "lighting_quality", lighting_quality)
 	config.set_value("display", "window_mode", window_mode_index)
 	config.set_value("display", "fps_limit", fps_index)
+	
+	config.set_value("audio", "music_volume", music_volume)
+	config.set_value("audio", "sfx_volume", sfx_volume)
+	config.set_value("audio", "ambience_volume", ambience_volume)
+	
 	var error := config.save(SETTINGS_PATH)
 	if error != OK:
 		push_warning("Could not persist settings: %s" % error_string(error))

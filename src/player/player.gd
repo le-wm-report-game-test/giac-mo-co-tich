@@ -280,7 +280,9 @@ func _physics_process(delta: float) -> void:
 		velocity.x = move_toward(velocity.x, _target_velocity.x, acceleration * delta)
 		velocity.z = move_toward(velocity.z, _target_velocity.z, acceleration * delta)
 		
-		anim_state = AnimState.WALK
+		if anim_state != AnimState.WALK:
+			anim_state = AnimState.WALK
+			_last_footprint_pos = Vector3(9999.0, 9999.0, 9999.0)
 	else:
 		# Smooth deceleration
 		velocity.x = move_toward(velocity.x, 0.0, deceleration * delta)
@@ -356,6 +358,10 @@ func _handle_footprints(_delta: float) -> void:
 		fp_pos.y = global_position.y + 0.02
 	fp.global_position = fp_pos
 	_last_footprint_pos = global_position
+	
+	var event_bus := get_node_or_null("/root/EventBus")
+	if event_bus and event_bus.has_signal("player_stepped"):
+		event_bus.player_stepped.emit(fp_pos)
 
 func _get_camera_relative_direction(input_dir: Vector2) -> Vector3:
 	var camera := get_viewport().get_camera_3d()
@@ -585,11 +591,6 @@ func _on_hitbox_area_entered(area: Area3D) -> void:
 	if area is HurtboxComponent:
 		var hurtbox := area as HurtboxComponent
 		hurtbox.receive_hit(attack_damage, self)
-		
-		# Play hit sound
-		var audio := get_node_or_null("/root/World/AudioManager") as AudioManager
-		if audio:
-			audio.play_sfx("hit", global_position, 0.1)
 
 func _on_damaged(amount: float, source: Node3D) -> void:
 	if anim_state == AnimState.DEATH:
