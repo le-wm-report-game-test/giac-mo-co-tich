@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://8m3nobyk16wm"
-path="res://.godot/imported/icon.png-0661645ebcd1f259541e43f0afd1f280.ctex"
+uid="uid://yui5mbpka7gg"
+path="res://.godot/imported/Setting_Button.png-4c21c2258569d62138ab199c58c8380f.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://addons/shaker/assets/icon.png"
-dest_files=["res://.godot/imported/icon.png-0661645ebcd1f259541e43f0afd1f280.ctex"]
+source_file="res://Assets/OpenScreenAssets/Setting_Button.png"
+dest_files=["res://.godot/imported/Setting_Button.png-4c21c2258569d62138ab199c58c8380f.ctex"]
 
 [params]
 
