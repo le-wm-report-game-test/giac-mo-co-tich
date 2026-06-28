@@ -76,7 +76,7 @@ func _ready() -> void:
 	var buttons_data: Array[Dictionary] = [
 		{"name": "Start",    "label": "BẮT ĐẦU / START",     "texture": BTN_START_PATH,    "pressed": _on_play_pressed},
 		{"name": "Continue", "label": "TIẾP TỤC / CONTINUE", "texture": BTN_CONTINUE_PATH, "pressed": _on_continue_pressed},
-		{"name": "Settings", "label": "CÀI ĐẶT / SETTINGS",  "texture": BTN_SETTINGS_PATH, "pressed": _on_settings_pressed, "target_height": 130.0},
+		{"name": "Settings", "label": "CÀI ĐẶT / SETTINGS",  "texture": BTN_SETTINGS_PATH, "pressed": _on_settings_pressed},
 		{"name": "Quit",     "label": "THOÁT / QUIT",        "texture": BTN_QUIT_PATH,     "pressed": _on_quit_pressed}
 	]
 	
