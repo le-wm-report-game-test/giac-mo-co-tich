@@ -1,4 +1,4 @@
-; Engine configuration file.
+﻿; Engine configuration file.
 ; It's best edited using the editor UI and not directly,
 ; since the parameters that go here are not all obvious.
 ;
@@ -12,7 +12,7 @@ config_version=5
 
 config/name="GiacMoCoTich"
 run/main_scene="res://src/ui/MainMenu.tscn"
-config/features=PackedStringArray("4.7", "Forward Plus")
+config/features=PackedStringArray("4.6", "Forward Plus")
 config/icon="res://icon.svg"
 
 [autoload]
@@ -21,6 +21,8 @@ EventBus="*res://src/common/event_bus.gd"
 MCPGameBridge="res://addons/godot_mcp/game_bridge/mcp_game_bridge.gd"
 PhantomCameraManager="*uid://duq6jhf6unyis"
 Shaker="*uid://dox81g8o5vyo5"
+SaveManager="*res://src/save/SaveManager.gd"
+GameSaveHook="*res://src/save/GameSaveHook.gd"
 
 [display]
 
