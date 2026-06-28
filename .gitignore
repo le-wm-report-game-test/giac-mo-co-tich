@@ -13,6 +13,14 @@ export_credentials.cfg
 ~*.so
 ~*.dylib
 
+# Windows git creates `~name.dll~RFxxxxx.TMP` lock files during atomic
+# unlink/rename. Cover both the leading-`~` pattern and the trailing
+# `.TMP` (case-insensitive) so leftover lock files cannot be committed.
+*.TMP
+*~*.dll
+*~*.so
+*~*.dylib
+
 # Godot 3 specific legacy folder (just in case)
 .import/
 
