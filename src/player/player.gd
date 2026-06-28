@@ -53,10 +53,18 @@ var attack_mouse_pos: Vector2 = Vector2.ZERO
 var invulnerable_timer: float = 0.0
 var invulnerable_duration: float = 0.5
 
+# Speed boost
+var _speed_boost_active: bool = false
+var _speed_boost_timer: float = 0.0
+var _speed_boost_multiplier: float = 1.0
+var _base_speed: float = 5.0
+
+# Shield
+var _has_shield: bool = false
+
 var _texture_cache: Dictionary = {}
 var _last_footprint_pos: Vector3 = Vector3.ZERO
 var _footprint_left_side: bool = false
-var dust_particles: CPUParticles3D = null
 var _sprite_feet_offsets: Dictionary = {}
 
 @onready var health_component: HealthComponent = $HealthComponent
@@ -64,9 +72,11 @@ var _sprite_feet_offsets: Dictionary = {}
 @onready var attack_effect: Sprite3D = $Visuals/AttackEffect
 @onready var hitbox_area: Area3D = $HitboxArea
 @onready var hitbox_shape: CollisionShape3D = $HitboxArea/HitboxShape
+@onready var movement_dust: MovementDustTrail = $MovementDustTrail
 
 func _ready() -> void:
 	_setup_input_actions()
+	_base_speed = speed
 	if health_component:
 		health_component.max_health = max_health
 		health_component.current_health = max_health
@@ -104,52 +114,6 @@ func _ready() -> void:
 	hitbox_area.monitoring = false
 	hitbox_area.area_entered.connect(_on_hitbox_area_entered)
 	_configure_attack_hitbox()
-	
-	# Initialize movement dust particles
-	dust_particles = CPUParticles3D.new()
-	dust_particles.name = "DustParticles"
-	
-	# Mesh: Small retro cube
-	var d_mesh := BoxMesh.new()
-	d_mesh.size = Vector3(0.04, 0.04, 0.04)
-	
-	var d_mat := StandardMaterial3D.new()
-	d_mat.shading_mode = StandardMaterial3D.SHADING_MODE_UNSHADED
-	d_mat.vertex_color_use_as_albedo = true
-	d_mesh.material = d_mat
-	
-	dust_particles.mesh = d_mesh
-	dust_particles.amount = 16
-	dust_particles.lifetime = 0.8
-	dust_particles.local_coords = false # trail stays stationary in world space
-	
-	# Light upward and backward drift
-	dust_particles.direction = Vector3.UP
-	dust_particles.spread = 30.0
-	dust_particles.gravity = Vector3(0, 0.15, 0)
-	dust_particles.initial_velocity_min = 0.3
-	dust_particles.initial_velocity_max = 0.6
-	
-	# Color gradient: Soft grey-beige fading to transparent
-	var d_gradient := Gradient.new()
-	d_gradient.offsets = PackedFloat32Array([0.0, 0.7, 1.0])
-	d_gradient.colors = PackedColorArray([
-		Color("#D9CBBC", 0.5), # Soft grey-beige
-		Color("#CFC0AF", 0.3), # Fading grey-beige
-		Color(0.85, 0.78, 0.72, 0.0) # Transparent
-	])
-	dust_particles.color_ramp = d_gradient
-	
-	# Scale curve: Shrink dust as it fades
-	var d_curve := Curve.new()
-	d_curve.add_point(Vector2(0.0, 1.0))
-	d_curve.add_point(Vector2(1.0, 0.0))
-	dust_particles.scale_amount_curve = d_curve
-	
-	# Setup position at feet and add to scene
-	dust_particles.position = Vector3(0.0, 0.02, 0.0)
-	dust_particles.emitting = false
-	add_child(dust_particles)
 	
 	_update_sprite()
 
@@ -254,6 +218,14 @@ func _physics_process(delta: float) -> void:
 		sprite.modulate.a = 0.5 if int(invulnerable_timer * 10) % 2 == 0 else 1.0
 	else:
 		sprite.modulate.a = 1.0
+
+	# Speed boost timer
+	if _speed_boost_active:
+		_speed_boost_timer -= delta
+		if _speed_boost_timer <= 0.0:
+			_speed_boost_active = false
+			_speed_boost_multiplier = 1.0
+			speed = _base_speed
 	
 	# Don't process movement during attack or death
 	if anim_state == AnimState.ATTACK or anim_state == AnimState.DEATH:
@@ -270,9 +242,9 @@ func _physics_process(delta: float) -> void:
 	var direction := _get_camera_relative_direction(input_vector)
 
 	if direction != Vector3.ZERO:
-		# Calculate target velocity on horizontal plane
-		_target_velocity.x = direction.x * speed
-		_target_velocity.z = direction.z * speed
+		var current_speed := speed * _speed_boost_multiplier
+		_target_velocity.x = direction.x * current_speed
+		_target_velocity.z = direction.z * current_speed
 		
 		_set_facing_from_world_direction(direction)
 		
@@ -300,8 +272,8 @@ func _physics_process(delta: float) -> void:
 	if visuals_node and is_inside_tree():
 		var space_state := get_world_3d().direct_space_state
 		var query := PhysicsRayQueryParameters3D.create(
-			global_position + Vector3(0.0, 1.0, 0.0),
-			global_position + Vector3(0.0, -1.0, 0.0),
+			global_position + Vector3(0.0, 0.3, 0.0),
+			global_position + Vector3(0.0, -0.5, 0.0),
 			1 # Collide with ground layer
 		)
 		var result := space_state.intersect_ray(query)
@@ -329,10 +301,6 @@ func _physics_process(delta: float) -> void:
 	elif visuals_node:
 		visuals_node.position.y = 0.0
 			
-	# Update dust particle emission based on movement state
-	if is_instance_valid(dust_particles):
-		dust_particles.emitting = (anim_state == AnimState.WALK)
-	
 	_process_animation(delta)
 	_handle_footprints(delta)
 
@@ -343,9 +311,18 @@ func _handle_footprints(_delta: float) -> void:
 		return
 	var fp := Footprint.new()
 	get_parent().add_child(fp)
-	var right_dir := Vector3(facing_direction.z, 0.0, -facing_direction.x).normalized()
+
+	# Compute right direction based on sprite flip state, not raw facing_direction.
+	# This ensures footprint alignment stays consistent when player strafes.
+	var right_dir: Vector3
+	if facing_right:
+		right_dir = Vector3(facing_direction.z, 0.0, -facing_direction.x).normalized()
+	else:
+		right_dir = Vector3(-facing_direction.z, 0.0, facing_direction.x).normalized()
+
 	if right_dir == Vector3.ZERO:
 		right_dir = Vector3.RIGHT if facing_right else Vector3.LEFT
+
 	var offset_side := 0.12 if _footprint_left_side else -0.12
 	_footprint_left_side = not _footprint_left_side
 	var fp_pos := global_position + right_dir * offset_side
@@ -355,6 +332,11 @@ func _handle_footprints(_delta: float) -> void:
 	else:
 		fp_pos.y = global_position.y + 0.02
 	fp.global_position = fp_pos
+
+	# Rotation aligned with movement direction for dust sprites.
+	var move_y_rad := atan2(facing_direction.z, facing_direction.x)
+	if movement_dust != null:
+		movement_dust.spawn_at(fp_pos, move_y_rad)
 	_last_footprint_pos = global_position
 
 func _get_camera_relative_direction(input_dir: Vector2) -> Vector3:
@@ -535,24 +517,28 @@ func _update_sprite() -> void:
 	sprite.texture = tex
 	sprite.region_enabled = false
 	sprite.flip_h = false
-	
+	sprite.centered = true  # Pivot ở giữa quad (centered = local 0,0)
+
 	var frame_h := tex.get_height()
 	sprite.pixel_size = target_sprite_height / frame_h
-	
-	# Position the player's actual feet exactly on the floor by checking the bottom-most active pixel
-	var feet_offset_px: float = 0.0
-	if _sprite_feet_offsets.has(tex):
-		feet_offset_px = _sprite_feet_offsets[tex]
-	else:
-		var img := tex.get_image()
-		if img:
-			var rect := img.get_used_rect()
-			feet_offset_px = (rect.position.y + rect.size.y) - (frame_h / 2.0)
-			_sprite_feet_offsets[tex] = feet_offset_px
-		else:
-			_sprite_feet_offsets[tex] = 0.0
-			
-	sprite.position.y = feet_offset_px * sprite.pixel_size
+	var sprite_h_world := frame_h * sprite.pixel_size
+
+	# Đặt sprite sao cho CHÂN NHÂN VẬT (used_rect bottom) chạm world Y = 0 (mặt đất),
+	# bất kể visuals_node.global_position.y hiện tại là bao nhiêu.
+	#
+	# Khi centered=true: quad local Y từ -sprite_h_world/2 đến +sprite_h_world/2.
+	# Texture row N ở quad local Y = sprite_h_world/2 - N * pixel_size.
+	# Used_rect bottom row = used_rect.position.y + used_rect.size.y.
+	# World Y of used_rect bottom = sprite.position.y + visuals_node.global_position.y + (sprite_h_world/2 - used_rect_bottom_row * pixel_size)
+	# Set = 0 → sprite.position.y = -visuals_node.global_position.y - (sprite_h_world/2 - used_rect_bottom_row * pixel_size)
+	var img := tex.get_image()
+	if img:
+		var rect := img.get_used_rect()
+		var used_rect_bottom_row := rect.position.y + rect.size.y
+		var used_rect_bottom_local_y := sprite_h_world / 2.0 - used_rect_bottom_row * sprite.pixel_size
+		var visuals_node := sprite.get_parent() as Node3D
+		var visuals_global_y := visuals_node.global_position.y if visuals_node else 0.0
+		sprite.position.y = -visuals_global_y - used_rect_bottom_local_y
 	
 	# Update attack effect visibility and texture
 	if attack_effect:
@@ -594,6 +580,13 @@ func _on_hitbox_area_entered(area: Area3D) -> void:
 func _on_damaged(amount: float, source: Node3D) -> void:
 	if anim_state == AnimState.DEATH:
 		return
+
+	# Shield absorbs one hit
+	if _has_shield:
+		_has_shield = false
+		EventBus.player_shield_broken.emit()
+		return
+
 	_interrupt_attack()
 	anim_state = AnimState.HURT
 	anim_frame = 0
@@ -602,6 +595,18 @@ func _on_damaged(amount: float, source: Node3D) -> void:
 	
 	# Emit damage event for floating numbers
 	EventBus.player_took_damage.emit(amount, global_position)
+
+
+func apply_speed_boost(multiplier: float, duration: float) -> void:
+	_speed_boost_active = true
+	_speed_boost_timer = duration
+	_speed_boost_multiplier = 1.0 + multiplier
+	speed = _base_speed * _speed_boost_multiplier
+
+
+func apply_shield() -> void:
+	_has_shield = true
+
 
 func _on_died() -> void:
 	_interrupt_attack()

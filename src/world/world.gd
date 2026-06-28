@@ -2,22 +2,26 @@
 class_name World
 extends Node3D
 
+const DEFAULT_PLAYER_SPAWN_POSITION := Vector3(0.0, 1.0, 0.0)
+
 @export var player_scene: PackedScene = preload("res://src/player/player.tscn")
 @export var camera_scene: PackedScene = preload("res://src/camera/game_camera.tscn")
 
-@onready var spawn_point: Marker3D = $SpawnPoint
+@onready var spawn_point: Marker3D = get_node_or_null("SpawnPoint") as Marker3D
 
 func _ready() -> void:
-	# Ensure spawn point exists
-	if not spawn_point:
-		push_error("SpawnPoint Marker3D is missing from World scene.")
-		return
+	# Không để một marker bị thiếu làm hỏng toàn bộ quá trình khởi tạo game.
+	var player_spawn_position := DEFAULT_PLAYER_SPAWN_POSITION
+	if spawn_point:
+		player_spawn_position = spawn_point.global_position
+	else:
+		push_warning("SpawnPoint Marker3D is missing; using the default player spawn position.")
 		
 	# 1. Spawn Player
 	var player := player_scene.instantiate() as Player
 	player.add_to_group("player")
 	add_child(player)
-	player.global_position = spawn_point.global_position
+	player.global_position = player_spawn_position
 	
 	# 2. Spawn Camera
 	var camera := camera_scene.instantiate() as GameCamera

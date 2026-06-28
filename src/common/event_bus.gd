@@ -11,3 +11,5 @@ signal enemy_died(enemy: Node3D)
 signal boss_spawned(boss: Node3D)
 signal orc_killed_count(count: int)
 signal weather_changed(weather_type: String)
+signal player_shield_applied
+signal player_shield_broken
