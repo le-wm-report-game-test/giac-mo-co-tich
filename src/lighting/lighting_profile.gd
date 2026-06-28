@@ -30,6 +30,9 @@ extends Resource
 @export_range(0.1, 4.0, 0.01) var contrast: float = 1.12
 @export_range(0.0, 2.0, 0.01) var saturation: float = 0.94
 
+@export_group("Wet Surface")
+@export_range(0.0, 1.0, 0.01) var wet_amount: float = 0.0
+
 @export_group("Gameplay Readability")
 @export var actor_fill_color: Color = Color("#BFD8D2")
 @export_range(0.0, 2.0, 0.01) var actor_fill_energy: float = 0.12

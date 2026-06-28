@@ -1,8 +1,9 @@
-[gd_scene format=3 uid="uid://cg2o37h2d4o8a"]
+[gd_scene load_steps=10 format=3 uid="uid://cg2o37h2d4o8a"]
 
 [ext_resource type="Script" uid="uid://nme8v6d06rkr" path="res://src/world/world.gd" id="1_world_gd"]
 [ext_resource type="Script" uid="uid://cpmysducn2a6y" path="res://src/world/forest_builder.gd" id="2_forest_builder_gd"]
 [ext_resource type="Script" uid="uid://dgidmchsi3t7e" path="res://src/lighting/lighting_director.gd" id="3_lighting_director"]
+[ext_resource type="Script" path="res://src/lighting/wet_surface_controller.gd" id="4_wet_surface_controller"]
 [ext_resource type="Script" uid="uid://bl7je06kufi2g" path="res://src/items/food_spawner.gd" id="5_food_spawner"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_w1"]
@@ -46,6 +47,9 @@ shadow_blur = 1.5
 
 [node name="LightingDirector" type="Node3D" parent="." unique_id=225461919]
 script = ExtResource("3_lighting_director")
+
+[node name="WetSurfaceController" type="Node" parent="." unique_id=1490011101]
+script = ExtResource("4_wet_surface_controller")
 
 [node name="SpawnPoint" type="Marker3D" parent="." unique_id=12824431]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)

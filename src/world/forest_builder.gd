@@ -128,6 +128,7 @@ func _ready() -> void:
 	_rng = RandomNumberGenerator.new()
 	_rng.seed = random_seed
 
+	add_to_group("forest")
 	_setup_materials()
 	# Build the heightmap once and share its mesh + collision shape across
 	# the visual ground, the physics body and downstream spawners.
