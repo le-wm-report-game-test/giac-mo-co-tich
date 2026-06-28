@@ -121,11 +121,20 @@ var _mat_tree: StandardMaterial3D
 var _rng: RandomNumberGenerator
 
 # ─── Ready ─────────────────────────────────────────────────────────────────
+var _terrain_heightmap: TerrainHeightmap = null
+var _terrain_data: Dictionary = {}
+
 func _ready() -> void:
 	_rng = RandomNumberGenerator.new()
 	_rng.seed = random_seed
 
 	_setup_materials()
+	# Build the heightmap once and share its mesh + collision shape across
+	# the visual ground, the physics body and downstream spawners.
+	_terrain_heightmap = TerrainHeightmap.new()
+	_terrain_heightmap.name = "TerrainHeightmap"
+	add_child(_terrain_heightmap)
+	_terrain_data = _terrain_heightmap.build(HILL_ZONES)
 	_build_ground_floor()
 	_build_under_floor()
 	_build_ground_collision()
@@ -222,38 +231,48 @@ func _build_under_floor() -> void:
 
 
 # ─── Collision cho mặt đất ─────────────────────────────────────────────────
+# Two-layer architecture (see _build_ground_floor):
+#   1. VISUAL: 10,000 grass / path tiles at their heightmap-sampled Y.
+#   2. COLLISION: a single heightmap-based StaticBody. The tiles are pure
+#      decoration — they do NOT add their own CollisionShape3D. The previous
+#      implementation stacked 1m × 1m BoxShape3Ds on top of every tile with
+#      height_offset > 0.05, creating vertical step walls the player capsule
+#      (radius 0.4m) could not climb. That "bậc thang" bug is fixed here by
+#      using one smooth BoxShape3D for the flat ground plus one lightweight
+#      ConcavePolygonShape3D per hill (built from a small fan mesh).
 func _build_ground_collision() -> void:
+	if _terrain_heightmap == null or _terrain_data.is_empty():
+		push_error("ForestBuilder: TerrainHeightmap instance missing")
+		return
+
 	var ground_body := StaticBody3D.new()
 	ground_body.name = "GroundBody"
 	add_child(ground_body)
 
-	# Tạo collision shape phẳng lớn bao phủ toàn bản đồ
-	var col_shape := CollisionShape3D.new()
-	var box := BoxShape3D.new()
-	box.size = Vector3(MAP_HALF * 2.0, 0.2, MAP_HALF * 2.0)
-	col_shape.shape = box
-	col_shape.position = Vector3(0.0, -0.1, 0.0)
-	ground_body.add_child(col_shape)
+	# Flat base box covering the whole map. The box top sits exactly at Y=0
+	# so flat terrain (where sample_height returns 0) matches the player
+	# capsule resting Y=0 too.
+	var flat_col := CollisionShape3D.new()
+	flat_col.shape = _terrain_data["flat_collision_shape"]
+	flat_col.position = Vector3(0.0, -0.5, 0.0)
+	ground_body.add_child(flat_col)
 
-	# Thêm collision cho từng ô gò đất cao (Grid-based collision) thay vì dùng Box lớn
-	# Điều này giúp loại bỏ vùng cản vô hình ở góc hộp và cho phép đi lại mượt mà khớp với hình ảnh
-	var start: int = int(-MAP_HALF)
-	var end: int = int(MAP_HALF)
-	for x_i in range(start, end):
-		for z_i in range(start, end):
-			var xf: float = float(x_i) + 0.5
-			var zf: float = float(z_i) + 0.5
-			var height_offset: float = _get_hill_height(xf, zf)
-			
-			if height_offset > 0.05:
-				var hill_col := CollisionShape3D.new()
-				var hill_box := BoxShape3D.new()
-				# Mỗi ô 1x1m sẽ có 1 hộp collision tương ứng
-				hill_box.size = Vector3(1.0, height_offset + 0.2, 1.0)
-				hill_col.shape = hill_box
-				# Đặt tâm của hộp sao cho mặt trên khớp chính xác với height_offset
-				hill_col.position = Vector3(xf, height_offset * 0.5 - 0.1, zf)
-				ground_body.add_child(hill_col)
+	# One ConcavePolygonShape3D per hill. Each hill mesh is small
+	# (~30 triangles) so Jolt compiles it in microseconds.
+	var hill_meshes: Array = _terrain_data["hill_collision_meshes"]
+	for i in range(hill_meshes.size()):
+		var hill_mesh: ArrayMesh = hill_meshes[i]
+		var hill_shape: Shape3D = hill_mesh.create_trimesh_shape()
+		if hill_shape == null:
+			push_warning("ForestBuilder: failed to build hill collision mesh %d; skipping" % i)
+			continue
+		var hill_col := CollisionShape3D.new()
+		hill_col.shape = hill_shape
+		# Mesh vertices are already in world coordinates (center.x, height, center.z).
+		# No additional offset on the CollisionShape3D node or the shape would be
+		# double-translated away from where the player can step.
+		hill_col.position = Vector3.ZERO
+		ground_body.add_child(hill_col)
 
 
 # Preload Wind Sway Shader

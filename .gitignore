@@ -7,6 +7,12 @@ export.cfg
 export_credentials.cfg
 *.tmp
 
+# Native library files locked by a running Godot process on Windows (the
+# editor creates `~libname.dll` next to the real one while loading).
+~*.dll
+~*.so
+~*.dylib
+
 # Godot 3 specific legacy folder (just in case)
 .import/
 

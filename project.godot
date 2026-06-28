@@ -20,6 +20,7 @@ config/icon="res://icon.svg"
 EventBus="*res://src/common/event_bus.gd"
 MCPGameBridge="res://addons/godot_mcp/game_bridge/mcp_game_bridge.gd"
 PhantomCameraManager="*uid://duq6jhf6unyis"
+Shaker="*uid://dox81g8o5vyo5"
 
 [display]
 
@@ -29,7 +30,7 @@ window/stretch/mode="canvas_items"
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/godot_mcp/plugin.cfg", "res://addons/phantom_camera/plugin.cfg")
+enabled=PackedStringArray("res://addons/PolyHavenImport/plugin.cfg", "res://addons/godot_mcp/plugin.cfg", "res://addons/phantom_camera/plugin.cfg", "res://addons/shaker/plugin.cfg", "res://addons/terrain_3d/plugin.cfg")
 
 [filesystem]
 
