@@ -40,6 +40,9 @@ var camera_magnet_duration: float = 0.0
 var camera_magnet_timer: float = 0.0
 
 func _ready() -> void:
+	# Đăng ký group để SaveManager có thể tìm thấy
+	add_to_group("world_manager")
+	
 	# Connect to event bus
 	var eb := get_node("/root/EventBus")
 	if eb:

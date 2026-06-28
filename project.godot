@@ -20,6 +20,8 @@ config/icon="res://icon.svg"
 EventBus="*res://src/common/event_bus.gd"
 MCPGameBridge="res://addons/godot_mcp/game_bridge/mcp_game_bridge.gd"
 PhantomCameraManager="*uid://duq6jhf6unyis"
+SaveManager="*res://src/save/SaveManager.gd"
+GameSaveHook="*res://src/save/GameSaveHook.gd"
 
 [display]
 

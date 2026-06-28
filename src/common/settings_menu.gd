@@ -188,6 +188,8 @@ func _create_action_buttons(parent: Control) -> void:
 
 func _on_main_menu_pressed() -> void:
 	get_tree().paused = false
+	# Lưu tiến độ trước khi về menu
+	SaveManager.trigger_save()
 	var err: Error = get_tree().change_scene_to_file("res://src/ui/MainMenu.tscn")
 	if err != OK:
 		push_error("Failed to load main menu scene: %s" % error_string(err))

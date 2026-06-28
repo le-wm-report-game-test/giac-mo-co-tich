@@ -10,21 +10,22 @@ const BTN_CONTINUE_PATH: String = "res://Assets/OpenScreenAssets/Continue_Button
 const BTN_SETTINGS_PATH: String = "res://assets/btn_settings.png"
 const BTN_QUIT_PATH: String = "res://assets/btn_quit.png"
 
-# Âm thanh khi hover chuột qua các nút
+
 @export var hover_sfx: AudioStream = preload("res://Assets/audio/sound_attack.mp3")
 
 var sfx_player: AudioStreamPlayer = null
 var _settings_menu_instance: SettingsMenu = null
 var bg: TextureRect = null
+var _new_game_dialog: Control = null
 
 func _ready() -> void:
-	# Đảm bảo Main Menu vẫn chạy khi game bị tạm dừng
+	
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	
-	# Kết nối signal thay đổi kích thước để fit/scale ảnh nền động
+	
 	resized.connect(_on_resized)
 	
-	# 1. Tạo và cấu hình ảnh nền TextureRect
+	
 	bg = TextureRect.new()
 	bg.name = "Background"
 	
@@ -143,6 +144,13 @@ func _on_button_hover(button: Control, is_hovered: bool) -> void:
 		sfx_player.play()
 
 func _on_play_pressed() -> void:
+	# Nếu có bản lưu cũ, hiện cảnh báo trước khi chơi mới
+	if SaveManager.has_save():
+		_show_new_game_warning()
+		return
+	_start_new_game()
+
+func _start_new_game() -> void:
 	var err: Error = get_tree().change_scene_to_file(GAME_SCENE_PATH)
 	if err != OK:
 		var fallback_path: String = "res://src/world/world.tscn"
@@ -151,9 +159,145 @@ func _on_play_pressed() -> void:
 		if err != OK:
 			push_error("Failed to load world scene: %s" % error_string(err))
 
+# ── Hộp thoại cảnh báo chơi mới ──────────────────────────────────
+func _show_new_game_warning() -> void:
+	if _new_game_dialog != null:
+		return
+
+	# Lớp phủ tối phía sau
+	var overlay := ColorRect.new()
+	overlay.name = "NewGameDialogOverlay"
+	overlay.color = Color(0.0, 0.0, 0.0, 0.65)
+	overlay.anchor_right  = 1.0
+	overlay.anchor_bottom = 1.0
+	add_child(overlay)
+
+	# Hộp thoại chính
+	var dialog := PanelContainer.new()
+	dialog.name = "NewGameDialog"
+	var panel_style := StyleBoxFlat.new()
+	panel_style.bg_color            = Color(0.08, 0.13, 0.09, 0.97)
+	panel_style.border_color        = Color(0.76, 0.64, 0.38, 0.9)
+	panel_style.set_border_width_all(2)
+	panel_style.set_corner_radius_all(12)
+	panel_style.set_content_margin_all(32.0)
+	panel_style.shadow_color = Color(0.0, 0.0, 0.0, 0.5)
+	panel_style.shadow_size  = 12
+	dialog.add_theme_stylebox_override("panel", panel_style)
+	dialog.anchor_left   = 0.5
+	dialog.anchor_top    = 0.5
+	dialog.anchor_right  = 0.5
+	dialog.anchor_bottom = 0.5
+	dialog.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	dialog.grow_vertical   = Control.GROW_DIRECTION_BOTH
+	dialog.offset_left  = -280.0
+	dialog.offset_right =  280.0
+	dialog.offset_top   = -130.0
+	dialog.offset_bottom =  130.0
+	overlay.add_child(dialog)
+
+	var vbox := VBoxContainer.new()
+	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	vbox.add_theme_constant_override("separation", 18)
+	dialog.add_child(vbox)
+
+	# Tiêu đề
+	var title := Label.new()
+	title.text = "⚠  Chơi Mới?"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 26)
+	title.add_theme_color_override("font_color", Color(0.95, 0.80, 0.35))
+	vbox.add_child(title)
+
+	# Đường kẻ phân cách
+	var sep := HSeparator.new()
+	var sep_style := StyleBoxFlat.new()
+	sep_style.bg_color = Color(0.76, 0.64, 0.38, 0.4)
+	sep_style.set_content_margin_all(0.0)
+	sep.add_theme_stylebox_override("separator", sep_style)
+	vbox.add_child(sep)
+
+	# Nội dung cảnh báo
+	var body := Label.new()
+	body.text = "Bạn đang có một tiến độ chơi dở dang.\nNếu bắt đầu mới, toàn bộ tiến độ cũ\nsẽ bị xoá vĩnh viễn!"
+	body.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	body.autowrap_mode = TextServer.AUTOWRAP_WORD
+	body.add_theme_font_size_override("font_size", 18)
+	body.add_theme_color_override("font_color", Color(0.90, 0.85, 0.75))
+	vbox.add_child(body)
+
+	# Gợi ý tiếp tục
+	var hint := Label.new()
+	hint.text = "(Bấm TIẾP TỤC nếu muốn chơi tiếp)"
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint.add_theme_font_size_override("font_size", 14)
+	hint.add_theme_color_override("font_color", Color(0.65, 0.82, 0.65, 0.85))
+	vbox.add_child(hint)
+
+	# Hàng nút
+	var btn_row := HBoxContainer.new()
+	btn_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	btn_row.add_theme_constant_override("separation", 24)
+	vbox.add_child(btn_row)
+
+	var confirm_style := _create_style(Color(0.55, 0.10, 0.08, 0.9),  Color(0.90, 0.35, 0.30), 4)
+	var cancel_style  := _create_style(Color(0.10, 0.20, 0.12, 0.9),  Color(0.60, 0.80, 0.50), 4)
+	var confirm_hover := _create_style(Color(0.70, 0.15, 0.10, 0.95), Color(1.00, 0.50, 0.45), 6)
+	var cancel_hover  := _create_style(Color(0.15, 0.30, 0.18, 0.95), Color(0.80, 1.00, 0.70), 6)
+
+	var btn_confirm := Button.new()
+	btn_confirm.text = "Chơi Mới"
+	btn_confirm.custom_minimum_size = Vector2(150, 46)
+	btn_confirm.add_theme_stylebox_override("normal",  confirm_style)
+	btn_confirm.add_theme_stylebox_override("hover",   confirm_hover)
+	btn_confirm.add_theme_stylebox_override("pressed", confirm_style)
+	btn_confirm.add_theme_stylebox_override("focus",   confirm_hover)
+	btn_confirm.add_theme_color_override("font_color",       Color(1.0, 0.88, 0.85))
+	btn_confirm.add_theme_color_override("font_hover_color", Color.WHITE)
+	btn_confirm.add_theme_font_size_override("font_size", 17)
+	btn_confirm.pressed.connect(_on_new_game_confirmed)
+	btn_row.add_child(btn_confirm)
+
+	var btn_cancel := Button.new()
+	btn_cancel.text = "Huỷ"
+	btn_cancel.custom_minimum_size = Vector2(150, 46)
+	btn_cancel.add_theme_stylebox_override("normal",  cancel_style)
+	btn_cancel.add_theme_stylebox_override("hover",   cancel_hover)
+	btn_cancel.add_theme_stylebox_override("pressed", cancel_style)
+	btn_cancel.add_theme_stylebox_override("focus",   cancel_hover)
+	btn_cancel.add_theme_color_override("font_color",       Color(0.85, 0.95, 0.85))
+	btn_cancel.add_theme_color_override("font_hover_color", Color.WHITE)
+	btn_cancel.add_theme_font_size_override("font_size", 17)
+	btn_cancel.pressed.connect(_on_new_game_cancelled)
+	btn_row.add_child(btn_cancel)
+
+	_new_game_dialog = overlay
+	# Animate in
+	dialog.modulate.a = 0.0
+	dialog.scale = Vector2(0.85, 0.85)
+	dialog.pivot_offset = Vector2(280.0, 130.0)
+	var tw := create_tween().set_parallel(true)
+	tw.tween_property(dialog, "modulate:a", 1.0, 0.18).set_trans(Tween.TRANS_SINE)
+	tw.tween_property(dialog, "scale",      Vector2(1.0, 1.0), 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+func _close_new_game_dialog() -> void:
+	if _new_game_dialog != null:
+		_new_game_dialog.queue_free()
+		_new_game_dialog = null
+
+func _on_new_game_confirmed() -> void:
+	_close_new_game_dialog()
+	SaveManager.delete_save()
+	_start_new_game()
+
+func _on_new_game_cancelled() -> void:
+	_close_new_game_dialog()
+
 func _on_continue_pressed() -> void:
-	print("Loading save...")
-	_on_play_pressed()
+	# Tránh connect nhiều lần nếu bấm nút liên tục
+	if not SaveManager.load_completed.is_connected(_on_load_completed):
+		SaveManager.load_completed.connect(_on_load_completed)
+	SaveManager.load_progress()
 
 func _on_settings_pressed() -> void:
 	if _settings_menu_instance == null:
@@ -163,6 +307,29 @@ func _on_settings_pressed() -> void:
 
 func _on_quit_pressed() -> void:
 	get_tree().quit()
+
+func _on_load_completed(data: Dictionary, success: bool) -> void:
+	# Disconnect ngay để tránh bị gọi lại nhiều lần
+	if SaveManager.load_completed.is_connected(_on_load_completed):
+		SaveManager.load_completed.disconnect(_on_load_completed)
+
+	if not success:
+		push_warning("SaveManager: chưa có tiến độ – bắt đầu game mới.")
+		_on_play_pressed()
+		return
+
+	# Lưu dữ liệu save vào SaveManager để world có thể đọc sau khi load
+	SaveManager.set_meta("pending_restore", data)
+
+	var scene_path: String = data.get("scene_path", GAME_SCENE_PATH)
+	var err: Error = get_tree().change_scene_to_file(scene_path)
+	if err != OK:
+		push_warning("Không nạp được scene lưu (%s), dùng scene mặc định." % scene_path)
+		SaveManager.remove_meta("pending_restore")
+		_on_play_pressed()
+
+func _apply_loaded_state(_data: Dictionary) -> void:
+	pass  # Không còn dùng; việc restore do GameStateRestorer trong world.gd xử lý
 
 func _on_resized() -> void:
 	_update_background_size()

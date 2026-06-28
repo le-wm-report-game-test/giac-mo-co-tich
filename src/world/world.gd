@@ -37,9 +37,23 @@ func _ready() -> void:
 	var audio_manager := AudioManager.new()
 	audio_manager.name = "AudioManager"
 	add_child(audio_manager)
+
+	# 5. Death Dialog – hiện khi nhân vật chết
+	var death_dialog := DeathDialog.new()
+	death_dialog.name = "DeathDialog"
+	add_child(death_dialog)
 	
-	# 5. Notify Event Bus
+	# 6. Notify Event Bus
 	if get_node_or_null("/root/EventBus"):
 		var event_bus := get_node("/root/EventBus")
 		if event_bus.has_signal("player_spawned"):
 			event_bus.emit_signal("player_spawned", player)
+
+	# 7. Khôi phục trạng thái đã lưu (nếu có) – không can thiệp vào logic core
+	if SaveManager.has_meta("pending_restore"):
+		var restore_data: Dictionary = SaveManager.get_meta("pending_restore")
+		SaveManager.remove_meta("pending_restore")
+		var restorer := GameStateRestorer.new()
+		restorer.name = "GameStateRestorer"
+		add_child(restorer)
+		restorer.restore(restore_data)
