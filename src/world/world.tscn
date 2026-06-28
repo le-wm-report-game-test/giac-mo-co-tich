@@ -2,7 +2,8 @@
 
 [ext_resource type="Script" uid="uid://nme8v6d06rkr" path="res://src/world/world.gd" id="1_world_gd"]
 [ext_resource type="Script" uid="uid://cpmysducn2a6y" path="res://src/world/forest_builder.gd" id="2_forest_builder_gd"]
-[ext_resource type="Script" path="res://src/lighting/lighting_director.gd" id="3_lighting_director"]
+[ext_resource type="Script" uid="uid://dgidmchsi3t7e" path="res://src/lighting/lighting_director.gd" id="3_lighting_director"]
+[ext_resource type="Script" uid="uid://bl7je06kufi2g" path="res://src/items/food_spawner.gd" id="5_food_spawner"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_w1"]
 sky_top_color = Color(0.384314, 0.545098, 0.85098, 1)
@@ -43,7 +44,7 @@ shadow_bias = 0.03
 shadow_normal_bias = 1.5
 shadow_blur = 1.5
 
-[node name="LightingDirector" type="Node3D" parent="."]
+[node name="LightingDirector" type="Node3D" parent="." unique_id=225461919]
 script = ExtResource("3_lighting_director")
 
 [node name="SpawnPoint" type="Marker3D" parent="." unique_id=12824431]
@@ -51,3 +52,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
 
 [node name="Forest" type="Node3D" parent="." unique_id=1802129173]
 script = ExtResource("2_forest_builder_gd")
+
+[node name="FoodSpawner" type="Node3D" parent="." unique_id=1025058700]
+script = ExtResource("5_food_spawner")
