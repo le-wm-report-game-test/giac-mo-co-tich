@@ -59,6 +59,20 @@ func test_regular_orc_hitbox_covers_attack_trigger_range() -> void:
 	assert_not_null(hit_shape, "Regular Orc attack hitbox should be spherical")
 	assert_true(hit_shape.radius + 0.001 >= _orc.attack_range * 0.65, "Hitbox reach should match the attack trigger range")
 
+func test_regular_orc_health_bar_is_visible_and_updates_instantly() -> void:
+	assert_not_null(_orc.health_bar_sprite, "Regular Orc should create a floating health bar sprite")
+	assert_not_null(_orc.health_bar_fill, "Regular Orc should create a health bar fill")
+	assert_true(_orc.health_bar_sprite.visible, "Regular Orc health bar should be visible while alive")
+	
+	var full_width := _orc.health_bar_fill.size.x
+	_orc.health_component.take_damage(_orc.health_component.max_health * 0.5, null)
+	assert_almost_eq(
+		_orc.health_bar_fill.size.x,
+		roundf(full_width * 0.5),
+		1.0,
+		"Regular Orc health bar fill should update immediately after damage"
+	)
+
 func test_boss_keeps_heavy_attack_cadence() -> void:
 	var boss := OrcMob.new()
 	boss.add_to_group("boss")
@@ -66,4 +80,19 @@ func test_boss_keeps_heavy_attack_cadence() -> void:
 	boss.set_physics_process(false)
 	assert_true(boss.attack_cooldown_time >= 1.5, "Boss recovery should remain heavier than a regular Orc")
 	assert_true(boss.attack_animation_fps <= 8.0, "Boss attack animation should retain its heavy cadence")
+	boss.queue_free()
+
+func test_boss_health_bar_is_larger_and_hides_on_death() -> void:
+	var boss := OrcMob.new()
+	boss.add_to_group("boss")
+	world_instance.add_child(boss)
+	boss.set_physics_process(false)
+	
+	assert_not_null(boss.health_bar_sprite, "Boss should create a floating health bar sprite")
+	assert_not_null(boss.health_bar_fill, "Boss should create a health bar fill")
+	assert_true(boss.health_bar_fill_max_width > _orc.health_bar_fill_max_width, "Boss health bar should be wider than regular Orc bar")
+	assert_true(boss.health_bar_sprite.position.y > _orc.health_bar_sprite.position.y, "Boss health bar should float higher than regular Orc bar")
+	
+	boss.health_component.take_damage(boss.health_component.max_health, null)
+	assert_false(boss.health_bar_sprite.visible, "Boss health bar should hide immediately on death")
 	boss.queue_free()
