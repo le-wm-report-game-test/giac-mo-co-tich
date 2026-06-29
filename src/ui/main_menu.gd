@@ -9,7 +9,7 @@ const BG_PATH: String = "res://Assets/OpenScreenAssets/Background_Screen.png"
 const BTN_START_PATH: String = "res://Assets/OpenScreenAssets/Start_Button.png"
 const BTN_CONTINUE_PATH: String = "res://Assets/OpenScreenAssets/Continue_Button.png"
 const BTN_SETTINGS_PATH: String = "res://Assets/OpenScreenAssets/Setting_Button.png"
-const BTN_QUIT_PATH: String = "res://assets/btn_quit.png"
+const BTN_QUIT_PATH: String = "res://Assets/OpenScreenAssets/Quit_Button.png"
 
 
 @export var hover_sfx: AudioStream = preload("res://Assets/audio/sound_attack.mp3")
