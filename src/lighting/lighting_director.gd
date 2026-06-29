@@ -252,7 +252,6 @@ func _apply_quality_settings() -> void:
 	)
 	_sun.directional_shadow_max_distance = 68.0 if cinematic else 46.0
 	_sun.shadow_enabled = true
-	_sun.shadow_color = Color(0.35, 0.45, 0.52, 0.6)
 	_sun.shadow_bias = 0.004
 	_sun.shadow_normal_bias = 0.05
 	_sun.shadow_blur = 1.2 if cinematic else 0.8
