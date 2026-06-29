@@ -1,6 +1,7 @@
 # Godot 4+ specific ignores
 .godot/
 /android/
+.codex_tmp/
 
 # Godot export and temporary files
 export.cfg

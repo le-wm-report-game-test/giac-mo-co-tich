@@ -4,6 +4,7 @@
 extends Node
 
 const SAVE_FILE_PATH: String = "user://savegame.json"
+const DEFAULT_GAME_SCENE_PATH: String = "res://src/world/world.tscn"
 
 signal save_completed(success: bool)
 signal load_completed(data: Dictionary, success: bool)
@@ -25,7 +26,7 @@ func trigger_save() -> void:
 ## Lưu thủ công với dictionary đã được chuẩn bị sẵn.
 func save_progress(data: Dictionary) -> void:
 	var payload: Dictionary = {
-		"scene_path":    data.get("scene_path",    "res://Scenes/Game.tscn"),
+		"scene_path":    data.get("scene_path",    DEFAULT_GAME_SCENE_PATH),
 		"pos_x":         data.get("pos_x",         0.0),
 		"pos_y":         data.get("pos_y",         1.0),
 		"pos_z":         data.get("pos_z",         0.0),
@@ -76,7 +77,7 @@ func load_progress() -> void:
 
 	var d: Dictionary = p as Dictionary
 	var out: Dictionary = {
-		"scene_path":    d.get("scene_path",    "res://Scenes/Game.tscn"),
+		"scene_path":    d.get("scene_path",    DEFAULT_GAME_SCENE_PATH),
 		"position":      Vector3(float(d.get("pos_x", 0.0)),
 								 float(d.get("pos_y", 1.0)),
 								 float(d.get("pos_z", 0.0))),
@@ -119,7 +120,7 @@ func _collect_game_state() -> Dictionary:
 	var current_scene := root.get_child(root.get_child_count() - 1)
 	var scene_path: String = current_scene.scene_file_path
 	if scene_path.is_empty():
-		scene_path = "res://Scenes/Game.tscn"
+		scene_path = DEFAULT_GAME_SCENE_PATH
 	data["scene_path"] = scene_path
 
 	# Vị trí player

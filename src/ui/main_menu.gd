@@ -3,7 +3,8 @@ class_name MainMenu
 extends Control
 
 # Hằng số đường dẫn tài nguyên do người dùng cung cấp
-const GAME_SCENE_PATH: String = "res://Scenes/Game.tscn"
+const GAME_SCENE_PATH: String = "res://src/world/world.tscn"
+const LEGACY_GAME_SCENE_PATH: String = "res://Scenes/Game.tscn"
 const BG_PATH: String = "res://Assets/OpenScreenAssets/Background_Screen.png"
 const BTN_START_PATH: String = "res://Assets/OpenScreenAssets/Start_Button.png"
 const BTN_CONTINUE_PATH: String = "res://Assets/OpenScreenAssets/Continue_Button.png"
@@ -17,6 +18,8 @@ var sfx_player: AudioStreamPlayer = null
 var _settings_menu_instance: SettingsMenu = null
 var bg: TextureRect = null
 var _new_game_dialog: Control = null
+var _loading_overlay: Control = null
+var _scene_change_in_progress: bool = false
 
 func _ready() -> void:
 	
@@ -156,13 +159,67 @@ func _on_play_pressed() -> void:
 	_start_new_game()
 
 func _start_new_game() -> void:
-	var err: Error = get_tree().change_scene_to_file(GAME_SCENE_PATH)
-	if err != OK:
-		var fallback_path: String = "res://src/world/world.tscn"
-		push_warning("Không nạp được %s (%s). Đang dùng scene mặc định: %s" % [GAME_SCENE_PATH, error_string(err), fallback_path])
-		err = get_tree().change_scene_to_file(fallback_path)
-		if err != OK:
-			push_error("Failed to load world scene: %s" % error_string(err))
+	await _change_to_game_scene(GAME_SCENE_PATH)
+
+func _change_to_game_scene(requested_path: String) -> bool:
+	if _scene_change_in_progress:
+		return false
+
+	var scene_path := _resolve_game_scene_path(requested_path)
+	if scene_path.is_empty():
+		push_error("Không tìm thấy scene game hợp lệ: %s" % requested_path)
+		return false
+
+	_scene_change_in_progress = true
+	_show_loading_overlay()
+	# Cho Godot render phản hồi click trước khi tải world đồng bộ.
+	await get_tree().process_frame
+
+	var err := get_tree().change_scene_to_file(scene_path)
+	if err == OK:
+		return true
+
+	_scene_change_in_progress = false
+	_hide_loading_overlay()
+	push_error("Không thể vào game tại %s: %s" % [scene_path, error_string(err)])
+	return false
+
+func _resolve_game_scene_path(requested_path: String) -> String:
+	if (
+		requested_path != LEGACY_GAME_SCENE_PATH
+		and ResourceLoader.exists(requested_path, "PackedScene")
+	):
+		return requested_path
+	if ResourceLoader.exists(GAME_SCENE_PATH, "PackedScene"):
+		return GAME_SCENE_PATH
+	return ""
+
+func _show_loading_overlay() -> void:
+	if _loading_overlay != null:
+		return
+
+	var overlay := ColorRect.new()
+	overlay.name = "LoadingOverlay"
+	overlay.color = Color(0.02, 0.04, 0.025, 0.92)
+	overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+
+	var label := Label.new()
+	label.text = "ĐANG VÀO GAME..."
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.add_theme_font_size_override("font_size", 28)
+	label.add_theme_color_override("font_color", Color(0.95, 0.82, 0.53))
+	label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	overlay.add_child(label)
+	add_child(overlay)
+	_loading_overlay = overlay
+
+func _hide_loading_overlay() -> void:
+	if _loading_overlay == null:
+		return
+	_loading_overlay.queue_free()
+	_loading_overlay = null
 
 # ── Hộp thoại cảnh báo chơi mới ──────────────────────────────────
 func _show_new_game_warning() -> void:
@@ -327,11 +384,9 @@ func _on_load_completed(data: Dictionary, success: bool) -> void:
 	SaveManager.set_meta("pending_restore", data)
 
 	var scene_path: String = data.get("scene_path", GAME_SCENE_PATH)
-	var err: Error = get_tree().change_scene_to_file(scene_path)
-	if err != OK:
-		push_warning("Không nạp được scene lưu (%s), dùng scene mặc định." % scene_path)
+	var scene_changed := await _change_to_game_scene(scene_path)
+	if not scene_changed:
 		SaveManager.remove_meta("pending_restore")
-		_on_play_pressed()
 
 func _apply_loaded_state(_data: Dictionary) -> void:
 	pass  # Không còn dùng; việc restore do GameStateRestorer trong world.gd xử lý
