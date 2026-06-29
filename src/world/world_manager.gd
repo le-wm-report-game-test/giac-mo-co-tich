@@ -791,7 +791,7 @@ func _collect_trees() -> void:
 
 func _collect_tree_children(node: Node) -> void:
 	for child in node.get_children():
-		if "Pine_" in child.name:
+		if child.is_in_group("trees") or "Pine_" in child.name:
 			tree_list.append(child)
 		if child.get_child_count() > 0:
 			_collect_tree_children(child)
@@ -889,15 +889,12 @@ func _update_tree_camera_clip() -> void:
 	var game_cam := get_tree().get_first_node_in_group("camera") as GameCamera
 	if not game_cam or not game_cam.camera:
 		return
-	
-	game_cam.force_update_transform()
-	game_cam.camera.force_update_transform()
-	
+
 	for tree in tree_list:
 		if not is_instance_valid(tree):
 			continue
-		# Không hard-hide cây khi camera tới gần: camera đã được nâng cao hơn canopy,
-		# còn occlusion của player xử lý bằng alpha trong _update_tree_fade().
+		# No hard-hide when camera approaches: camera sits above the canopy,
+		# and player occlusion is handled via alpha in _update_tree_fade().
 		tree.visible = true
 
 func _update_minimap() -> void:
