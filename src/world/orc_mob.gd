@@ -13,6 +13,14 @@ const BOSS_ATTACK_COOLDOWN: float = 1.5
 const BOSS_ATTACK_ANIMATION_FPS: float = 8.0
 const WORLD_RENDER_MASK: int = 1
 const COMBAT_ACTOR_RENDER_MASK: int = 2
+const REGULAR_HEALTH_BAR_SIZE := Vector2i(64, 8)
+const BOSS_HEALTH_BAR_SIZE := Vector2i(96, 10)
+const HEALTH_BAR_BORDER_PX: float = 1.0
+const HEALTH_BAR_BACK_COLOR := Color(0.08, 0.0, 0.0, 0.82)
+const HEALTH_BAR_FILL_COLOR := Color(0.85, 0.05, 0.04, 1.0)
+const REGULAR_HEALTH_BAR_HEIGHT_FACTOR: float = 14.0
+const BOSS_HEALTH_BAR_HEIGHT_FACTOR: float = 18.0
+const HEALTH_BAR_PIXEL_SIZE_FACTOR: float = 0.08
 
 @export var speed: float = 2.0
 @export var gravity: float = 9.8
@@ -48,6 +56,10 @@ var health_component: HealthComponent
 var hurtbox_component: HurtboxComponent
 var hitbox_component: HitboxComponent
 var hitbox_col: CollisionShape3D
+var health_bar_viewport: SubViewport
+var health_bar_sprite: Sprite3D
+var health_bar_fill: ColorRect
+var health_bar_fill_max_width: float = 0.0
 
 func _ready() -> void:
 	# Giữ physics node ở scale 1; chỉ scale Sprite3D bằng pixel_size để hitbox không bị phóng đại.
@@ -73,6 +85,7 @@ func _setup_nodes() -> void:
 	_setup_physics_collider(is_boss)
 	_setup_sprite_node()
 	_setup_health_component()
+	_setup_health_bar(is_boss)
 	_setup_hurtbox(is_boss)
 	_setup_hitbox(is_boss)
 
@@ -116,6 +129,73 @@ func _setup_health_component() -> void:
 	add_child(health_component)
 	health_component.died.connect(_on_died)
 	health_component.damaged.connect(_on_damaged)
+	health_component.health_changed.connect(_on_health_changed)
+
+func _setup_health_bar(is_boss: bool) -> void:
+	var bar_size := BOSS_HEALTH_BAR_SIZE if is_boss else REGULAR_HEALTH_BAR_SIZE
+	health_bar_viewport = SubViewport.new()
+	health_bar_viewport.name = "HealthBarViewport"
+	health_bar_viewport.size = bar_size
+	health_bar_viewport.transparent_bg = true
+	health_bar_viewport.disable_3d = true
+	health_bar_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	add_child(health_bar_viewport)
+	
+	var bar_root := Control.new()
+	bar_root.name = "HealthBarRoot"
+	bar_root.size = Vector2(bar_size)
+	bar_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	health_bar_viewport.add_child(bar_root)
+	
+	var backing := ColorRect.new()
+	backing.name = "HealthBarBack"
+	backing.color = HEALTH_BAR_BACK_COLOR
+	backing.set_anchors_preset(Control.PRESET_FULL_RECT)
+	backing.offset_left = 0.0
+	backing.offset_top = 0.0
+	backing.offset_right = 0.0
+	backing.offset_bottom = 0.0
+	backing.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bar_root.add_child(backing)
+	
+	health_bar_fill = ColorRect.new()
+	health_bar_fill.name = "HealthBarFill"
+	health_bar_fill.color = HEALTH_BAR_FILL_COLOR
+	health_bar_fill.position = Vector2(HEALTH_BAR_BORDER_PX, HEALTH_BAR_BORDER_PX)
+	health_bar_fill.size = Vector2(
+		float(bar_size.x) - HEALTH_BAR_BORDER_PX * 2.0,
+		float(bar_size.y) - HEALTH_BAR_BORDER_PX * 2.0
+	)
+	health_bar_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bar_root.add_child(health_bar_fill)
+	health_bar_fill_max_width = health_bar_fill.size.x
+	
+	health_bar_sprite = Sprite3D.new()
+	health_bar_sprite.name = "HealthBarSprite"
+	health_bar_sprite.billboard = StandardMaterial3D.BILLBOARD_FIXED_Y
+	health_bar_sprite.shaded = false
+	health_bar_sprite.layers = WORLD_RENDER_MASK | COMBAT_ACTOR_RENDER_MASK
+	health_bar_sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	health_bar_sprite.texture = health_bar_viewport.get_texture()
+	health_bar_sprite.pixel_size = sprite_pixel_size * HEALTH_BAR_PIXEL_SIZE_FACTOR
+	health_bar_sprite.position.y = _get_health_bar_height(is_boss)
+	add_child(health_bar_sprite)
+	_update_health_bar(health_component.current_health, health_component.max_health)
+
+func _get_health_bar_height(is_boss: bool) -> float:
+	var height_factor := BOSS_HEALTH_BAR_HEIGHT_FACTOR if is_boss else REGULAR_HEALTH_BAR_HEIGHT_FACTOR
+	return _get_grounded_sprite_y() + height_factor * sprite_pixel_size
+
+func _on_health_changed(current: float, max_h: float) -> void:
+	_update_health_bar(current, max_h)
+
+func _update_health_bar(current: float, max_h: float) -> void:
+	if health_bar_fill == null:
+		return
+	var ratio := 0.0 if max_h <= 0.0 else clampf(current / max_h, 0.0, 1.0)
+	health_bar_fill.size.x = roundf(health_bar_fill_max_width * ratio)
+	if health_bar_sprite:
+		health_bar_sprite.visible = current > 0.0
 
 func _setup_hurtbox(is_boss: bool) -> void:
 	hurtbox_component = HurtboxComponent.new()
@@ -513,7 +593,9 @@ func _on_damaged(amount: float, source: Node3D) -> void:
 		get_tree().create_timer(0.6).timeout.connect(particles.queue_free)
 	
 	# Emit damage event for floating numbers
-	EventBus.enemy_damaged.emit(self, amount, global_position)
+	var event_bus := get_node_or_null("/root/EventBus")
+	if event_bus:
+		event_bus.enemy_damaged.emit(self, amount, global_position)
 
 func _on_died() -> void:
 	current_state = State.DEATH
@@ -525,9 +607,13 @@ func _on_died() -> void:
 	hurtbox_component.collision_layer = 0
 	hitbox_component.collision_mask = 0
 	hitbox_component.monitoring = false
+	if health_bar_sprite:
+		health_bar_sprite.visible = false
 	
 	# Notify world
-	EventBus.enemy_died.emit(self)
+	var event_bus := get_node_or_null("/root/EventBus")
+	if event_bus:
+		event_bus.enemy_died.emit(self)
 
 func _process_death_state(delta: float) -> void:
 	velocity.y = 0.0 if is_on_floor() else velocity.y - gravity * delta
