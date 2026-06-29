@@ -32,8 +32,10 @@ func _ready() -> void:
 		# Giữ chỉ số Boss đã được cấu hình từ WorldManager nhưng cập nhật pixel_size
 		max_health = 300.0
 		attack_damage = 25.0
-		speed = 1.5
+		speed = 1.3
 		sprite_pixel_size = 3.5 / 256.0 # Chiều cao Boss khoảng 3.5m (khoảng gấp đôi nhân vật)
+		# Boss Chằn Tinh đánh chậm nhưng mạnh - nhịp rõ ràng
+		attack_cooldown_time = 2.5
 		
 	# Áp dụng pixel_size chuẩn cho sprite và cập nhật vị trí Y chạm đất thực tế
 	if is_instance_valid(sprite):
