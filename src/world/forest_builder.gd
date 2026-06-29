@@ -120,6 +120,10 @@ var _mat_tree: StandardMaterial3D
 
 var _rng: RandomNumberGenerator
 
+# Lưu trữ vị trí và scale cây để kiểm tra spawn enemy (tránh che khuất gameplay)
+var _tree_positions: Array[Vector2] = []
+var _tree_scales: Array[float] = []
+
 # ─── Ready ─────────────────────────────────────────────────────────────────
 var _terrain_heightmap: TerrainHeightmap = null
 var _terrain_data: Dictionary = {}
@@ -322,11 +326,13 @@ func _scatter_trees() -> void:
 	if tree_scenes.is_empty():
 		return
 
+	# Reset stored tree data for spawn checking
+	_tree_positions.clear()
+	_tree_scales.clear()
+
 	var placed: int = 0
 	var attempts: int = 0
 	var max_attempts: int = num_trees * 16
-	var tree_positions: Array[Vector2] = []
-	var tree_scales: Array[float] = []
 
 	while placed < num_trees and attempts < max_attempts:
 		attempts += 1
@@ -350,7 +356,7 @@ func _scatter_trees() -> void:
 			continue
 
 		var tree_pos_2d := Vector2(x, z)
-		if not _can_place_tree(tree_pos_2d, scale_val, tree_positions, tree_scales):
+		if not _can_place_tree(tree_pos_2d, scale_val, _tree_positions, _tree_scales):
 			continue
 
 		var rot_y: float = _rng.randf_range(0.0, TAU)
@@ -378,8 +384,8 @@ func _scatter_trees() -> void:
 		tree_body.add_child(tree_col)
 		add_child(tree_body)
 
-		tree_positions.append(tree_pos_2d)
-		tree_scales.append(scale_val)
+		_tree_positions.append(tree_pos_2d)
+		_tree_scales.append(scale_val)
 		placed += 1
 
 
@@ -732,9 +738,25 @@ func _spawn_orcs() -> void:
 			var zone := _get_zone(x, z)
 			if zone == Zone.HILL:
 				continue
+			# Tránh spawn dưới tán cây lớn (Priority 2 - gameplay readability)
+			if _is_under_large_tree_canopy(x, z):
+				continue
 			var bot := CharacterBody3D.new()
 			bot.set_script(orc_script)
 			bot.position = Vector3(x, 0.2, z)
 			bot.name = "OrcMob_%d" % i
 			add_child(bot)
 			placed = true
+
+# Kiểm tra xem vị trí có nằm dưới tán cây lớn không (che khuất gameplay)
+func _is_under_large_tree_canopy(x: float, z: float) -> bool:
+	for i in range(_tree_positions.size()):
+		var tree_scale: float = _tree_scales[i] if i < _tree_scales.size() else 1.0
+		if tree_scale < large_tree_scale_threshold:
+			continue
+		# Large trees có tán rộng ~3-4m, kiểm tra bán kính 4m
+		var tree_pos := _tree_positions[i]
+		var dist := Vector2(x, z).distance_to(tree_pos)
+		if dist < 4.0:
+			return true
+	return false
