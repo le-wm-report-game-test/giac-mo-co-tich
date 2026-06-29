@@ -23,6 +23,24 @@ enum MoveDir { DOWN, UP, RIGHT, LEFT, DOWN_RIGHT, DOWN_LEFT, UP_RIGHT, UP_LEFT }
 const MOVEMENT_IDLE_FRAMES := 3
 const MOVEMENT_WALK_FRAMES := 8
 const MOVEMENT_FRAME_DIR := "res://Assets/player/thach_sanh/movement_frames"
+const PLAYER_VISUAL_DIRECTIONS := [
+	"down",
+	"up",
+	"right",
+	"left",
+	"down_right",
+	"down_left",
+	"up_right",
+	"up_left",
+]
+const ANIMATION_FRAME_COUNTS := {
+	"idle": 3,
+	"walk": 8,
+	"attack": 4,
+	"hurt": 4,
+	"death": 4,
+}
+const ATTACK_EFFECT_FRAME_COUNT := 2
 const WORLD_RENDER_MASK: int = 1
 const COMBAT_ACTOR_RENDER_MASK: int = 2
 const PLAYER_ACCENT_RENDER_MASK: int = 4
@@ -35,6 +53,10 @@ const MOVE_DIR_NAMES := {
 	MoveDir.DOWN_LEFT: "down_left",
 	MoveDir.UP_RIGHT: "up_right",
 	MoveDir.UP_LEFT: "up_left",
+}
+const VISUAL_DIR_NAME_OVERRIDES := {
+	MoveDir.UP_LEFT: "left",
+	MoveDir.UP_RIGHT: "right",
 }
 
 var anim_state: AnimState = AnimState.IDLE
@@ -117,7 +139,44 @@ func _ready() -> void:
 	hitbox_area.area_entered.connect(_on_hitbox_area_entered)
 	_configure_attack_hitbox()
 	
+	prewarm_visual_assets()
 	_update_sprite()
+
+func prewarm_visual_assets() -> void:
+	for dir_name: String in PLAYER_VISUAL_DIRECTIONS:
+		for anim_name: String in ANIMATION_FRAME_COUNTS:
+			var frame_count: int = ANIMATION_FRAME_COUNTS[anim_name]
+			for frame_index in range(frame_count):
+				_cache_texture("%s/%s_%s_%d.png" % [MOVEMENT_FRAME_DIR, dir_name, anim_name, frame_index])
+
+		for effect_frame in range(ATTACK_EFFECT_FRAME_COUNT):
+			_cache_texture("%s/%s_effect_%d.png" % [MOVEMENT_FRAME_DIR, dir_name, effect_frame])
+
+func _cache_texture(tex_path: String) -> Texture2D:
+	if _texture_cache.has(tex_path):
+		return _texture_cache[tex_path] as Texture2D
+
+	if not ResourceLoader.exists(tex_path):
+		_texture_cache[tex_path] = null
+		return null
+
+	var loaded_tex := load(tex_path) as Texture2D
+	_texture_cache[tex_path] = loaded_tex
+	_cache_sprite_feet_offset(loaded_tex)
+	return loaded_tex
+
+func _cache_sprite_feet_offset(tex: Texture2D) -> void:
+	if tex == null or _sprite_feet_offsets.has(tex):
+		return
+
+	var img := tex.get_image()
+	if img == null:
+		_sprite_feet_offsets[tex] = 0.0
+		return
+
+	var rect := img.get_used_rect()
+	var frame_h := tex.get_height()
+	_sprite_feet_offsets[tex] = (rect.position.y + rect.size.y) - (frame_h / 2.0)
 
 func _configure_attack_hitbox() -> void:
 	var box := hitbox_shape.shape as BoxShape3D
@@ -173,6 +232,10 @@ func _get_move_direction_from_visual_direction(dir: Vector3) -> MoveDir:
 	if y_negative:
 		return MoveDir.UP
 	return MoveDir.DOWN
+
+func _get_visual_dir_name(dir: MoveDir) -> String:
+	# Hướng chéo lên ưu tiên silhouette trái/phải để input W+A/W+D không nhìn ngược hướng.
+	return VISUAL_DIR_NAME_OVERRIDES.get(dir, MOVE_DIR_NAMES.get(dir, "down"))
 
 func _get_camera_relative_screen_direction(dir: Vector3) -> Vector2:
 	var planar_dir := Vector3(dir.x, 0.0, dir.z)
@@ -493,43 +556,14 @@ func _update_sprite() -> void:
 			anim_name = "death"
 
 	var clamped_frame := clampi(anim_frame, 0, frame_count - 1)
-	var dir_name: String = MOVE_DIR_NAMES.get(move_direction, "down")
+	var dir_name := _get_visual_dir_name(move_direction)
 	var tex_path := "%s/%s_%s_%d.png" % [MOVEMENT_FRAME_DIR, dir_name, anim_name, clamped_frame]
 	
-	if not _texture_cache.has(tex_path):
-		if ResourceLoader.exists(tex_path):
-			var loaded_tex := load(tex_path) as Texture2D
-			_texture_cache[tex_path] = loaded_tex
-			if loaded_tex:
-				var img := loaded_tex.get_image()
-				if img:
-					var rect := img.get_used_rect()
-					var fh := loaded_tex.get_height()
-					_sprite_feet_offsets[loaded_tex] = (rect.position.y + rect.size.y) - (fh / 2.0)
-				else:
-					_sprite_feet_offsets[loaded_tex] = 0.0
-		else:
-			_texture_cache[tex_path] = null
-
-	var tex: Texture2D = _texture_cache[tex_path]
+	var tex := _cache_texture(tex_path)
 	if tex == null:
 		# Fallback to down direction if specific direction is missing
 		var fallback_path := "%s/down_%s_%d.png" % [MOVEMENT_FRAME_DIR, anim_name, clamped_frame]
-		if not _texture_cache.has(fallback_path):
-			if ResourceLoader.exists(fallback_path):
-				var loaded_tex := load(fallback_path) as Texture2D
-				_texture_cache[fallback_path] = loaded_tex
-				if loaded_tex:
-					var img := loaded_tex.get_image()
-					if img:
-						var rect := img.get_used_rect()
-						var fh := loaded_tex.get_height()
-						_sprite_feet_offsets[loaded_tex] = (rect.position.y + rect.size.y) - (fh / 2.0)
-					else:
-						_sprite_feet_offsets[loaded_tex] = 0.0
-			else:
-				_texture_cache[fallback_path] = null
-		tex = _texture_cache[fallback_path]
+		tex = _cache_texture(fallback_path)
 
 	if tex == null:
 		return
@@ -541,37 +575,20 @@ func _update_sprite() -> void:
 
 	var frame_h := tex.get_height()
 	sprite.pixel_size = target_sprite_height / frame_h
-	var sprite_h_world := frame_h * sprite.pixel_size
 
 	# Đặt sprite sao cho CHÂN NHÂN VẬT (used_rect bottom) chạm world Y = 0 (mặt đất),
-	# bất kể visuals_node.global_position.y hiện tại là bao nhiêu.
-	#
-	# Khi centered=true: quad local Y từ -sprite_h_world/2 đến +sprite_h_world/2.
-	# Texture row N ở quad local Y = sprite_h_world/2 - N * pixel_size.
-	# Used_rect bottom row = used_rect.position.y + used_rect.size.y.
-	# World Y of used_rect bottom = sprite.position.y + visuals_node.global_position.y + (sprite_h_world/2 - used_rect_bottom_row * pixel_size)
-	# Set = 0 → sprite.position.y = -visuals_node.global_position.y - (sprite_h_world/2 - used_rect_bottom_row * pixel_size)
-	var img := tex.get_image()
-	if img:
-		var rect := img.get_used_rect()
-		var used_rect_bottom_row := rect.position.y + rect.size.y
-		var used_rect_bottom_local_y := sprite_h_world / 2.0 - used_rect_bottom_row * sprite.pixel_size
-		var visuals_node := sprite.get_parent() as Node3D
-		var visuals_global_y := visuals_node.global_position.y if visuals_node else 0.0
-		sprite.position.y = -visuals_global_y - used_rect_bottom_local_y
+	# dùng offset đã cache để tránh đọc lại image data trong lúc chơi.
+	var feet_offset_rows: float = _sprite_feet_offsets.get(tex, 0.0)
+	var visuals_node := sprite.get_parent() as Node3D
+	var visuals_global_y := visuals_node.global_position.y if visuals_node else 0.0
+	sprite.position.y = -visuals_global_y + feet_offset_rows * sprite.pixel_size
 	
 	# Update attack effect visibility and texture
 	if attack_effect:
 		if anim_state == AnimState.ATTACK and (clamped_frame == 2 or clamped_frame == 3):
 			var effect_frame := clamped_frame - 2  # frame 2 -> effect 0, frame 3 -> effect 1
 			var eff_path := "%s/%s_effect_%d.png" % [MOVEMENT_FRAME_DIR, dir_name, effect_frame]
-			if not _texture_cache.has(eff_path):
-				if ResourceLoader.exists(eff_path):
-					_texture_cache[eff_path] = load(eff_path) as Texture2D
-				else:
-					_texture_cache[eff_path] = null
-			
-			var eff_tex: Texture2D = _texture_cache[eff_path]
+			var eff_tex := _cache_texture(eff_path)
 			if eff_tex:
 				attack_effect.texture = eff_tex
 				attack_effect.region_enabled = false
