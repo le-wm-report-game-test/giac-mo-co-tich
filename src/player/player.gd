@@ -11,6 +11,8 @@ extends CharacterBody3D
 @export var max_health: float = 100.0
 @export var target_sprite_height: float = 1.9
 
+var input_locked: bool = false
+
 # Runtime velocity direction
 var _target_velocity: Vector3 = Vector3.ZERO
 
@@ -141,7 +143,7 @@ func _set_facing_from_world_direction(dir: Vector3) -> void:
 	if planar_dir.length_squared() <= 0.0001:
 		return
 	facing_direction = _snap_direction_to_octant(planar_dir.normalized())
-	move_direction = _get_move_direction_from_facing(facing_direction)
+	move_direction = _get_move_direction_from_visual_direction(facing_direction)
 	_update_facing_side_from_camera(facing_direction)
 
 func _snap_direction_to_octant(dir: Vector3) -> Vector3:
@@ -149,27 +151,46 @@ func _snap_direction_to_octant(dir: Vector3) -> Vector3:
 	var snapped_angle: float = round(angle / (PI / 4.0)) * (PI / 4.0)
 	return Vector3(cos(snapped_angle), 0.0, sin(snapped_angle)).normalized()
 
-func _get_move_direction_from_facing(dir: Vector3) -> MoveDir:
-	var x_positive := dir.x > 0.25
-	var x_negative := dir.x < -0.25
-	var z_positive := dir.z > 0.25
-	var z_negative := dir.z < -0.25
+func _get_move_direction_from_visual_direction(dir: Vector3) -> MoveDir:
+	var screen_dir := _get_camera_relative_screen_direction(dir)
+	var x_positive := screen_dir.x > 0.25
+	var x_negative := screen_dir.x < -0.25
+	var y_positive := screen_dir.y > 0.25
+	var y_negative := screen_dir.y < -0.25
 
-	if x_positive and z_positive:
+	if x_positive and y_positive:
 		return MoveDir.DOWN_RIGHT
-	if x_negative and z_positive:
+	if x_negative and y_positive:
 		return MoveDir.DOWN_LEFT
-	if x_positive and z_negative:
+	if x_positive and y_negative:
 		return MoveDir.UP_RIGHT
-	if x_negative and z_negative:
+	if x_negative and y_negative:
 		return MoveDir.UP_LEFT
 	if x_positive:
 		return MoveDir.RIGHT
 	if x_negative:
 		return MoveDir.LEFT
-	if z_negative:
+	if y_negative:
 		return MoveDir.UP
 	return MoveDir.DOWN
+
+func _get_camera_relative_screen_direction(dir: Vector3) -> Vector2:
+	var planar_dir := Vector3(dir.x, 0.0, dir.z)
+	if planar_dir.length_squared() <= 0.0001:
+		return Vector2.ZERO
+	planar_dir = planar_dir.normalized()
+
+	var camera := get_viewport().get_camera_3d()
+	if camera == null:
+		return Vector2(planar_dir.x, planar_dir.z)
+
+	var cam_forward := -camera.global_transform.basis.z
+	var cam_right := camera.global_transform.basis.x
+	cam_forward.y = 0.0
+	cam_right.y = 0.0
+	cam_forward = cam_forward.normalized()
+	cam_right = cam_right.normalized()
+	return Vector2(planar_dir.dot(cam_right), -planar_dir.dot(cam_forward))
 
 func _update_facing_side_from_camera(dir: Vector3) -> void:
 	var camera := get_viewport().get_camera_3d()
@@ -214,6 +235,8 @@ func _setup_input_actions() -> void:
 	InputMap.action_add_event(&"attack", space_event)
 
 func _input(event: InputEvent) -> void:
+	if input_locked:
+		return
 	if anim_state == AnimState.DEATH or is_attacking or attack_cooldown > 0.0:
 		return
 	# Chuột trái hoặc phím Space đều kích hoạt tấn công
@@ -254,7 +277,9 @@ func _physics_process(delta: float) -> void:
 		velocity.y -= gravity * delta
 
 	# Get input direction
-	var input_vector := Input.get_vector("move_left", "move_right", "move_up", "move_down")
+	var input_vector := Vector2.ZERO
+	if not input_locked:
+		input_vector = Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	var direction := _get_camera_relative_direction(input_vector)
 
 	if direction != Vector3.ZERO:
@@ -380,20 +405,6 @@ func _start_attack() -> void:
 	if audio:
 		audio.play_sfx("sword_swing", global_position, 0.15)
 	
-	# Get mouse position for attack direction
-	attack_mouse_pos = get_viewport().get_mouse_position()
-	
-	# Determine facing direction based on mouse position
-	var camera := get_viewport().get_camera_3d()
-	if camera:
-		var from := camera.project_ray_origin(attack_mouse_pos)
-		var dir := camera.project_ray_normal(attack_mouse_pos)
-		var plane := Plane(Vector3(0, 1, 0), global_position.y)
-		var hit: Variant = plane.intersects_ray(from, dir)
-		if hit != null:
-			var target_pos: Vector3 = hit
-			var diff: Vector3 = target_pos - global_position
-			_set_facing_from_world_direction(diff)
 	_update_attack_hitbox_position()
 
 func _interrupt_attack(reset_cooldown: bool = false) -> void:

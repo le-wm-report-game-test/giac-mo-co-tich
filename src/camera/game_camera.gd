@@ -7,11 +7,18 @@ extends Node3D
 @export var camera_rotate: Vector3 = Vector3(-45.0, 35.0, 0.0)
 @export var follow_speed: float = 8.0
 @export var map_limit: float = 50.0
+@export var normal_camera_size: float = 15.0
+@export var startup_close_camera_size: float = 5.5
+@export var startup_close_hold_time: float = 0.8
+@export var startup_zoom_out_duration: float = 1.4
 
 var target: Node3D
 var player_pcam: PhantomCamera3D
 var magnet_pcam: PhantomCamera3D
 var camera_noise: PhantomCameraNoise3D
+var startup_intro_active: bool = false
+var startup_intro_finished: bool = false
+var _startup_intro_tween: Tween = null
 
 @onready var camera: Camera3D = $Camera3D
 
@@ -20,7 +27,7 @@ func _ready() -> void:
 
 	camera.current = true
 	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
-	camera.size = 15.0
+	camera.size = normal_camera_size
 	camera.near = 0.01
 	camera.far = 180.0
 
@@ -52,7 +59,7 @@ func _process(delta: float) -> void:
 func set_target(new_target: Node3D) -> void:
 	target = new_target
 	if target != null:
-		global_position = _clamp_position(target.global_position)
+		snap_to_target()
 
 
 func get_target_position() -> Vector3:
@@ -61,8 +68,71 @@ func get_target_position() -> Vector3:
 	return target_position
 
 
+func snap_to_target() -> void:
+	global_position = _clamp_position(get_target_position())
+	target_position = global_position
+	force_update_transform()
+	if camera:
+		camera.force_update_transform()
+
+
 func _snap_to_target() -> void:
-	global_position = get_target_position()
+	snap_to_target()
+
+
+func play_startup_intro(new_target: Node3D = null) -> void:
+	if new_target != null:
+		set_target(new_target)
+	if target == null:
+		return
+	if _startup_intro_tween:
+		_startup_intro_tween.kill()
+	snap_to_target()
+	startup_intro_active = true
+	startup_intro_finished = false
+	_set_target_input_locked(true)
+	_set_player_camera_size(startup_close_camera_size)
+	_startup_intro_tween = create_tween()
+	_startup_intro_tween.set_trans(Tween.TRANS_CUBIC)
+	_startup_intro_tween.set_ease(Tween.EASE_IN_OUT)
+	_startup_intro_tween.tween_interval(startup_close_hold_time)
+	_startup_intro_tween.tween_method(
+		_set_player_camera_size,
+		startup_close_camera_size,
+		normal_camera_size,
+		startup_zoom_out_duration
+	)
+	_startup_intro_tween.tween_callback(_finish_startup_intro)
+
+
+func skip_startup_intro() -> void:
+	if _startup_intro_tween:
+		_startup_intro_tween.kill()
+	startup_intro_active = false
+	startup_intro_finished = true
+	_set_player_camera_size(normal_camera_size)
+	_set_target_input_locked(false)
+	snap_to_target()
+
+
+func _finish_startup_intro() -> void:
+	startup_intro_active = false
+	startup_intro_finished = true
+	_set_player_camera_size(normal_camera_size)
+	_set_target_input_locked(false)
+
+
+func _set_player_camera_size(size: float) -> void:
+	if camera:
+		camera.size = size
+	if player_pcam and player_pcam.camera_3d_resource:
+		player_pcam.camera_3d_resource.size = size
+
+
+func _set_target_input_locked(locked: bool) -> void:
+	var player := target as Player
+	if player:
+		player.input_locked = locked
 
 
 func activate_magnet(target_pos: Vector3, zoom_size: float) -> void:
@@ -129,6 +199,9 @@ func _init_phantom_cameras() -> void:
 	player_pcam.camera_3d_resource = play_res
 	
 	player_pcam.priority = 10
+	var player_tween := PhantomCameraTween.new()
+	player_tween.duration = 0.0
+	player_pcam.tween_resource = player_tween
 	player_pcam.follow_mode = 2 # SIMPLE
 	player_pcam.follow_target = self
 	player_pcam.follow_offset = camera_offset

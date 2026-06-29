@@ -203,6 +203,67 @@ func test_player_attack_recovers_after_taking_damage() -> void:
 
 	assert_true(player.is_attacking, "Player should be able to start a new attack after recovering from damage")
 
+func test_player_attack_keeps_left_movement_facing() -> void:
+	var player := tree.get_first_node_in_group("player") as Player
+	assert_not_null(player, "Player must exist")
+	if player == null:
+		return
+
+	var left_dir := player._get_camera_relative_direction(Vector2.LEFT)
+	player._set_facing_from_world_direction(left_dir)
+	player.attack_mouse_pos = Vector2(9999.0, 0.0)
+	player._start_attack()
+	player._update_sprite()
+
+	assert_eq(player.move_direction, Player.MoveDir.LEFT, "Attack should keep the last left movement direction")
+	assert_true(Vector3(player.hitbox_shape.position.x, 0.0, player.hitbox_shape.position.z).dot(left_dir) > 0.1, "Left attack should place hitbox in the left movement direction")
+	assert_true(player.sprite.texture.resource_path.ends_with("left_attack_0.png"), "Left attack should use left attack asset")
+
+func test_player_attack_keeps_right_movement_facing() -> void:
+	var player := tree.get_first_node_in_group("player") as Player
+	assert_not_null(player, "Player must exist")
+	if player == null:
+		return
+
+	var right_dir := player._get_camera_relative_direction(Vector2.RIGHT)
+	player._set_facing_from_world_direction(right_dir)
+	player._start_attack()
+	player._update_sprite()
+
+	assert_eq(player.move_direction, Player.MoveDir.RIGHT, "Attack should keep the last right movement direction")
+	assert_true(Vector3(player.hitbox_shape.position.x, 0.0, player.hitbox_shape.position.z).dot(right_dir) > 0.1, "Right attack should place hitbox in the right movement direction")
+	assert_true(player.sprite.texture.resource_path.ends_with("right_attack_0.png"), "Right attack should use right attack asset")
+
+func test_player_attack_keeps_up_movement_facing() -> void:
+	var player := tree.get_first_node_in_group("player") as Player
+	assert_not_null(player, "Player must exist")
+	if player == null:
+		return
+
+	var up_dir := player._get_camera_relative_direction(Vector2.UP)
+	player._set_facing_from_world_direction(up_dir)
+	player._start_attack()
+	player._update_sprite()
+
+	assert_eq(player.move_direction, Player.MoveDir.UP, "Attack should keep the last up movement direction")
+	assert_true(Vector3(player.hitbox_shape.position.x, 0.0, player.hitbox_shape.position.z).dot(up_dir) > 0.1, "Up attack should place hitbox in the up movement direction")
+	assert_true(player.sprite.texture.resource_path.ends_with("up_attack_0.png"), "Up attack should use up attack asset")
+
+func test_player_attack_keeps_diagonal_movement_facing() -> void:
+	var player := tree.get_first_node_in_group("player") as Player
+	assert_not_null(player, "Player must exist")
+	if player == null:
+		return
+
+	var down_left_dir := player._get_camera_relative_direction(Vector2(-1.0, 1.0))
+	player._set_facing_from_world_direction(down_left_dir)
+	player._start_attack()
+	player._update_sprite()
+
+	assert_eq(player.move_direction, Player.MoveDir.DOWN_LEFT, "Attack should keep down-left movement direction")
+	assert_true(Vector3(player.hitbox_shape.position.x, 0.0, player.hitbox_shape.position.z).dot(down_left_dir) > 0.1, "Down-left attack should place hitbox in the down-left movement direction")
+	assert_true(player.sprite.texture.resource_path.ends_with("down_left_attack_0.png"), "Down-left attack should use down-left attack asset")
+
 func test_player_hitbox_supports_diagonal_facing() -> void:
 	# Interaction 9: HÆ°á»›ng di chuyá»ƒn chÃ©o pháº£i cáº­p nháº­t hitbox theo 8 hÆ°á»›ng
 	var player := tree.get_first_node_in_group("player") as Player

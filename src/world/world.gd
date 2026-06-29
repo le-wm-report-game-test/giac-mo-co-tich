@@ -10,6 +10,8 @@ const DEFAULT_PLAYER_SPAWN_POSITION := Vector3(0.0, 1.0, 0.0)
 @onready var spawn_point: Marker3D = get_node_or_null("SpawnPoint") as Marker3D
 
 func _ready() -> void:
+	var has_pending_restore := SaveManager.has_meta("pending_restore")
+
 	# Không để một marker bị thiếu làm hỏng toàn bộ quá trình khởi tạo game.
 	var player_spawn_position := DEFAULT_PLAYER_SPAWN_POSITION
 	if spawn_point:
@@ -27,6 +29,8 @@ func _ready() -> void:
 	var camera := camera_scene.instantiate() as GameCamera
 	add_child(camera)
 	camera.set_target(player)
+	if not has_pending_restore:
+		camera.play_startup_intro(player)
 	
 	# 3. Create World Manager (HUD, Boss, Weather, etc.)
 	var world_manager := WorldManager.new()
@@ -50,10 +54,11 @@ func _ready() -> void:
 			event_bus.emit_signal("player_spawned", player)
 
 	# 7. Khôi phục trạng thái đã lưu (nếu có) – không can thiệp vào logic core
-	if SaveManager.has_meta("pending_restore"):
+	if has_pending_restore:
 		var restore_data: Dictionary = SaveManager.get_meta("pending_restore")
 		SaveManager.remove_meta("pending_restore")
 		var restorer := GameStateRestorer.new()
 		restorer.name = "GameStateRestorer"
 		add_child(restorer)
-		restorer.restore(restore_data)
+		await restorer.restore(restore_data)
+		camera.skip_startup_intro()
