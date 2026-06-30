@@ -13,8 +13,10 @@ const BTN_QUIT_PATH: String = "res://Assets/OpenScreenAssets/Quit_Button.png"
 
 
 @export var hover_sfx: AudioStream = preload("res://Assets/audio/Select_Sound.mp3")
+@export var bg_music: AudioStream = preload("res://Assets/audio/intro.mp3")
 
 var sfx_player: AudioStreamPlayer = null
+var _music_player: AudioStreamPlayer = null
 var _settings_menu_instance: SettingsMenu = null
 var bg: TextureRect = null
 var _new_game_dialog: Control = null
@@ -70,7 +72,18 @@ func _ready() -> void:
 	container.offset_bottom = 300
 	add_child(container)
 	
-	# 3. Tạo SFX Player động
+	# 3. Tạo Music Player
+	_music_player = AudioStreamPlayer.new()
+	_music_player.name = "MusicPlayer"
+	_music_player.stream = bg_music
+	_music_player.volume_db = -10.0
+	add_child(_music_player)
+	if bg_music:
+		if bg_music is AudioStreamMP3:
+			(bg_music as AudioStreamMP3).loop = true
+		_music_player.play()
+
+	# 4. Tạo SFX Player động
 	sfx_player = AudioStreamPlayer.new()
 	sfx_player.name = "SFXPlayer"
 	sfx_player.volume_db = -10.0
