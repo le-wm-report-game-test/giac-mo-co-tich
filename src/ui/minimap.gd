@@ -1,5 +1,5 @@
 # minimap.gd
-# HUD Minimap — hiển thị dot xanh (player) + dot đỏ (quái) trong radar range 30 units
+# HUD Minimap — hiển thị dot xanh (player) + dot đỏ (orc) theo vị trí world trên map
 class_name Minimap
 extends Control
 
@@ -39,12 +39,11 @@ func update_positions(player_pos: Vector3, enemies: Array[Dictionary]) -> void:
 
 
 func _world_to_canvas(world_pos: Vector3) -> Vector2:
-	"""Chuyển world position → canvas position (player làm trung tâm minimap)"""
-	var half_w := size.x / 2.0
-	var rel_x := world_pos.x - _player_pos.x
-	var rel_z := world_pos.z - _player_pos.z
-	var cx := (rel_x / radar_range) * half_w + half_w
-	var cy := half_w - (rel_z / radar_range) * half_w
+	"""Chuyển world position → canvas position theo tọa độ tuyệt đối trên map"""
+	var clamped_x := clampf(world_pos.x, -map_limit, map_limit)
+	var clamped_z := clampf(world_pos.z, -map_limit, map_limit)
+	var cx := remap(clamped_x, -map_limit, map_limit, 0.0, size.x)
+	var cy := remap(clamped_z, map_limit, -map_limit, 0.0, size.y)
 	return Vector2(cx, cy)
 
 
@@ -56,24 +55,15 @@ func _draw() -> void:
 	if not _player_valid:
 		return
 	
-	# Vẽ dot player (luôn ở trung tâm)
-	draw_circle(Vector2(size.x / 2.0, size.y / 2.0), PLAYER_RADIUS, PLAYER_COLOR)
+	# Vẽ dot player theo vị trí thật trên map
+	draw_circle(_world_to_canvas(_player_pos), PLAYER_RADIUS, PLAYER_COLOR)
 	
-	# Vẽ dot quái
+	# Vẽ dot orc
 	for enemy: Dictionary in _enemies:
 		var enemy_pos: Vector3 = enemy.get("position", Vector3.ZERO)
 		var is_boss: bool = enemy.get("is_boss", false)
 		
-		# Chỉ vẽ nếu trong radar range
-		var dist := _player_pos.distance_to(enemy_pos)
-		if dist > radar_range:
-			continue
-		
 		var canvas_pos := _world_to_canvas(enemy_pos)
-		
-		# Clip trong canvas
-		if canvas_pos.x < 0.0 or canvas_pos.x > size.x or canvas_pos.y < 0.0 or canvas_pos.y > size.y:
-			continue
 		
 		var radius: float = BOSS_RADIUS if is_boss else ENEMY_RADIUS
 		draw_circle(canvas_pos, radius, ENEMY_COLOR)
@@ -89,7 +79,7 @@ func _draw_background() -> void:
 func _draw_grid() -> void:
 	"""Vẽ grid 12-unit cells"""
 	var grid_world_step: float = 12.0  # Mỗi ô grid = 12 world units
-	var grid_px_step := (grid_world_step / radar_range) * (size.x / 2.0)
+	var grid_px_step := (grid_world_step / (map_limit * 2.0)) * size.x
 	
 	if grid_px_step < 8.0:
 		return  # Grid quá nhỏ, bỏ qua

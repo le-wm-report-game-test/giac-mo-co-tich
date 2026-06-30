@@ -29,3 +29,27 @@ func test_food_item_uses_atlas_frame_without_secondary_region_crop() -> void:
 		assert_almost_eq(item.sprite.pixel_size, 0.0035, 0.0001, "Food pickup must remain readable without dominating the player")
 		item.queue_free()
 		await tree.process_frame
+
+
+func test_all_food_types_restore_player_to_max_health() -> void:
+	var player := tree.get_first_node_in_group("player") as Player
+	assert_not_null(player, "Player must exist")
+	var health := player.get_node_or_null("HealthComponent") as HealthComponent
+	assert_not_null(health, "Player health component must exist")
+	
+	health.max_health = 100.0
+	
+	for food_type in range(4):
+		health.current_health = 35.0
+		var item := FoodItem.new()
+		item.food_type = food_type as FoodItem.FoodType
+		item.heal_amount = 1.0
+		world_instance.add_child(item)
+		await tree.process_frame
+		
+		item.call("_apply_effect", player)
+		
+		assert_eq(health.current_health, health.max_health, "Every spawned fruit should restore player to full health")
+		
+		item.queue_free()
+		await tree.process_frame

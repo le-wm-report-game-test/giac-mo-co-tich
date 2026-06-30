@@ -23,18 +23,16 @@ const RAIN_EMITTER_HEIGHT: float = 20.0
 const RAIN_COVERAGE_MARGIN: float = 4.0
 const RAIN_DEPTH_MARGIN: float = 9.0
 const PLAYER_HUD_TEXTURE_PATH := "res://Assets/items/hud_and_orc_panel_v1.png"
-const PLAYER_HUD_TEXTURE_SIZE := Vector2(853.0, 292.0)
+const PLAYER_HUD_TEXTURE_SIZE := Vector2(568.0, 439.0)
 const PLAYER_HUD_TARGET_WIDTH := 290.0
-#const PLAYER_HUD_FILL_POSITION := Vector2(214.0, 72.0)
-#const PLAYER_HUD_FILL_SIZE := Vector2(532.0, 66.0)
-const PLAYER_HUD_FILL_POSITION = Vector2(214.0, 83.0)
-const PLAYER_HUD_FILL_SIZE = Vector2(518.0, 40.0)
+const PLAYER_HUD_FILL_POSITION := Vector2(113.0, 111.0)
+const PLAYER_HUD_FILL_SIZE := Vector2(429.0, 81.0)
 
-const PLAYER_HUD_FILL_COLOR := Color(0.78, 0.08, 0.1, 1.0)
+const PLAYER_HUD_FILL_COLOR := Color(0.82, 0.0, 0.02, 1.0)
 #const ORC_COUNTER_TEXT_POSITION := Vector2(260.0, 188.0)
 #const ORC_COUNTER_TEXT_SIZE := Vector2(170.0, 44.0)
-const ORC_COUNTER_TEXT_POSITION := Vector2(150.0, 195.0)
-const ORC_COUNTER_TEXT_SIZE := Vector2(300.0, 44.0)
+const ORC_COUNTER_TEXT_POSITION := Vector2(24.0, 235.0)
+const ORC_COUNTER_TEXT_SIZE := Vector2(207.0, 69.0)
 const MINIMAP_FRAME_TEXTURE_PATH := "res://Assets/items/map.png"
 const MINIMAP_FRAME_TEXTURE_SIZE := Vector2(500.0, 500.0)
 const MINIMAP_SCREEN_SIZE := Vector2(120.0, 120.0)
@@ -447,30 +445,32 @@ func _create_solid_texture(color: Color, size: Vector2i) -> ImageTexture:
 	img.fill(color)
 	return ImageTexture.create_from_image(img)
 
-func _create_player_health_fill_material(fill_size: Vector2) -> ShaderMaterial:
+func _create_player_health_fill_material(mask_texture: Texture2D, fill_size: Vector2) -> ShaderMaterial:
 	var shader := Shader.new()
 	shader.code = """
 shader_type canvas_item;
 render_mode unshaded;
 
 uniform vec2 bar_size = vec2(1.0, 1.0);
+uniform sampler2D mask_texture : source_color, filter_nearest;
+uniform vec2 mask_texture_size = vec2(1.0, 1.0);
+uniform vec2 mask_region_position = vec2(0.0, 0.0);
+uniform vec2 mask_region_size = vec2(1.0, 1.0);
 uniform vec4 fill_color : source_color = vec4(0.78, 0.08, 0.1, 1.0);
 uniform float fill_ratio : hint_range(0.0, 1.0) = 1.0;
-
-float rounded_box_sdf(vec2 point, vec2 center, vec2 half_extents, float radius) {
-	vec2 q = abs(point - center) - (half_extents - vec2(radius));
-	return length(max(q, vec2(0.0))) + min(max(q.x, q.y), 0.0) - radius;
-}
 
 void fragment() {
 	float fill_width = clamp(fill_ratio, 0.0, 1.0) * bar_size.x;
 	if (fill_width > 0.0) {
 		vec2 pixel = UV * bar_size;
-		vec2 half_extents = vec2(fill_width * 0.5, bar_size.y * 0.5);
-		vec2 center = vec2(half_extents.x, half_extents.y);
-		float radius = min(bar_size.y * 0.5, half_extents.x);
-		float dist = rounded_box_sdf(pixel, center, half_extents, radius);
-		float alpha = 1.0 - smoothstep(0.0, 1.0, dist);
+		float moving_fill_alpha = 1.0 - smoothstep(fill_width - 0.5, fill_width + 0.5, pixel.x);
+
+		vec2 mask_uv = (mask_region_position + UV * mask_region_size) / mask_texture_size;
+		vec4 mask_pixel = texture(mask_texture, mask_uv);
+		float luminance = dot(mask_pixel.rgb, vec3(0.299, 0.587, 0.114));
+		float inner_bar_alpha = mask_pixel.a * (1.0 - smoothstep(0.18, 0.36, luminance));
+
+		float alpha = moving_fill_alpha * inner_bar_alpha;
 		COLOR = vec4(fill_color.rgb, fill_color.a * alpha);
 	} else {
 		COLOR = vec4(0.0);
@@ -481,6 +481,10 @@ void fragment() {
 	var material := ShaderMaterial.new()
 	material.shader = shader
 	material.set_shader_parameter("bar_size", fill_size)
+	material.set_shader_parameter("mask_texture", mask_texture)
+	material.set_shader_parameter("mask_texture_size", PLAYER_HUD_TEXTURE_SIZE)
+	material.set_shader_parameter("mask_region_position", PLAYER_HUD_FILL_POSITION)
+	material.set_shader_parameter("mask_region_size", PLAYER_HUD_FILL_SIZE)
 	material.set_shader_parameter("fill_color", PLAYER_HUD_FILL_COLOR)
 	material.set_shader_parameter("fill_ratio", 1.0)
 	return material
@@ -564,7 +568,7 @@ func _create_hud() -> void:
 	hp_fill.offset_bottom = 0.0
 	hp_fill.color = Color(1.0, 1.0, 1.0, 0.0)
 	hp_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	hp_fill.material = _create_player_health_fill_material(hp_fill_size)
+	hp_fill.material = _create_player_health_fill_material(hp_texture, hp_fill_size)
 	hp_mask.add_child(hp_fill)
 	player_health_fill = hp_fill
 	
@@ -583,7 +587,7 @@ func _create_hud() -> void:
 	hp_bar.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	hp_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hp_bar.tint_under = Color(1.0, 1.0, 1.0, 0.0)
-	hp_bar.tint_progress = Color.WHITE
+	hp_bar.tint_progress = PLAYER_HUD_FILL_COLOR
 	hp_bar.tint_over = Color(1.0, 1.0, 1.0, 0.0)
 	hp_bar.texture_under = _create_solid_texture(Color(0.0, 0.0, 0.0, 0.0), Vector2i(int(hp_fill_size.x), int(hp_fill_size.y)))
 	hp_bar.texture_progress = _create_solid_texture(PLAYER_HUD_FILL_COLOR, Vector2i(int(hp_fill_size.x), int(hp_fill_size.y)))
@@ -603,7 +607,9 @@ func _create_hud() -> void:
 	orc_counter.name = "OrcCounter"
 	orc_counter.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	orc_counter.position = Vector2(
+		hp_container.position.x +
 		round(ORC_COUNTER_TEXT_POSITION.x * hp_scale),
+		hp_container.position.y +
 		round(ORC_COUNTER_TEXT_POSITION.y * hp_scale)
 	)
 	orc_counter.custom_minimum_size = Vector2(
@@ -612,7 +618,7 @@ func _create_hud() -> void:
 	)
 	orc_counter.size = orc_counter.custom_minimum_size
 	orc_counter.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	hp_container.add_child(orc_counter)
+	ui.add_child(orc_counter)
 	
 	var orc_count_label := Label.new()
 	orc_count_label.name = "OrcCountLabel"
@@ -621,7 +627,7 @@ func _create_hud() -> void:
 	orc_count_label.offset_top = 0.0
 	orc_count_label.offset_right = 0.0
 	orc_count_label.offset_bottom = 0.0
-	orc_count_label.text = "Orc Killed: 0/%d" % orcs_to_kill_for_boss
+	orc_count_label.text = "0"
 	orc_count_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	orc_count_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	orc_count_label.add_theme_color_override("font_color", Color(0.92, 0.88, 0.74, 1.0))
@@ -724,7 +730,7 @@ func _create_hud() -> void:
 func _update_ui_orc_counter() -> void:
 	var label := get_node_or_null("UI/OrcCounter/OrcCountLabel") as Label
 	if label:
-		label.text = "Orc Killed: %d/%d" % [orcs_killed, orcs_to_kill_for_boss]
+		label.text = str(orcs_killed)
 
 func _on_player_health_changed(current: float, max_h: float) -> void:
 	var bar := get_node_or_null("UI/PlayerHealthContainer/PlayerHealthBar") as TextureProgressBar
@@ -906,16 +912,16 @@ func _update_minimap() -> void:
 	var enemies: Array[Dictionary] = []
 	var orcs := get_tree().get_nodes_in_group("orc_mobs")
 	for orc in orcs:
-		if is_instance_valid(orc) and orc is Node3D and orc.get("current_state") != 5:
+		if _is_minimap_orc_marker(orc) and orc.get("current_state") != 5:
 			enemies.append({
 				"position": orc.global_position,
 				"is_boss": orc.is_in_group("boss")
 			})
-	var animals := get_tree().get_nodes_in_group("animals")
-	for animal in animals:
-		if is_instance_valid(animal) and animal is Node3D:
-			enemies.append({
-				"position": animal.global_position,
-				"is_boss": false
-			})
 	minimap.update_positions(player.global_position, enemies)
+
+func _is_minimap_orc_marker(candidate: Variant) -> bool:
+	if not is_instance_valid(candidate) or not (candidate is Node3D):
+		return false
+	if candidate.is_in_group("animals") or candidate.is_in_group("cats"):
+		return false
+	return candidate is OrcMob
