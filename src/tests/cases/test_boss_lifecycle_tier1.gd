@@ -92,9 +92,8 @@ func test_boss_death_sequence() -> void:
 	assert_true(hud_bar == null or not hud_bar.visible, "HUD BossHealthContainer should be hidden on boss death")
 
 func test_boss_victory_dialog_targets_main_menu() -> void:
-	# Khi boss bị đánh bại, hiện lời chúc mừng và chuẩn bị quay về menu chính
+	# Khi boss bị đánh bại, hiện lời chúc mừng, bài văn và nút về menu chính
 	var dialog := VictoryDialog.new()
-	dialog.auto_return_to_menu = false
 	world_instance.add_child(dialog)
 	await tree.process_frame
 	
@@ -109,6 +108,16 @@ func test_boss_victory_dialog_targets_main_menu() -> void:
 	var title := dialog.get_node_or_null("VictoryOverlay/VictoryPanel/VBoxContainer/VictoryTitle") as Label
 	assert_not_null(title, "Victory title should exist")
 	assert_true(title.text.contains("Chúc mừng"), "Victory title should congratulate the player")
+	var body := dialog.get_node_or_null("VictoryOverlay/VictoryPanel/VBoxContainer/StoryScroll/VictoryBody") as RichTextLabel
+	assert_not_null(body, "Victory story body should exist")
+	assert_true(body.text.contains("Thạch Sanh"), "Victory story should tell the Thach Sanh ending")
+	assert_true(body.text.contains("Chằn Tinh"), "Victory story should mention the defeated boss")
+	var return_button := dialog.get_node_or_null("VictoryOverlay/VictoryPanel/VBoxContainer/ReturnToMenuButton") as Button
+	assert_not_null(return_button, "Victory dialog should provide a manual return button")
+	assert_eq(return_button.text, "TRỞ VỀ MENU", "Victory dialog should not auto-redirect; it should expose a menu button")
+	var chime_player := dialog.get_node_or_null("VictoryChimePlayer") as AudioStreamPlayer
+	assert_not_null(chime_player, "Victory dialog should create the victory chime player")
+	assert_not_null(chime_player.stream, "Victory chime player should have the imported MP3 stream")
 	assert_eq(VictoryDialog.MAIN_MENU_SCENE_PATH, "res://src/ui/MainMenu.tscn", "Victory should return to main menu")
 	
 	boss.free()

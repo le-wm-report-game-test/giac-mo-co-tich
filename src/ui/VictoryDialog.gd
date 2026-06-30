@@ -4,11 +4,15 @@ class_name VictoryDialog
 extends CanvasLayer
 
 const MAIN_MENU_SCENE_PATH := "res://src/ui/MainMenu.tscn"
+const VICTORY_CHIME := preload("res://Assets/audio/scratchonix-victory-chime-366449.mp3")
+const THACH_SANH_STORY := """Chúc mừng! Bạn đã dũng cảm đánh bại Chằn Tinh, giải cứu dân làng khỏi nỗi khiếp sợ bấy lâu. Bằng lòng can đảm, sự kiên trì và những nhát kiếm chính xác, bạn đã chứng minh mình là một người anh hùng thực thụ.
 
-@export var return_delay: float = 3.0
-@export var auto_return_to_menu: bool = true
+Nhưng hành trình của Thạch Sanh vẫn chưa kết thúc. Phía trước còn nhiều thử thách và những bí mật đang chờ bạn khám phá. Hãy nghỉ ngơi, chuẩn bị hành trang và tiếp tục cuộc phiêu lưu để bảo vệ công lý và mang lại bình yên cho muôn dân.
+
+Bạn đã hoàn thành màn chơi: Chằn Tinh! ✨"""
 
 var _overlay: Control = null
+var _chime_player: AudioStreamPlayer = null
 
 func _ready() -> void:
 	layer = 25
@@ -22,8 +26,7 @@ func _on_enemy_died(enemy: Node3D) -> void:
 	if _overlay != null:
 		return
 	_build_dialog()
-	if auto_return_to_menu:
-		_return_to_main_menu_after_delay()
+	_play_victory_chime()
 
 func _build_dialog() -> void:
 	_overlay = ColorRect.new()
@@ -51,22 +54,24 @@ func _build_dialog() -> void:
 	panel.anchor_bottom = 0.5
 	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
-	panel.offset_left = -330.0
-	panel.offset_right = 330.0
-	panel.offset_top = -150.0
-	panel.offset_bottom = 150.0
+	panel.offset_left = -410.0
+	panel.offset_right = 410.0
+	panel.offset_top = -260.0
+	panel.offset_bottom = 260.0
+	panel.custom_minimum_size = Vector2(760.0, 520.0)
 	_overlay.add_child(panel)
 
 	var vbox := VBoxContainer.new()
 	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
-	vbox.add_theme_constant_override("separation", 18)
+	vbox.add_theme_constant_override("separation", 16)
 	panel.add_child(vbox)
 
 	var title := Label.new()
 	title.name = "VictoryTitle"
-	title.text = "Chúc mừng!"
+	title.text = "Chúc mừng! Chằn Tinh đã bị tiêu diệt"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 34)
+	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	title.add_theme_font_size_override("font_size", 30)
 	title.add_theme_color_override("font_color", Color(1.0, 0.84, 0.35))
 	vbox.add_child(title)
 
@@ -76,27 +81,52 @@ func _build_dialog() -> void:
 	sep.add_theme_stylebox_override("separator", sep_style)
 	vbox.add_child(sep)
 
-	var body := Label.new()
+	var scroll := ScrollContainer.new()
+	scroll.name = "StoryScroll"
+	scroll.custom_minimum_size = Vector2(0.0, 300.0)
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	vbox.add_child(scroll)
+
+	var body := RichTextLabel.new()
 	body.name = "VictoryBody"
-	body.text = "Bạn đã đánh bại Chằn Tinh!\nTrở về đầu trang game..."
-	body.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	body.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	body.autowrap_mode = TextServer.AUTOWRAP_WORD
+	body.bbcode_enabled = false
+	body.fit_content = true
+	body.scroll_active = false
+	body.text = THACH_SANH_STORY
+	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	body.add_theme_font_size_override("font_size", 20)
+	body.add_theme_constant_override("line_separation", 7)
 	body.add_theme_color_override("font_color", Color(0.92, 0.88, 0.74))
-	vbox.add_child(body)
+	scroll.add_child(body)
+
+	var return_btn := Button.new()
+	return_btn.name = "ReturnToMenuButton"
+	return_btn.text = "TRỞ VỀ MENU"
+	return_btn.custom_minimum_size = Vector2(230.0, 50.0)
+	return_btn.add_theme_font_size_override("font_size", 18)
+	return_btn.pressed.connect(_on_return_to_menu_pressed)
+	vbox.add_child(return_btn)
 
 	panel.modulate.a = 0.0
 	panel.scale = Vector2(0.85, 0.85)
-	panel.pivot_offset = Vector2(330.0, 150.0)
+	panel.pivot_offset = Vector2(410.0, 260.0)
 	var tw := create_tween().set_parallel(true)
 	tw.tween_property(_overlay, "color", Color(0.0, 0.0, 0.0, 0.70), 0.35).set_trans(Tween.TRANS_SINE)
 	tw.tween_property(panel, "modulate:a", 1.0, 0.30).set_trans(Tween.TRANS_SINE).set_delay(0.10)
 	tw.tween_property(panel, "scale", Vector2.ONE, 0.30).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT).set_delay(0.10)
 
-func _return_to_main_menu_after_delay() -> void:
-	get_tree().paused = false
-	await get_tree().create_timer(return_delay).timeout
+func _play_victory_chime() -> void:
+	if _chime_player == null:
+		_chime_player = AudioStreamPlayer.new()
+		_chime_player.name = "VictoryChimePlayer"
+		_chime_player.stream = VICTORY_CHIME
+		_chime_player.bus = "Master"
+		add_child(_chime_player)
+	_chime_player.stop()
+	_chime_player.play()
+
+func _on_return_to_menu_pressed() -> void:
 	get_tree().paused = false
 	var err := get_tree().change_scene_to_file(MAIN_MENU_SCENE_PATH)
 	if err != OK:
