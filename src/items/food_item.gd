@@ -96,13 +96,14 @@ func _on_area_entered(area: Area3D) -> void:
 
 
 func _apply_effect(player: Player) -> void:
+	_apply_heal(player)
 	match food_type:
 		FoodType.APPLE_RED:
-			_apply_heal(player)
+			pass
 		FoodType.ORANGE:
 			_apply_speed_boost(player)
 		FoodType.PEAR:
-			_apply_heal(player)
+			pass
 		FoodType.GRAPES:
 			_apply_shield(player)
 
