@@ -12,7 +12,7 @@ const BTN_SETTINGS_PATH: String = "res://Assets/OpenScreenAssets/Setting_Button.
 const BTN_QUIT_PATH: String = "res://Assets/OpenScreenAssets/Quit_Button.png"
 
 
-@export var hover_sfx: AudioStream = preload("res://Assets/audio/sound_attack.mp3")
+@export var hover_sfx: AudioStream = preload("res://Assets/audio/Select_Sound.mp3")
 
 var sfx_player: AudioStreamPlayer = null
 var _settings_menu_instance: SettingsMenu = null
