@@ -110,7 +110,8 @@ func _apply_effect(player: Player) -> void:
 func _apply_heal(player: Player) -> void:
 	var health := player.get_node_or_null("HealthComponent") as HealthComponent
 	if health:
-		health.heal(heal_amount)
+		health.current_health = health.max_health
+		health.health_changed.emit(health.current_health, health.max_health)
 		EventBus.player_health_changed.emit(health.current_health, health.max_health)
 
 

@@ -35,8 +35,7 @@ func test_orc_counter_update() -> void:
 	EventBus.enemy_died.emit(dummy_orc)
 	await tree.process_frame
 	
-	var target_count: int = world_manager.get("orcs_to_kill_for_boss") as int
-	assert_eq(orc_count_label.text, "1/%d" % target_count, "Orc counter label should show 1 killed")
+	assert_eq(orc_count_label.text, "1", "Orc counter label should show only completed kills")
 	
 	dummy_orc.queue_free()
 	await tree.process_frame
@@ -52,6 +51,36 @@ func test_boss_health_bar_appears() -> void:
 	
 	world_manager.call("_show_boss_health_bar")
 	assert_true(boss_container.visible, "Boss health container should be visible after showing")
+
+func test_minimap_player_dot_uses_world_position() -> void:
+	# Chấm xanh phải đi theo vị trí thật của player trên map, không đứng yên ở tâm
+	var minimap := Minimap.new()
+	minimap.setup(Vector2(100.0, 100.0))
+	minimap.map_limit = 50.0
+	minimap.update_positions(Vector3.ZERO, [])
+	
+	var center_pos: Vector2 = minimap.call("_world_to_canvas", Vector3.ZERO)
+	var moved_pos: Vector2 = minimap.call("_world_to_canvas", Vector3(25.0, 0.0, -25.0))
+	
+	assert_eq(center_pos, Vector2(50.0, 50.0), "World origin should map to minimap center")
+	assert_true(moved_pos.x > center_pos.x, "Moving right in world should move blue dot right on minimap")
+	assert_true(moved_pos.y < center_pos.y, "Moving forward in world should move blue dot upward on minimap")
+
+func test_minimap_red_markers_only_include_orcs() -> void:
+	# Chỉ Orc/Boss được hiện chấm đỏ; animal không được hiện trên minimap
+	var world_manager: Node = world_instance.get_node_or_null("WorldManager")
+	assert_not_null(world_manager, "WorldManager must exist")
+	
+	var animal := AnimalBot.new()
+	animal.add_to_group("animals")
+	var orc := OrcMob.new()
+	orc.add_to_group("orc_mobs")
+	
+	assert_false(world_manager.call("_is_minimap_orc_marker", animal), "Animals must not be red minimap markers")
+	assert_true(world_manager.call("_is_minimap_orc_marker", orc), "Orcs must be red minimap markers")
+	
+	animal.free()
+	orc.free()
 
 func test_player_damage_number_spawn() -> void:
 	# Hiển thị số sát thương (đỏ) khi Player bị tấn công

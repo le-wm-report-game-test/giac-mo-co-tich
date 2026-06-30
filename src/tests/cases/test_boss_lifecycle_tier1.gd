@@ -90,3 +90,27 @@ func test_boss_death_sequence() -> void:
 	
 	var hud_bar: Control = world_instance.get_node_or_null("WorldManager/UI/BossHealthContainer") as Control
 	assert_true(hud_bar == null or not hud_bar.visible, "HUD BossHealthContainer should be hidden on boss death")
+
+func test_boss_victory_dialog_targets_main_menu() -> void:
+	# Khi boss bị đánh bại, hiện lời chúc mừng và chuẩn bị quay về menu chính
+	var dialog := VictoryDialog.new()
+	dialog.auto_return_to_menu = false
+	world_instance.add_child(dialog)
+	await tree.process_frame
+	
+	var boss := Node3D.new()
+	boss.add_to_group("boss")
+	
+	dialog.call("_on_enemy_died", boss)
+	await tree.process_frame
+	
+	var overlay := dialog.get_node_or_null("VictoryOverlay") as Control
+	assert_not_null(overlay, "Victory overlay should appear after boss death")
+	var title := dialog.get_node_or_null("VictoryOverlay/VictoryPanel/VBoxContainer/VictoryTitle") as Label
+	assert_not_null(title, "Victory title should exist")
+	assert_true(title.text.contains("Chúc mừng"), "Victory title should congratulate the player")
+	assert_eq(VictoryDialog.MAIN_MENU_SCENE_PATH, "res://src/ui/MainMenu.tscn", "Victory should return to main menu")
+	
+	boss.free()
+	dialog.queue_free()
+	await tree.process_frame

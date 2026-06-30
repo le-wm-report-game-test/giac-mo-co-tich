@@ -46,14 +46,19 @@ func _ready() -> void:
 	var death_dialog := DeathDialog.new()
 	death_dialog.name = "DeathDialog"
 	add_child(death_dialog)
+
+	# 6. Victory Dialog - hiện khi người chơi đánh bại boss
+	var victory_dialog := VictoryDialog.new()
+	victory_dialog.name = "VictoryDialog"
+	add_child(victory_dialog)
 	
-	# 6. Notify Event Bus
+	# 7. Notify Event Bus
 	if get_node_or_null("/root/EventBus"):
 		var event_bus := get_node("/root/EventBus")
 		if event_bus.has_signal("player_spawned"):
 			event_bus.emit_signal("player_spawned", player)
 
-	# 7. Khôi phục trạng thái đã lưu (nếu có) – không can thiệp vào logic core
+	# 8. Khôi phục trạng thái đã lưu (nếu có) – không can thiệp vào logic core
 	if has_pending_restore:
 		var restore_data: Dictionary = SaveManager.get_meta("pending_restore")
 		SaveManager.remove_meta("pending_restore")
