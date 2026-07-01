@@ -9,6 +9,6 @@ func _ready() -> void:
 	monitoring = false
 	monitorable = true
 
-func receive_hit(amount: float, source: Node3D = null) -> void:
+func receive_hit(amount: float, source: Node3D = null, is_critical: bool = false) -> void:
 	if health_component:
-		health_component.take_damage(amount, source)
+		health_component.take_damage(amount, source, is_critical)

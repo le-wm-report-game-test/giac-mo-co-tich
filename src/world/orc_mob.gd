@@ -525,7 +525,7 @@ func _get_sheet_frames(prefix: String) -> int:
 		"death": return 4
 	return 1
 
-func _on_damaged(amount: float, source: Node3D) -> void:
+func _on_damaged(amount: float, source: Node3D, is_critical: bool = false) -> void:
 	if current_state == State.DEATH:
 		return
 	current_state = State.HURT
@@ -595,7 +595,7 @@ func _on_damaged(amount: float, source: Node3D) -> void:
 	# Emit damage event for floating numbers
 	var event_bus := get_node_or_null("/root/EventBus")
 	if event_bus:
-		event_bus.enemy_damaged.emit(self, amount, global_position)
+		event_bus.enemy_damaged.emit(self, amount, global_position, is_critical)
 
 func _on_died() -> void:
 	current_state = State.DEATH
