@@ -5,6 +5,7 @@ extends Control
 # Hằng số đường dẫn tài nguyên do người dùng cung cấp
 const GAME_SCENE_PATH: String = "res://src/world/world.tscn"
 const LEGACY_GAME_SCENE_PATH: String = "res://Scenes/Game.tscn"
+const LOADING_SCENE_PATH: String = "res://src/ui/LoadingScreen.tscn"
 const BG_PATH: String = "res://Assets/OpenScreenAssets/Background_Screen.png"
 const BTN_START_PATH: String = "res://Assets/OpenScreenAssets/Start_Button.png"
 const BTN_CONTINUE_PATH: String = "res://Assets/OpenScreenAssets/Continue_Button.png"
@@ -20,7 +21,6 @@ var _music_player: AudioStreamPlayer = null
 var _settings_menu_instance: SettingsMenu = null
 var bg: TextureRect = null
 var _new_game_dialog: Control = null
-var _loading_overlay: Control = null
 var _scene_change_in_progress: bool = false
 
 func _ready() -> void:
@@ -67,9 +67,9 @@ func _ready() -> void:
 	container.grow_vertical = Control.GROW_DIRECTION_BOTH
 	container.custom_minimum_size = Vector2(400, 400)
 	container.offset_left = -200
-	container.offset_top = -100
+	container.offset_top = -40
 	container.offset_right = 200
-	container.offset_bottom = 300
+	container.offset_bottom = 360
 	add_child(container)
 	
 	# 3. Tạo Music Player
@@ -184,16 +184,14 @@ func _change_to_game_scene(requested_path: String) -> bool:
 		return false
 
 	_scene_change_in_progress = true
-	_show_loading_overlay()
-	# Cho Godot render phản hồi click trước khi tải world đồng bộ.
-	await get_tree().process_frame
 
-	var err := get_tree().change_scene_to_file(scene_path)
+	EventBus.set_meta("loading_target_scene", scene_path)
+	var err := get_tree().change_scene_to_file(LOADING_SCENE_PATH)
 	if err == OK:
 		return true
 
+	EventBus.remove_meta("loading_target_scene")
 	_scene_change_in_progress = false
-	_hide_loading_overlay()
 	push_error("Không thể vào game tại %s: %s" % [scene_path, error_string(err)])
 	return false
 
@@ -206,33 +204,6 @@ func _resolve_game_scene_path(requested_path: String) -> String:
 	if ResourceLoader.exists(GAME_SCENE_PATH, "PackedScene"):
 		return GAME_SCENE_PATH
 	return ""
-
-func _show_loading_overlay() -> void:
-	if _loading_overlay != null:
-		return
-
-	var overlay := ColorRect.new()
-	overlay.name = "LoadingOverlay"
-	overlay.color = Color(0.02, 0.04, 0.025, 0.92)
-	overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
-
-	var label := Label.new()
-	label.text = "ĐANG VÀO GAME..."
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	label.add_theme_font_size_override("font_size", 28)
-	label.add_theme_color_override("font_color", Color(0.95, 0.82, 0.53))
-	label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	overlay.add_child(label)
-	add_child(overlay)
-	_loading_overlay = overlay
-
-func _hide_loading_overlay() -> void:
-	if _loading_overlay == null:
-		return
-	_loading_overlay.queue_free()
-	_loading_overlay = null
 
 # ── Hộp thoại cảnh báo chơi mới ──────────────────────────────────
 func _show_new_game_warning() -> void:

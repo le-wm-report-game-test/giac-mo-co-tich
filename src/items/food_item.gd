@@ -29,6 +29,7 @@ const FOOD_SPRITE_PATH := "res://food_health.png"
 
 
 func _ready() -> void:
+	add_to_group("food_items")
 	area_entered.connect(_on_area_entered)
 	_setup_nodes()
 	_original_position = global_position

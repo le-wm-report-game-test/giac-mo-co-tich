@@ -38,6 +38,8 @@ const MINIMAP_FRAME_TEXTURE_SIZE := Vector2(500.0, 500.0)
 const MINIMAP_SCREEN_SIZE := Vector2(120.0, 120.0)
 const MINIMAP_INNER_POSITION := Vector2(58.0, 58.0)
 const MINIMAP_INNER_SIZE := Vector2(379.0, 379.0)
+const MINIMAP_ZOOM_SCALE := 2.6
+const MINIMAP_ZOOM_DURATION := 0.25
 
 # ─── HUD References ──────────────────────────────────────────────────────────
 var player_health_bar: Node = null
@@ -45,6 +47,8 @@ var player_health_fill: ColorRect = null
 var boss_health_bar: Node = null
 var orc_counter_label: Node = null
 var minimap: Minimap = null
+var minimap_container: Control = null
+var minimap_zoomed: bool = false
 
 # ─── Tree Fade ───────────────────────────────────────────────────────────────
 const TREE_FADE_ALPHA: float = 0.25
@@ -98,6 +102,10 @@ func _ready() -> void:
 
 # Phím tắt Debug để kiểm tra nhanh thời tiết và sấm sét
 func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo:
+		if event.keycode == KEY_M:
+			_toggle_minimap_zoom()
+
 	# Chỉ hoạt động khi chạy chạy thử trong Godot Editor (Debug build)
 	if OS.is_debug_build() and event is InputEventKey and event.pressed:
 		if event.keycode == KEY_K:
@@ -106,6 +114,15 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif event.keycode == KEY_L:
 			print("DEBUG: Gọi sét đánh ngay lập tức!")
 			_strike_lightning()
+
+# Phóng to / thu nhỏ minimap khi bấm phím M
+func _toggle_minimap_zoom() -> void:
+	if minimap_container == null:
+		return
+	minimap_zoomed = not minimap_zoomed
+	var target_scale := Vector2(MINIMAP_ZOOM_SCALE, MINIMAP_ZOOM_SCALE) if minimap_zoomed else Vector2.ONE
+	var tween := create_tween()
+	tween.tween_property(minimap_container, "scale", target_scale, MINIMAP_ZOOM_DURATION).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 
 # Bật bão ngay lập tức
 func _start_storm_instantly() -> void:
@@ -687,12 +704,13 @@ func _create_hud() -> void:
 	boss_container.add_child(boss_hp_bar)
 	
 	# ─── Minimap HUD ───
-	var minimap_container := Control.new()
+	minimap_container = Control.new()
 	minimap_container.name = "MinimapContainer"
 	minimap_container.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	minimap_container.position = Vector2(1920 - MINIMAP_SCREEN_SIZE.x - 20.0, 20.0)
 	minimap_container.custom_minimum_size = MINIMAP_SCREEN_SIZE
 	minimap_container.size = MINIMAP_SCREEN_SIZE
+	minimap_container.pivot_offset = Vector2(MINIMAP_SCREEN_SIZE.x, 0.0)
 	minimap_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	ui.add_child(minimap_container)
 
@@ -1047,12 +1065,23 @@ func _update_minimap() -> void:
 	var enemies: Array[Dictionary] = []
 	var orcs := get_tree().get_nodes_in_group("orc_mobs")
 	for orc in orcs:
-		if _is_minimap_orc_marker(orc) and orc.get("current_state") != 5:
+		if _is_minimap_orc_marker(orc) and _is_orc_attacking(orc):
 			enemies.append({
 				"position": orc.global_position,
 				"is_boss": orc.is_in_group("boss")
 			})
-	minimap.update_positions(player.global_position, enemies)
+
+	var foods: Array[Vector3] = []
+	for food in get_tree().get_nodes_in_group("food_items"):
+		if food is Node3D and is_instance_valid(food) and food.visible:
+			foods.append((food as Node3D).global_position)
+
+	minimap.update_positions(player.global_position, enemies, foods)
+
+func _is_orc_attacking(orc: Variant) -> bool:
+	# CHASE = 2, ATTACK = 3 (OrcMob.State) — chỉ hiện trên map khi quái đang chủ động tấn công người chơi.
+	var state: int = orc.get("current_state")
+	return state == 2 or state == 3
 
 func _is_minimap_orc_marker(candidate: Variant) -> bool:
 	if not is_instance_valid(candidate) or not (candidate is Node3D):
