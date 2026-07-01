@@ -74,7 +74,7 @@ func get_quality_preset() -> String:
 	return "Performance" if _quality == LightingQuality.PERFORMANCE else "Cinematic"
 
 func set_user_brightness(multiplier: float) -> void:
-	_user_brightness = clampf(multiplier, 0.85, 1.15)
+	_user_brightness = clampf(multiplier, 0.5, 2.0)
 	if _environment != null and _current_profile != null:
 		_environment.tonemap_exposure = _current_profile.exposure * _user_brightness
 
@@ -270,9 +270,9 @@ func _apply_quality_settings() -> void:
 	_environment.ssao_power = 1.35
 	_environment.ssao_detail = 0.62 if cinematic else 0.32
 	_environment.ssao_horizon = 0.4
-	# Orthographic gameplay gains little readable depth from SSIL compared with
-	# its full-screen cost; SSAO + fog carry the cinematic depth stack instead.
-	_environment.ssil_enabled = false
+	# SSIL is expensive — enable only for Cinematic.
+	# SSAO + volumetric fog carry the depth stack in Performance mode.
+	_environment.ssil_enabled = cinematic
 	_environment.ssil_radius = 2.2
 	_environment.ssil_intensity = 0.52
 	_environment.volumetric_fog_enabled = cinematic

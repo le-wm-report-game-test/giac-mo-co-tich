@@ -127,8 +127,8 @@ func _create_brightness_control(parent: Control) -> void:
 	container.add_child(_brightness_label)
 	var slider := HSlider.new()
 	_style_slider(slider)
-	slider.min_value = 0.85
-	slider.max_value = 1.15
+	slider.min_value = 0.5
+	slider.max_value = 2.0
 	slider.step = 0.01
 	slider.value = brightness
 	slider.value_changed.connect(_on_brightness_changed)
@@ -241,7 +241,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 func _on_brightness_changed(value: float) -> void:
-	brightness = clampf(value, 0.85, 1.15)
+	brightness = clampf(value, 0.5, 2.0)
 	_brightness_label.text = "Độ sáng / Brightness: %d%%" % int(brightness * 100)
 	_apply_brightness()
 	_save_settings()
@@ -331,7 +331,7 @@ func _load_settings() -> void:
 	var config := ConfigFile.new()
 	if config.load(SETTINGS_PATH) != OK:
 		return
-	brightness = clampf(float(config.get_value("display", "brightness", 1.0)), 0.85, 1.15)
+	brightness = clampf(float(config.get_value("display", "brightness", 1.0)), 0.5, 2.0)
 	var saved_quality := String(config.get_value("display", "lighting_quality", DEFAULT_LIGHTING_QUALITY))
 	lighting_quality = saved_quality if saved_quality in ["Cinematic", "Performance"] else DEFAULT_LIGHTING_QUALITY
 	window_mode_index = clampi(int(config.get_value("display", "window_mode", 0)), 0, 2)
