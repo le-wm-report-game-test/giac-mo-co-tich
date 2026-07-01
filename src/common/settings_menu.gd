@@ -4,6 +4,11 @@ extends CanvasLayer
 
 const SETTINGS_PATH: String = "user://settings.cfg"
 const DEFAULT_LIGHTING_QUALITY: String = "Cinematic"
+const PANEL_MIN_SIZE: Vector2 = Vector2(820, 560)
+const BODY_FONT_SIZE: int = 16
+const SECTION_FONT_SIZE: int = 18
+const TITLE_FONT_SIZE: int = 26
+const FIELD_MIN_HEIGHT: float = 42.0
 
 var is_open: bool = false
 var brightness: float = 1.0
@@ -51,7 +56,7 @@ func _create_ui() -> void:
 	_panel.anchor_bottom = 0.5
 	_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
-	_panel.custom_minimum_size = Vector2(540, 580)
+	_panel.custom_minimum_size = PANEL_MIN_SIZE
 	
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.12, 0.12, 0.14, 0.98)
@@ -64,44 +69,64 @@ func _create_ui() -> void:
 	style.corner_radius_top_right = 10
 	style.corner_radius_bottom_left = 10
 	style.corner_radius_bottom_right = 10
-	style.content_margin_left = 20
-	style.content_margin_right = 20
-	style.content_margin_top = 15
-	style.content_margin_bottom = 15
+	style.content_margin_left = 36
+	style.content_margin_right = 36
+	style.content_margin_top = 28
+	style.content_margin_bottom = 28
 	_panel.add_theme_stylebox_override("panel", style)
 	add_child(_panel)
 	
 	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 10)
+	vbox.add_theme_constant_override("separation", 18)
 	_panel.add_child(vbox)
 	
 	var title := Label.new()
 	title.text = "CÀI ĐẶT / SETTINGS"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 18)
+	title.add_theme_font_size_override("font_size", TITLE_FONT_SIZE)
 	title.add_theme_color_override("font_color", Color(0.95, 0.75, 0.2))
 	vbox.add_child(title)
 	
-	# Display & Visuals
-	_create_brightness_control(vbox)
-	_add_option(vbox, "Chất lượng ánh sáng / Lighting Quality:", ["Cinematic", "Performance"], 1 if lighting_quality == "Performance" else 0, _on_lighting_quality_selected)
-	_add_option(vbox, "Chế độ hiển thị (1920x1080) / Window Mode:", ["Cửa sổ (Windowed)", "Không viền (Borderless)", "Toàn màn hình (Fullscreen)"], window_mode_index, _on_window_mode_selected)
-	_add_option(vbox, "Giới hạn FPS / FPS Limit:", ["Không giới hạn (Unlimited)", "30 FPS", "60 FPS", "120 FPS"], fps_index, _on_fps_selected)
+	var columns := HBoxContainer.new()
+	columns.add_theme_constant_override("separation", 32)
+	vbox.add_child(columns)
 	
-	# Audio Controls
-	_create_audio_controls(vbox)
+	var display_column := VBoxContainer.new()
+	display_column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	display_column.add_theme_constant_override("separation", 12)
+	columns.add_child(display_column)
+	
+	var display_title := Label.new()
+	display_title.text = "HIỂN THỊ / DISPLAY"
+	display_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	display_title.add_theme_font_size_override("font_size", SECTION_FONT_SIZE)
+	display_title.add_theme_color_override("font_color", Color(0.85, 0.65, 0.15))
+	display_column.add_child(display_title)
+	
+	_create_brightness_control(display_column)
+	_add_option(display_column, "Chất lượng ánh sáng / Lighting Quality:", ["Cinematic", "Performance"], 1 if lighting_quality == "Performance" else 0, _on_lighting_quality_selected)
+	_add_option(display_column, "Chế độ hiển thị (1920x1080) / Window Mode:", ["Cửa sổ (Windowed)", "Không viền (Borderless)", "Toàn màn hình (Fullscreen)"], window_mode_index, _on_window_mode_selected)
+	_add_option(display_column, "Giới hạn FPS / FPS Limit:", ["Không giới hạn (Unlimited)", "30 FPS", "60 FPS", "120 FPS"], fps_index, _on_fps_selected)
+	
+	var audio_column := VBoxContainer.new()
+	audio_column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	audio_column.add_theme_constant_override("separation", 12)
+	columns.add_child(audio_column)
+	_create_audio_controls(audio_column)
 	
 	# Buttons
 	_create_action_buttons(vbox)
 
 func _create_brightness_control(parent: Control) -> void:
 	var container := VBoxContainer.new()
+	container.add_theme_constant_override("separation", 8)
 	parent.add_child(container)
 	_brightness_label = Label.new()
 	_brightness_label.text = "Độ sáng / Brightness: %d%%" % int(brightness * 100)
-	_brightness_label.add_theme_font_size_override("font_size", 12)
+	_style_setting_label(_brightness_label)
 	container.add_child(_brightness_label)
 	var slider := HSlider.new()
+	_style_slider(slider)
 	slider.min_value = 0.85
 	slider.max_value = 1.15
 	slider.step = 0.01
@@ -113,29 +138,31 @@ func _create_audio_controls(parent: Control) -> void:
 	var title := Label.new()
 	title.text = "ÂM THANH / AUDIO"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 14)
+	title.add_theme_font_size_override("font_size", SECTION_FONT_SIZE)
 	title.add_theme_color_override("font_color", Color(0.85, 0.65, 0.15))
 	parent.add_child(title)
 	
 	_music_label = Label.new()
-	_music_label.add_theme_font_size_override("font_size", 12)
+	_style_setting_label(_music_label)
 	_add_audio_slider(parent, _music_label, "Nhạc nền / Music", music_volume, _on_music_volume_changed)
 	
 	_sfx_label = Label.new()
-	_sfx_label.add_theme_font_size_override("font_size", 12)
+	_style_setting_label(_sfx_label)
 	_add_audio_slider(parent, _sfx_label, "Hiệu ứng / SFX", sfx_volume, _on_sfx_volume_changed)
 	
 	_ambience_label = Label.new()
-	_ambience_label.add_theme_font_size_override("font_size", 12)
+	_style_setting_label(_ambience_label)
 	_add_audio_slider(parent, _ambience_label, "Môi trường / Ambience", ambience_volume, _on_ambience_volume_changed)
 	
 	_update_audio_labels()
 
 func _add_audio_slider(parent: Control, label: Label, _text_lbl: String, val: float, callback: Callable) -> void:
 	var container := VBoxContainer.new()
+	container.add_theme_constant_override("separation", 8)
 	parent.add_child(container)
 	container.add_child(label)
 	var slider := HSlider.new()
+	_style_slider(slider)
 	slider.min_value = 0.0
 	slider.max_value = 1.0
 	slider.step = 0.01
@@ -150,12 +177,15 @@ func _update_audio_labels() -> void:
 
 func _add_option(parent: Control, label_text: String, items: Array[String], selected_idx: int, callback: Callable) -> void:
 	var container := VBoxContainer.new()
+	container.add_theme_constant_override("separation", 8)
 	parent.add_child(container)
 	var lbl := Label.new()
 	lbl.text = label_text
-	lbl.add_theme_font_size_override("font_size", 12)
+	_style_setting_label(lbl)
 	container.add_child(lbl)
 	var opt := OptionButton.new()
+	opt.custom_minimum_size = Vector2(0, FIELD_MIN_HEIGHT)
+	opt.add_theme_font_size_override("font_size", BODY_FONT_SIZE)
 	for item in items:
 		opt.add_item(item)
 	opt.selected = selected_idx
@@ -164,27 +194,38 @@ func _add_option(parent: Control, label_text: String, items: Array[String], sele
 
 func _create_action_buttons(parent: Control) -> void:
 	var hbox: HBoxContainer = HBoxContainer.new()
-	hbox.add_theme_constant_override("separation", 20)
+	hbox.add_theme_constant_override("separation", 24)
 	hbox.alignment = BoxContainer.ALIGNMENT_CENTER
 	parent.add_child(hbox)
 	
 	var resume_btn: Button = Button.new()
 	resume_btn.text = "TIẾP TỤC / RESUME"
-	resume_btn.custom_minimum_size = Vector2(150, 35)
+	_style_action_button(resume_btn)
 	resume_btn.pressed.connect(toggle_menu)
 	hbox.add_child(resume_btn)
 	
 	var main_menu_btn: Button = Button.new()
 	main_menu_btn.text = "VỀ MENU / MAIN MENU"
-	main_menu_btn.custom_minimum_size = Vector2(150, 35)
+	_style_action_button(main_menu_btn)
 	main_menu_btn.pressed.connect(_on_main_menu_pressed)
 	hbox.add_child(main_menu_btn)
 	
 	var quit_btn: Button = Button.new()
 	quit_btn.text = "THOÁT / QUIT"
-	quit_btn.custom_minimum_size = Vector2(150, 35)
+	_style_action_button(quit_btn)
 	quit_btn.pressed.connect(func() -> void: get_tree().quit())
 	hbox.add_child(quit_btn)
+
+func _style_setting_label(label: Label) -> void:
+	label.add_theme_font_size_override("font_size", BODY_FONT_SIZE)
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+
+func _style_slider(slider: HSlider) -> void:
+	slider.custom_minimum_size = Vector2(0, FIELD_MIN_HEIGHT)
+
+func _style_action_button(button: Button) -> void:
+	button.custom_minimum_size = Vector2(190, 48)
+	button.add_theme_font_size_override("font_size", BODY_FONT_SIZE)
 
 func _on_main_menu_pressed() -> void:
 	get_tree().paused = false
