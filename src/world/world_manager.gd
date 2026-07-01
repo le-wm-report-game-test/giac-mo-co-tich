@@ -739,7 +739,7 @@ func _create_hud() -> void:
 
 	var boss_hud_container := Control.new()
 	boss_hud_container.name = "BossHUDContainer"
-	boss_hud_container.set_anchors_preset(Control.PRESET_TOPWide)
+	boss_hud_container.set_anchors_preset(Control.PRESET_TOP_WIDE)
 	boss_hud_container.custom_minimum_size = boss_screen_size
 	boss_hud_container.size = boss_screen_size
 	boss_hud_container.position = Vector2(
