@@ -1,4 +1,4 @@
-[gd_scene load_steps=6 format=3 uid="uid://c4j8u6h0rix4s"]
+[gd_scene format=3 uid="uid://c4j8u6h0rix4s"]
 
 [ext_resource type="Script" path="res://src/ui/loading_screen.gd" id="1_loading"]
 [ext_resource type="Texture2D" path="res://Assets/OpenScreenAssets/Background_Screen.png" id="2_bg"]

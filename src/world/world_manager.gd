@@ -33,6 +33,12 @@ const PLAYER_HUD_FILL_COLOR := Color(0.82, 0.0, 0.02, 1.0)
 #const ORC_COUNTER_TEXT_SIZE := Vector2(170.0, 44.0)
 const ORC_COUNTER_TEXT_POSITION := Vector2(24.0, 235.0)
 const ORC_COUNTER_TEXT_SIZE := Vector2(207.0, 69.0)
+const BOSS_HUD_TEXTURE_PATH := "res://Assets/boss_hud.png"
+const BOSS_HUD_TEXTURE_SIZE := Vector2(512.0, 128.0)
+const BOSS_HUD_TARGET_WIDTH := 520.0
+const BOSS_HUD_FILL_POSITION := Vector2(90.0, 49.0)
+const BOSS_HUD_FILL_SIZE := Vector2(325.0, 25.0)
+const BOSS_HUD_FILL_COLOR := Color(0.9, 0.08, 0.05, 1.0)
 const MINIMAP_FRAME_TEXTURE_PATH := "res://Assets/items/map.png"
 const MINIMAP_FRAME_TEXTURE_SIZE := Vector2(500.0, 500.0)
 const MINIMAP_SCREEN_SIZE := Vector2(120.0, 120.0)
@@ -45,6 +51,7 @@ const MINIMAP_ZOOM_DURATION := 0.25
 var player_health_bar: Node = null
 var player_health_fill: ColorRect = null
 var boss_health_bar: Node = null
+var boss_health_fill: ColorRect = null
 var orc_counter_label: Node = null
 var minimap: Minimap = null
 var minimap_container: Control = null
@@ -198,10 +205,7 @@ func _spawn_boss() -> void:
 			boss.health_component.max_health = 300.0
 			boss.health_component.current_health = 300.0
 			boss.health_component.health_changed.connect(func(current: float, max_h: float) -> void:
-				var bar := get_node_or_null("UI/BossHealthContainer/BossHealthBar") as TextureProgressBar
-				if bar:
-					bar.max_value = max_h
-					bar.value = current
+				_update_boss_health_fill(current, max_h)
 			)
 		boss.speed = 1.5
 		boss.attack_damage = 25.0
@@ -527,6 +531,59 @@ func _update_player_health_fill(current: float, max_h: float) -> void:
 		if material:
 			material.set_shader_parameter("fill_ratio", ratio)
 
+func _create_boss_health_fill_material(mask_texture: Texture2D, fill_size: Vector2) -> ShaderMaterial:
+	var shader := Shader.new()
+	shader.code = """
+shader_type canvas_item;
+render_mode unshaded;
+
+uniform vec2 bar_size = vec2(1.0, 1.0);
+uniform sampler2D mask_texture : source_color, filter_nearest;
+uniform vec2 mask_texture_size = vec2(1.0, 1.0);
+uniform vec2 mask_region_position = vec2(0.0, 0.0);
+uniform vec2 mask_region_size = vec2(1.0, 1.0);
+uniform vec4 fill_color : source_color = vec4(0.9, 0.08, 0.05, 1.0);
+uniform float fill_ratio : hint_range(0.0, 1.0) = 1.0;
+
+void fragment() {
+	float fill_width = clamp(fill_ratio, 0.0, 1.0) * bar_size.x;
+	if (fill_width > 0.0) {
+		vec2 pixel = UV * bar_size;
+		float moving_fill_alpha = 1.0 - smoothstep(fill_width - 0.5, fill_width + 0.5, pixel.x);
+
+		vec2 mask_uv = (mask_region_position + UV * mask_region_size) / mask_texture_size;
+		vec4 mask_pixel = texture(mask_texture, mask_uv);
+		float luminance = dot(mask_pixel.rgb, vec3(0.299, 0.587, 0.114));
+		float inner_bar_alpha = mask_pixel.a * (1.0 - smoothstep(0.18, 0.36, luminance));
+
+		float alpha = moving_fill_alpha * inner_bar_alpha;
+		COLOR = vec4(fill_color.rgb, fill_color.a * alpha);
+	} else {
+		COLOR = vec4(0.0);
+	}
+}
+"""
+	var material := ShaderMaterial.new()
+	material.shader = shader
+	material.set_shader_parameter("bar_size", fill_size)
+	material.set_shader_parameter("mask_texture", mask_texture)
+	material.set_shader_parameter("mask_texture_size", BOSS_HUD_TEXTURE_SIZE)
+	material.set_shader_parameter("mask_region_position", BOSS_HUD_FILL_POSITION)
+	material.set_shader_parameter("mask_region_size", BOSS_HUD_FILL_SIZE)
+	material.set_shader_parameter("fill_color", BOSS_HUD_FILL_COLOR)
+	material.set_shader_parameter("fill_ratio", 1.0)
+	return material
+
+func _update_boss_health_fill(current: float, max_h: float) -> void:
+	var ratio := 0.0
+	if max_h > 0.0:
+		ratio = clampf(current / max_h, 0.0, 1.0)
+
+	if is_instance_valid(boss_health_fill):
+		var material := boss_health_fill.material as ShaderMaterial
+		if material:
+			material.set_shader_parameter("fill_ratio", ratio)
+
 func _create_hud() -> void:
 	var existing_ui := get_node_or_null("UI")
 	if existing_ui:
@@ -664,44 +721,72 @@ func _create_hud() -> void:
 	orc_count_label.add_theme_font_size_override("font_size", max(12, int(round(18.0 * hp_scale))))
 	orc_counter.add_child(orc_count_label)
 	
-	# ─── Boss Health Bar (hidden initially) ───
-	var boss_container := VBoxContainer.new()
-	boss_container.name = "BossHealthContainer"
-	boss_container.position = Vector2(get_viewport().get_visible_rect().size.x / 2 - 150, 20)
-	boss_container.visible = false
-	ui.add_child(boss_container)
-	
-	var boss_name_label := Label.new()
-	boss_name_label.text = "CHẰN TINH"
-	boss_name_label.add_theme_color_override("font_color", Color(1.0, 0.3, 0.0))
-	boss_name_label.add_theme_font_size_override("font_size", 20)
-	boss_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	boss_container.add_child(boss_name_label)
-	
-	var boss_hp_bar := TextureProgressBar.new()
-	boss_hp_bar.name = "BossHealthBar"
-	boss_hp_bar.min_value = 0.0
-	boss_hp_bar.max_value = 300.0
-	boss_hp_bar.value = 300.0
-	boss_hp_bar.size = Vector2(300, 25)
-	boss_hp_bar.custom_minimum_size = Vector2(300, 25)
-	boss_hp_bar.texture_under = _create_solid_texture(Color(0.3, 0.0, 0.0), Vector2i(300, 25))
-	boss_hp_bar.texture_progress = _create_solid_texture(Color(0.8, 0.1, 0.0), Vector2i(300, 25))
-	
-	var boss_bg := StyleBoxFlat.new()
-	boss_bg.bg_color = Color(0.3, 0.0, 0.0)
-	boss_bg.border_color = Color(1.0, 0.5, 0.0)
-	boss_bg.border_width_left = 2
-	boss_bg.border_width_right = 2
-	boss_bg.border_width_top = 2
-	boss_bg.border_width_bottom = 2
-	boss_hp_bar.add_theme_stylebox_override("background", boss_bg)
-	
-	var boss_fill := StyleBoxFlat.new()
-	boss_fill.bg_color = Color(0.8, 0.1, 0.0)
-	boss_hp_bar.add_theme_stylebox_override("fill", boss_fill)
-	
-	boss_container.add_child(boss_hp_bar)
+	# ─── Boss Health Bar (texture-based, hidden initially) ───
+	var boss_texture := load(BOSS_HUD_TEXTURE_PATH) as Texture2D
+	var boss_scale := BOSS_HUD_TARGET_WIDTH / BOSS_HUD_TEXTURE_SIZE.x
+	var boss_screen_size := Vector2(
+		round(BOSS_HUD_TEXTURE_SIZE.x * boss_scale),
+		round(BOSS_HUD_TEXTURE_SIZE.y * boss_scale)
+	)
+	var boss_fill_position := Vector2(
+		round(BOSS_HUD_FILL_POSITION.x * boss_scale),
+		round(BOSS_HUD_FILL_POSITION.y * boss_scale)
+	)
+	var boss_fill_size := Vector2(
+		max(1.0, round(BOSS_HUD_FILL_SIZE.x * boss_scale)),
+		max(1.0, round(BOSS_HUD_FILL_SIZE.y * boss_scale))
+	)
+
+	var boss_hud_container := Control.new()
+	boss_hud_container.name = "BossHUDContainer"
+	boss_hud_container.set_anchors_preset(Control.PRESET_TOPWide)
+	boss_hud_container.custom_minimum_size = boss_screen_size
+	boss_hud_container.size = boss_screen_size
+	boss_hud_container.position = Vector2(
+		get_viewport().get_visible_rect().size.x / 2.0 - boss_screen_size.x / 2.0,
+		18.0
+	)
+	boss_hud_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	boss_hud_container.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	boss_hud_container.visible = false
+	ui.add_child(boss_hud_container)
+
+	var boss_bg := TextureRect.new()
+	boss_bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	boss_bg.offset_left = 0.0
+	boss_bg.offset_top = 0.0
+	boss_bg.offset_right = 0.0
+	boss_bg.offset_bottom = 0.0
+	boss_bg.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	boss_bg.stretch_mode = TextureRect.STRETCH_SCALE
+	boss_bg.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	boss_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	boss_bg.texture = boss_texture
+	boss_hud_container.add_child(boss_bg)
+
+	var boss_mask := Control.new()
+	boss_mask.name = "BossHealthMask"
+	boss_mask.position = boss_fill_position
+	boss_mask.custom_minimum_size = boss_fill_size
+	boss_mask.size = boss_fill_size
+	boss_mask.clip_contents = true
+	boss_mask.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	boss_hud_container.add_child(boss_mask)
+
+	var boss_fill := ColorRect.new()
+	boss_fill.name = "BossHealthFill"
+	boss_fill.set_anchors_preset(Control.PRESET_FULL_RECT)
+	boss_fill.offset_left = 0.0
+	boss_fill.offset_top = 0.0
+	boss_fill.offset_right = 0.0
+	boss_fill.offset_bottom = 0.0
+	boss_fill.color = Color(1.0, 1.0, 1.0, 0.0)
+	boss_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	boss_fill.material = _create_boss_health_fill_material(boss_texture, boss_fill_size)
+	boss_mask.add_child(boss_fill)
+	boss_health_fill = boss_fill
+
+	boss_hud_container.set_meta("boss_bar", true)
 	
 	# ─── Minimap HUD ───
 	minimap_container = Control.new()
@@ -773,14 +858,15 @@ func _on_player_health_changed(current: float, max_h: float) -> void:
 		text.text = "%d/%d" % [current, max_h]
 
 func _show_boss_health_bar() -> void:
-	var container := get_node_or_null("UI/BossHealthContainer")
+	var container := get_node_or_null("UI/BossHUDContainer")
 	if container:
 		container.visible = true
 
 func _hide_boss_health_bar() -> void:
-	var container := get_node_or_null("UI/BossHealthContainer")
+	var container := get_node_or_null("UI/BossHUDContainer")
 	if container:
 		container.visible = false
+	_update_boss_health_fill(0.0, 300.0)  # reset fill on hide
 
 # ══════════════════════════════════════════════════════════════════════════════
 # DAMAGE NUMBERS

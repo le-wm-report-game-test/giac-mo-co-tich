@@ -26,7 +26,7 @@ func scenario_complete_level_progression() -> void:
 	var boss := world_manager.boss_instance as CharacterBody3D
 	assert_not_null(boss, "Boss instance should be valid")
 	
-	var boss_hud := world_manager.get_node("UI/BossHealthContainer") as Control
+	var boss_hud := world_manager.get_node("UI/BossHUDContainer") as Control
 	assert_true(boss_hud.visible, "Boss health HUD must be visible")
 	
 	EventBus.enemy_died.emit(boss)
