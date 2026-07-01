@@ -1065,12 +1065,23 @@ func _update_minimap() -> void:
 	var enemies: Array[Dictionary] = []
 	var orcs := get_tree().get_nodes_in_group("orc_mobs")
 	for orc in orcs:
-		if _is_minimap_orc_marker(orc) and orc.get("current_state") != 5:
+		if _is_minimap_orc_marker(orc) and _is_orc_attacking(orc):
 			enemies.append({
 				"position": orc.global_position,
 				"is_boss": orc.is_in_group("boss")
 			})
-	minimap.update_positions(player.global_position, enemies)
+
+	var foods: Array[Vector3] = []
+	for food in get_tree().get_nodes_in_group("food_items"):
+		if food is Node3D and is_instance_valid(food) and food.visible:
+			foods.append((food as Node3D).global_position)
+
+	minimap.update_positions(player.global_position, enemies, foods)
+
+func _is_orc_attacking(orc: Variant) -> bool:
+	# CHASE = 2, ATTACK = 3 (OrcMob.State) — chỉ hiện trên map khi quái đang chủ động tấn công người chơi.
+	var state: int = orc.get("current_state")
+	return state == 2 or state == 3
 
 func _is_minimap_orc_marker(candidate: Variant) -> bool:
 	if not is_instance_valid(candidate) or not (candidate is Node3D):
