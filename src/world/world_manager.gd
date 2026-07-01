@@ -53,10 +53,14 @@ const TREE_FADE_IN_SECONDS: float = 0.24
 const TREE_MAX_OCCLUDERS: int = 3
 const TREE_FALLBACK_RADIUS: float = 2.4
 const TREE_FALLBACK_HEIGHT: float = 6.0
+const TREE_SHADOW_MAX_COUNT: int = 24
+const TREE_SHADOW_DISTANCE: float = 28.0
+const TREE_SHADOW_REFRESH_SECONDS: float = 0.35
 
 var tree_list: Array[Node3D] = []
 var _tree_alpha_states: Dictionary = {}
 var _tree_local_bounds: Dictionary = {}
+var _tree_shadow_refresh_timer: float = 0.0
 
 # ─── Camera Magnet ───────────────────────────────────────────────────────────
 var camera_magnet_active: bool = false
@@ -121,6 +125,7 @@ func _process(delta: float) -> void:
 	_update_weather(delta)
 	_update_rain_coverage()
 	_update_tree_fade(delta)
+	_update_tree_shadow_budget(delta)
 	_update_tree_camera_clip()
 	_update_camera_magnet(delta)
 	_update_minimap()
@@ -936,6 +941,44 @@ func _set_tree_alpha_smooth(tree: Node3D, target_alpha: float, delta: float) -> 
 	current_alpha = move_toward(current_alpha, target_alpha, step)
 	_tree_alpha_states[tree] = current_alpha
 	_set_tree_alpha(tree, current_alpha)
+
+
+func _update_tree_shadow_budget(delta: float) -> void:
+	_tree_shadow_refresh_timer -= delta
+	if _tree_shadow_refresh_timer > 0.0:
+		return
+	_tree_shadow_refresh_timer = TREE_SHADOW_REFRESH_SECONDS
+	var player := get_tree().get_first_node_in_group("player") as Node3D
+	if player == null:
+		return
+	var max_distance_squared := TREE_SHADOW_DISTANCE * TREE_SHADOW_DISTANCE
+	var candidates: Array[Dictionary] = []
+	for tree in tree_list:
+		if not is_instance_valid(tree):
+			continue
+		var distance_squared := tree.global_position.distance_squared_to(player.global_position)
+		if distance_squared <= max_distance_squared:
+			candidates.append({"tree": tree, "distance_squared": distance_squared})
+	candidates.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		return float(a["distance_squared"]) < float(b["distance_squared"])
+	)
+	var shadow_trees: Dictionary = {}
+	for index in range(mini(TREE_SHADOW_MAX_COUNT, candidates.size())):
+		shadow_trees[candidates[index]["tree"]] = true
+	for tree in tree_list:
+		if is_instance_valid(tree):
+			_set_tree_shadow_enabled(tree, shadow_trees.has(tree))
+
+
+func _set_tree_shadow_enabled(node: Node, enabled: bool) -> void:
+	if node is GeometryInstance3D:
+		(node as GeometryInstance3D).cast_shadow = (
+			GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			if enabled
+			else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		)
+	for child in node.get_children():
+		_set_tree_shadow_enabled(child, enabled)
 
 func _tree_has_rendered_geometry(node: Node) -> bool:
 	if node is MeshInstance3D and (node as MeshInstance3D).mesh != null:
