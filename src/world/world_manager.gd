@@ -875,10 +875,7 @@ func _hide_boss_health_bar() -> void:
 func _on_player_took_damage(amount: float, position: Vector3) -> void:
 	_spawn_damage_number(amount, position, DamagePopup.Kind.PLAYER_HIT)
 
-func _on_enemy_damaged(enemy: Node3D, amount: float, position: Vector3) -> void:
-	var is_critical := randf() < 0.15
-	if is_critical:
-		amount *= 2.0
+func _on_enemy_damaged(enemy: Node3D, amount: float, position: Vector3, is_critical: bool = false) -> void:
 	var popup_kind: DamagePopup.Kind = DamagePopup.Kind.CRITICAL if is_critical else DamagePopup.Kind.ENEMY_HIT
 	_spawn_damage_number(amount, position, popup_kind)
 
