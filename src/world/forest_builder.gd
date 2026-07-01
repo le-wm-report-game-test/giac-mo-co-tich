@@ -295,15 +295,63 @@ func _configure_geometry_for_rendering(node: Node, cull_margin: float = 2.0) -> 
 func _create_wind_material(original_material: Material) -> ShaderMaterial:
 	var tex: Texture2D = null
 	var color := Color(1.0, 1.0, 1.0, 1.0)
+	var normal_tex: Texture2D = null
+	var roughness_tex: Texture2D = null
+	var metallic_tex: Texture2D = null
+	var ao_tex: Texture2D = null
+	var normal_enabled := false
+	var ao_enabled := false
+	var normal_scale := 1.0
+	var roughness := 0.85
+	var metallic := 0.0
+	var roughness_channel := 0
+	var metallic_channel := 0
+	var ao_channel := 0
+	var uv_scale := Vector3.ONE
+	var uv_offset := Vector3.ZERO
 	if original_material is BaseMaterial3D:
 		var base_mat := original_material as BaseMaterial3D
 		tex = base_mat.albedo_texture
 		color = base_mat.albedo_color
+		normal_tex = base_mat.normal_texture
+		roughness_tex = base_mat.roughness_texture
+		metallic_tex = base_mat.metallic_texture
+		ao_tex = base_mat.ao_texture
+		normal_enabled = base_mat.normal_enabled
+		ao_enabled = base_mat.ao_enabled
+		normal_scale = base_mat.normal_scale
+		roughness = base_mat.roughness
+		metallic = base_mat.metallic
+		roughness_channel = int(base_mat.roughness_texture_channel)
+		metallic_channel = int(base_mat.metallic_texture_channel)
+		ao_channel = int(base_mat.ao_texture_channel)
+		uv_scale = base_mat.uv1_scale
+		uv_offset = base_mat.uv1_offset
 	var shader_mat := ShaderMaterial.new()
 	shader_mat.shader = _wind_shader
 	if tex != null:
 		shader_mat.set_shader_parameter("albedo_texture", tex)
+	if normal_tex != null:
+		shader_mat.set_shader_parameter("normal_texture", normal_tex)
+	if roughness_tex != null:
+		shader_mat.set_shader_parameter("roughness_texture", roughness_tex)
+	if metallic_tex != null:
+		shader_mat.set_shader_parameter("metallic_texture", metallic_tex)
+	if ao_tex != null:
+		shader_mat.set_shader_parameter("ao_texture", ao_tex)
 	shader_mat.set_shader_parameter("albedo_color", color)
+	shader_mat.set_shader_parameter("has_normal_texture", normal_enabled and normal_tex != null)
+	shader_mat.set_shader_parameter("has_roughness_texture", roughness_tex != null)
+	shader_mat.set_shader_parameter("has_metallic_texture", metallic_tex != null)
+	shader_mat.set_shader_parameter("has_ao_texture", ao_enabled and ao_tex != null)
+	shader_mat.set_shader_parameter("normal_scale", normal_scale)
+	shader_mat.set_shader_parameter("base_roughness", roughness)
+	shader_mat.set_shader_parameter("base_metallic", metallic)
+	shader_mat.set_shader_parameter("roughness_channel", roughness_channel)
+	shader_mat.set_shader_parameter("metallic_channel", metallic_channel)
+	shader_mat.set_shader_parameter("ao_channel", ao_channel)
+	shader_mat.set_shader_parameter("uv1_scale", uv_scale)
+	shader_mat.set_shader_parameter("uv1_offset", uv_offset)
 	shader_mat.set_shader_parameter("alpha_multiplier", 1.0)
 	return shader_mat
 

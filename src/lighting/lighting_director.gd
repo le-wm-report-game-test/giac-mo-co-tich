@@ -119,6 +119,10 @@ func _connect_events() -> void:
 func _create_readability_lights() -> void:
 	_actor_fill_light = _make_directional_fill("ActorReadabilityLight", COMBAT_ACTOR_RENDER_MASK)
 	_player_accent_light = _make_directional_fill("PlayerAccentLight", PLAYER_ACCENT_RENDER_MASK)
+	_actor_fill_light.rotation_degrees = Vector3(-32.0, -40.0, 0.0)
+	_actor_fill_light.light_specular = 0.08
+	_player_accent_light.rotation_degrees = Vector3(-26.0, 150.0, 0.0)
+	_player_accent_light.light_specular = 0.12
 
 func _make_directional_fill(node_name: String, render_mask: int) -> DirectionalLight3D:
 	var light := DirectionalLight3D.new()
@@ -127,7 +131,6 @@ func _make_directional_fill(node_name: String, render_mask: int) -> DirectionalL
 	light.shadow_enabled = false
 	light.light_indirect_energy = 0.0
 	light.light_volumetric_fog_energy = 0.0
-	light.rotation_degrees = Vector3(-38.0, 35.0, 0.0)
 	add_child(light)
 	return light
 
@@ -245,44 +248,42 @@ func _apply_quality_settings() -> void:
 	if _environment == null or _sun == null:
 		return
 	var cinematic := _quality == LightingQuality.CINEMATIC
-	_sun.directional_shadow_mode = (
-		DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
-		if cinematic
-		else DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
-	)
+	# Two cascades avoid the large SSIL + four-cascade GPU cost on the target
+	# GTX 1660 / RX 580 class while preserving a wide cinematic shadow range.
+	_sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
 	_sun.directional_shadow_max_distance = 68.0 if cinematic else 46.0
 	_sun.shadow_enabled = true
-	_sun.shadow_bias = 0.004
-	_sun.shadow_normal_bias = 0.05
-	_sun.shadow_blur = 1.2 if cinematic else 0.8
-	_sun.shadow_opacity = 0.6 if cinematic else 0.5
-	_sun.light_angular_distance = 0.7
+	_sun.shadow_bias = 0.008
+	_sun.shadow_normal_bias = 0.12
+	_sun.shadow_blur = 1.05 if cinematic else 0.75
+	_sun.shadow_opacity = 0.64 if cinematic else 0.54
+	_sun.light_angular_distance = 0.62
 	_environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	_environment.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
 	_environment.tonemap_mode = Environment.TONE_MAPPER_FILMIC
-	_environment.tonemap_white = 7.0
+	_environment.tonemap_white = 6.0
 	_environment.adjustment_enabled = true
 	_environment.adjustment_brightness = 1.0
 	_environment.ssao_enabled = true
-	_environment.ssao_radius = 1.8 if cinematic else 1.4
-	_environment.ssao_intensity = 0.9 if cinematic else 0.7
-	_environment.ssao_power = 1.2
-	_environment.ssao_detail = 0.5 if cinematic else 0.3
+	_environment.ssao_radius = 1.45 if cinematic else 1.2
+	_environment.ssao_intensity = 1.08 if cinematic else 0.72
+	_environment.ssao_power = 1.35
+	_environment.ssao_detail = 0.62 if cinematic else 0.32
 	_environment.ssao_horizon = 0.4
 	_environment.ssil_enabled = cinematic
-	_environment.ssil_radius = 2.8
-	_environment.ssil_intensity = 0.75
+	_environment.ssil_radius = 2.2
+	_environment.ssil_intensity = 0.52
 	_environment.volumetric_fog_enabled = true
-	_environment.volumetric_fog_length = 52.0 if cinematic else 38.0
+	_environment.volumetric_fog_length = 58.0 if cinematic else 38.0
 	_environment.fog_enabled = true
-	_environment.fog_light_energy = 0.62 if cinematic else 0.52
-	_environment.fog_aerial_perspective = 0.5
-	_environment.fog_sky_affect = 0.45
+	_environment.fog_light_energy = 0.56 if cinematic else 0.48
+	_environment.fog_aerial_perspective = 0.62
+	_environment.fog_sky_affect = 0.5
 	_environment.glow_enabled = true
-	_environment.glow_bloom = 0.08
-	_environment.glow_strength = 0.16 if cinematic else 0.1
+	_environment.glow_bloom = 0.045
+	_environment.glow_strength = 0.1 if cinematic else 0.07
 	_environment.glow_blend_mode = Environment.GLOW_BLEND_MODE_SOFTLIGHT
-	_environment.glow_hdr_threshold = 1.15
+	_environment.glow_hdr_threshold = 1.25
 
 func _refresh_navigation_lights() -> void:
 	if _accent_lights.is_empty():

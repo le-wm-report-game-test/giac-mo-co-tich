@@ -17,12 +17,28 @@ func setup_tree_test() -> void:
 	test_tree.global_position = Vector3(10.0, 0.0, 10.0)
 	
 	var mesh_inst := MeshInstance3D.new()
+	mesh_inst.mesh = BoxMesh.new()
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = Color(1.0, 1.0, 1.0, 1.0)
 	mesh_inst.material_override = mat
 	test_tree.add_child(mesh_inst)
 	
 	wm._collect_trees()
+	wm.tree_list = [test_tree]
+	wm._set_tree_alpha(test_tree, 1.0)
+
+func position_tree_over_player(node: Node3D, player: Node3D, camera_x_offset: float = 0.0) -> void:
+	var camera := player.get_viewport().get_camera_3d()
+	var player_focus := player.global_position + Vector3.UP
+	var focus_local := camera.to_local(player_focus)
+	focus_local.x += camera_x_offset
+	focus_local.z += minf(maxf(-focus_local.z * 0.35, 0.05), 0.2)
+	node.global_position = camera.to_global(focus_local)
+
+func settle_tree_fade(wm: WorldManager, seconds: float = 0.3) -> void:
+	var frames := ceili(seconds * 60.0)
+	for _frame in range(frames):
+		wm._update_tree_fade(1.0 / 60.0)
 
 func get_tree_alpha(node: Node) -> float:
 	if node is MeshInstance3D:
@@ -46,9 +62,9 @@ func test_initial_tree_alpha() -> void:
 	var player := tree.get_first_node_in_group("player") as Player
 	assert_not_null(player, "Player should exist")
 	
-	# Player is at spawn (0.0, 0.0, 0.0) which is > 10m away from tree (10.0, 0.0, 10.0)
-	player.global_position = Vector3(0.0, 0.0, 0.0)
-	await tree.process_frame
+	var wm := world_instance.get_node("WorldManager") as WorldManager
+	position_tree_over_player(test_tree, player, 5.0)
+	settle_tree_fade(wm)
 	
 	var alpha := get_tree_alpha(test_tree)
 	assert_eq(alpha, 1.0, "Tree opacity should be 1.0 when player is far away")
@@ -58,21 +74,21 @@ func test_tree_fade_active() -> void:
 	var player := tree.get_first_node_in_group("player") as Player
 	assert_not_null(player, "Player should exist")
 	
-	# Player behind tree (diff_z = -2.0, diff_x = 0.0, dist = 2.0 < 4.0)
-	player.global_position = Vector3(10.0, 0.0, 8.0)
-	await tree.process_frame
+	var wm := world_instance.get_node("WorldManager") as WorldManager
+	position_tree_over_player(test_tree, player)
+	settle_tree_fade(wm)
 	
 	var alpha := get_tree_alpha(test_tree)
-	assert_almost_eq(alpha, 0.3, 0.01, "Tree opacity should fade to 0.3 when player is behind tree in range")
+	assert_almost_eq(alpha, 0.25, 0.01, "Tree covering the player on screen should fade to 0.25")
 
 func test_tree_fade_out_of_range() -> void:
 	await setup_tree_test()
 	var player := tree.get_first_node_in_group("player") as Player
 	assert_not_null(player, "Player should exist")
 	
-	# Player behind tree but out of range (diff_z = -5.0, diff_x = 0.0, dist = 5.0 > 4.0)
-	player.global_position = Vector3(10.0, 0.0, 5.0)
-	await tree.process_frame
+	var wm := world_instance.get_node("WorldManager") as WorldManager
+	position_tree_over_player(test_tree, player, 5.0)
+	settle_tree_fade(wm)
 	
 	var alpha := get_tree_alpha(test_tree)
 	assert_eq(alpha, 1.0, "Tree opacity should remain 1.0 when player is too far behind tree")
@@ -82,9 +98,12 @@ func test_tree_fade_in_front() -> void:
 	var player := tree.get_first_node_in_group("player") as Player
 	assert_not_null(player, "Player should exist")
 	
-	# Player in front of tree (diff_z = 2.0 > 0.0, diff_x = 0.0, dist = 2.0)
-	player.global_position = Vector3(10.0, 0.0, 12.0)
-	await tree.process_frame
+	var wm := world_instance.get_node("WorldManager") as WorldManager
+	var camera := player.get_viewport().get_camera_3d()
+	var focus_local := camera.to_local(player.global_position + Vector3.UP)
+	focus_local.z -= 2.0
+	test_tree.global_position = camera.to_global(focus_local)
+	settle_tree_fade(wm)
 	
 	var alpha := get_tree_alpha(test_tree)
 	assert_eq(alpha, 1.0, "Tree opacity should remain 1.0 when player is in front of the tree")
@@ -94,9 +113,9 @@ func test_tree_fade_side_offset() -> void:
 	var player := tree.get_first_node_in_group("player") as Player
 	assert_not_null(player, "Player should exist")
 	
-	# Player to the side of tree (diff_z = -1.0, diff_x = 3.0 > 2.5, dist = sqrt(10) < 4.0)
-	player.global_position = Vector3(13.0, 0.0, 9.0)
-	await tree.process_frame
+	var wm := world_instance.get_node("WorldManager") as WorldManager
+	position_tree_over_player(test_tree, player, 1.5)
+	settle_tree_fade(wm)
 	
 	var alpha := get_tree_alpha(test_tree)
 	assert_eq(alpha, 1.0, "Tree opacity should remain 1.0 when player is offset on X axis beyond 2.5m")

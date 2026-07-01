@@ -5,6 +5,7 @@ extends SceneTree
 # Technical comments in English, Vietnamese for runner logic.
 
 const TEST_DIR := "res://src/tests/cases/"
+const TEST_FILTER_ENV := "E2E_TEST_FILTER"
 
 var _tests_run: int = 0
 var _tests_failed: int = 0
@@ -25,9 +26,14 @@ func _run_suite() -> void:
 	dir.list_dir_begin()
 	var file_name := dir.get_next()
 	var test_scripts: Array[String] = []
+	var test_filter := OS.get_environment(TEST_FILTER_ENV).strip_edges().to_lower()
 	
 	while file_name != "":
-		if not dir.current_is_dir() and file_name.ends_with(".gd"):
+		if (
+			not dir.current_is_dir()
+			and file_name.ends_with(".gd")
+			and (test_filter.is_empty() or test_filter in file_name.to_lower())
+		):
 			test_scripts.append(TEST_DIR + file_name)
 		file_name = dir.get_next()
 		
