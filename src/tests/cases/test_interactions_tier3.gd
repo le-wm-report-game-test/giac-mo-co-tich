@@ -90,7 +90,7 @@ func test_weather_change_and_player_health() -> void:
 	assert_eq(bar.value, 80.0, "HUD health progress bar should update to 80")
 
 func test_player_movement_tree_fade() -> void:
-	# Interaction 4: Di chuyển của player ra sau cây làm cây chuyển độ mờ (alpha = 0.3)
+	# Interaction 4: cây che silhouette của player phải chuyển về alpha 0.25.
 	var player := tree.get_first_node_in_group("player") as Player
 	assert_not_null(player, "Player must exist")
 	
@@ -104,15 +104,22 @@ func test_player_movement_tree_fade() -> void:
 	if tree_node == null:
 		return
 		
-	player.global_position = tree_node.global_position + Vector3(0.0, 0.0, -2.0)
-	await tree.process_frame
-	
 	var world_manager := world_instance.get_node("WorldManager") as WorldManager
-	world_manager._update_tree_fade()
-	await tree.process_frame
+	world_manager._collect_trees()
+	var local_bounds := world_manager._tree_local_bounds.get(tree_node, AABB()) as AABB
+	var camera := player.get_viewport().get_camera_3d()
+	var focus_local := camera.to_local(player.global_position + Vector3.UP)
+	focus_local.z += 0.2
+	var desired_center := camera.to_global(focus_local)
+	tree_node.global_position = desired_center - tree_node.global_basis * local_bounds.get_center()
+	world_manager._collect_trees()
+	world_manager.tree_list = [tree_node]
+	world_manager._set_tree_alpha(tree_node, 1.0)
+	for _frame in range(18):
+		world_manager._update_tree_fade(1.0 / 60.0)
 	
 	var alpha := get_tree_alpha(tree_node)
-	assert_almost_eq(alpha, 0.3, 0.01, "Tree alpha should be 0.3 when player is behind it")
+	assert_almost_eq(alpha, 0.25, 0.01, "Tree alpha should be 0.25 when it covers the player")
 
 func test_boss_spawning_and_animal_ai() -> void:
 	# Interaction 5: Trạng thái AI của động vật không bị crash/ảnh hưởng khi Boss xuất hiện

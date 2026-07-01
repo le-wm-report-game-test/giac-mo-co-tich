@@ -77,3 +77,11 @@ Hạn chế tối đa việc tạo cây thừa kế quá sâu cho các Class nh�
 - Tuyệt đối không tạo hàng ngàn `CollisionShape3D` riêng lẻ; gộp thành một Mesh Shape hoặc dùng HeightMap.
 - Tránh dùng `set_script()` ở runtime; instantiate đối tượng từ `.tscn` được đóng gói sẵn.
 - Tránh dùng hardcoded absolute paths (ví dụ: `/root/World/AudioManager`), sử dụng NodePath hoặc EventBus.
+
+---
+
+## 6. Hợp Đồng Thiết Kế Bắt Buộc: Tree Occlusion
+
+Trước khi sửa cây, camera orthographic, shader/material cây, ánh sáng actor hoặc khả năng nhìn thấy player, bắt buộc đọc [.agents/rules/tree_occlusion_readability_rules.md](rules/tree_occlusion_readability_rules.md).
+
+Không được thay thế thuật toán screen-space AABB, thay đổi alpha/timing/giới hạn 3 cây, tắt collider, hoặc quay lại heuristic `diff_x`/`diff_z` nếu chưa có xác nhận rõ ràng của người dùng.

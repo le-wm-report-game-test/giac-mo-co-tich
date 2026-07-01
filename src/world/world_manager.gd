@@ -47,7 +47,20 @@ var orc_counter_label: Node = null
 var minimap: Minimap = null
 
 # ─── Tree Fade ───────────────────────────────────────────────────────────────
+const TREE_FADE_ALPHA: float = 0.25
+const TREE_FADE_OUT_SECONDS: float = 0.15
+const TREE_FADE_IN_SECONDS: float = 0.24
+const TREE_MAX_OCCLUDERS: int = 3
+const TREE_FALLBACK_RADIUS: float = 2.4
+const TREE_FALLBACK_HEIGHT: float = 6.0
+const TREE_SHADOW_MAX_COUNT: int = 24
+const TREE_SHADOW_DISTANCE: float = 28.0
+const TREE_SHADOW_REFRESH_SECONDS: float = 0.35
+
 var tree_list: Array[Node3D] = []
+var _tree_alpha_states: Dictionary = {}
+var _tree_local_bounds: Dictionary = {}
+var _tree_shadow_refresh_timer: float = 0.0
 
 # ─── Camera Magnet ───────────────────────────────────────────────────────────
 var camera_magnet_active: bool = false
@@ -79,6 +92,10 @@ func _ready() -> void:
 	settings_menu.name = "SettingsMenu"
 	add_child(settings_menu)
 
+	_configure_lighting()
+	await get_tree().process_frame
+	_collect_trees()
+
 # Phím tắt Debug để kiểm tra nhanh thời tiết và sấm sét
 func _unhandled_input(event: InputEvent) -> void:
 	# Chỉ hoạt động khi chạy chạy thử trong Godot Editor (Debug build)
@@ -104,17 +121,11 @@ func _start_storm_instantly() -> void:
 	if audio:
 		audio.play_ambience("rain_ambience")
 	
-	# Configure Godot 3D lighting
-	_configure_lighting()
-	
-	# Collect all trees for fade/transparency
-	await get_tree().process_frame
-	_collect_trees()
-
 func _process(delta: float) -> void:
 	_update_weather(delta)
 	_update_rain_coverage()
-	_update_tree_fade()
+	_update_tree_fade(delta)
+	_update_tree_shadow_budget(delta)
 	_update_tree_camera_clip()
 	_update_camera_magnet(delta)
 	_update_minimap()
@@ -783,67 +794,191 @@ func _spawn_damage_number(amount: float, world_pos: Vector3, popup_kind: DamageP
 	popup.play()
 
 # ══════════════════════════════════════════════════════════════════════════════
-# TREE FADE (70% mờ khi người nấp sau cây)
+# TREE FADE (75% mờ khi cây nằm giữa camera và player)
 # ══════════════════════════════════════════════════════════════════════════════
 
 func _collect_trees() -> void:
 	tree_list.clear()
+	_tree_alpha_states.clear()
+	_tree_local_bounds.clear()
 	var world := get_parent()
 	for child in world.get_children():
 		if child.is_in_group("trees") or "Pine_" in child.name:
-			tree_list.append(child)
+			_register_tree_for_fade(child as Node3D)
 		if child is ForestBuilder:
 			_collect_tree_children(child)
 
 func _collect_tree_children(node: Node) -> void:
 	for child in node.get_children():
 		if child.is_in_group("trees") or "Pine_" in child.name:
-			tree_list.append(child)
+			_register_tree_for_fade(child as Node3D)
+			# Root tree owns all rendered descendants. Registering a Pine child too
+			# would spend the three-occluder budget twice on the same visual tree.
+			continue
 		if child.get_child_count() > 0:
 			_collect_tree_children(child)
 
-func _update_tree_fade() -> void:
-	var player := get_tree().get_first_node_in_group("player") as Node3D
-	if not player:
+
+func _register_tree_for_fade(tree: Node3D) -> void:
+	if tree == null or tree_list.has(tree):
 		return
-	var game_camera := get_tree().get_first_node_in_group("camera") as GameCamera
-	var toward_camera := Vector3.ZERO
-	if game_camera != null and game_camera.camera != null:
-		toward_camera = game_camera.camera.global_position - player.global_position
-		toward_camera.y = 0.0
-		toward_camera = toward_camera.normalized()
-	
+	tree_list.append(tree)
+	_tree_alpha_states[tree] = 1.0
+	var bounds := _compute_tree_local_bounds(tree)
+	if bounds.size.length_squared() > 0.0001:
+		_tree_local_bounds[tree] = bounds.grow(0.35)
+
+
+func _compute_tree_local_bounds(tree: Node3D) -> AABB:
+	var state := {"has_bounds": false, "bounds": AABB()}
+	var root_inverse := tree.global_transform.affine_inverse()
+	_merge_tree_geometry_bounds(tree, root_inverse, state)
+	return state["bounds"] as AABB if bool(state["has_bounds"]) else AABB()
+
+
+func _merge_tree_geometry_bounds(node: Node, root_inverse: Transform3D, state: Dictionary) -> void:
+	if node is MeshInstance3D:
+		var mesh_instance := node as MeshInstance3D
+		if mesh_instance.mesh != null:
+			var relative_transform := root_inverse * mesh_instance.global_transform
+			var local_bounds := relative_transform * mesh_instance.mesh.get_aabb()
+			if bool(state["has_bounds"]):
+				state["bounds"] = (state["bounds"] as AABB).merge(local_bounds)
+			else:
+				state["bounds"] = local_bounds
+				state["has_bounds"] = true
+	for child in node.get_children():
+		_merge_tree_geometry_bounds(child, root_inverse, state)
+
+
+func _update_tree_fade(delta: float) -> void:
+	var player := get_tree().get_first_node_in_group("player") as Node3D
+	if player == null:
+		return
+
+	var camera := get_viewport().get_camera_3d()
+	if camera == null:
+		return
+
+	var player_focus := player.global_position + Vector3.UP
+	if camera.is_position_behind(player_focus):
+		return
+	var player_screen := camera.unproject_position(player_focus)
+	var player_depth := -camera.to_local(player_focus).z
+
+	var occluders: Array[Dictionary] = []
+	for tree in tree_list:
+		if not is_instance_valid(tree) or not _tree_has_rendered_geometry(tree):
+			continue
+		var score := _tree_occlusion_score(tree, camera, player_screen, player_depth)
+		if score < INF:
+			occluders.append({"tree": tree, "score": score})
+
+	occluders.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		return float(a["score"]) < float(b["score"])
+	)
+	var faded_trees: Dictionary = {}
+	for index in range(mini(TREE_MAX_OCCLUDERS, occluders.size())):
+		faded_trees[occluders[index]["tree"]] = true
+
 	for tree in tree_list:
 		if not is_instance_valid(tree):
 			continue
-		
-		var dist := player.global_position.distance_to(tree.global_position)
-		var diff_z := player.global_position.z - tree.global_position.z
-		var diff_x := player.global_position.x - tree.global_position.x
-		
-		# Giữ tương thích với rule cũ và bổ sung kiểm tra đúng theo hướng camera orthographic.
-		var is_behind_legacy: bool = absf(diff_x) < 2.5 and absf(diff_z) < 4.0 and diff_z < 0.0
-		var is_camera_occluder := false
-		if toward_camera != Vector3.ZERO and _tree_has_rendered_geometry(tree):
-			var player_to_tree := tree.global_position - player.global_position
-			player_to_tree.y = 0.0
-			var depth_toward_camera := player_to_tree.dot(toward_camera)
-			var lateral_offset := (player_to_tree - toward_camera * depth_toward_camera).length()
-			is_camera_occluder = (
-				depth_toward_camera > 0.0
-				and depth_toward_camera < 14.0
-				and lateral_offset < 4.25
-			)
-		
-		if is_behind_legacy and dist < 4.0:
-			# Giữ hành vi fade gần đã được gameplay và test suite phụ thuộc.
-			_set_tree_alpha(tree, 0.3)
-		elif is_camera_occluder:
-			# Cây cao có thể che player từ xa. Ẩn hoàn toàn canopy đang chắn camera
-			# để không tạo screen-door noise quanh silhouette của player.
-			_set_tree_alpha(tree, 0.0)
-		else:
-			_set_tree_alpha(tree, 1.0)
+		var target_alpha := TREE_FADE_ALPHA if faded_trees.has(tree) else 1.0
+		_set_tree_alpha_smooth(tree, target_alpha, delta)
+
+
+func _tree_occlusion_score(
+	tree: Node3D,
+	camera: Camera3D,
+	player_screen: Vector2,
+	player_depth: float
+) -> float:
+	var local_bounds := _tree_local_bounds.get(tree, AABB()) as AABB
+	if local_bounds.size.length_squared() <= 0.0001:
+		local_bounds = AABB(
+			Vector3(-TREE_FALLBACK_RADIUS, 0.0, -TREE_FALLBACK_RADIUS),
+			Vector3(TREE_FALLBACK_RADIUS * 2.0, TREE_FALLBACK_HEIGHT, TREE_FALLBACK_RADIUS * 2.0)
+		)
+
+	var screen_min := Vector2(INF, INF)
+	var screen_max := Vector2(-INF, -INF)
+	var nearest_depth := INF
+	var projected_corner_count := 0
+	for corner_index in range(8):
+		var local_corner := Vector3(
+			local_bounds.end.x if (corner_index & 1) != 0 else local_bounds.position.x,
+			local_bounds.end.y if (corner_index & 2) != 0 else local_bounds.position.y,
+			local_bounds.end.z if (corner_index & 4) != 0 else local_bounds.position.z
+		)
+		var world_corner := tree.global_transform * local_corner
+		var depth := -camera.to_local(world_corner).z
+		if depth <= camera.near:
+			continue
+		var screen_corner := camera.unproject_position(world_corner)
+		screen_min.x = minf(screen_min.x, screen_corner.x)
+		screen_min.y = minf(screen_min.y, screen_corner.y)
+		screen_max.x = maxf(screen_max.x, screen_corner.x)
+		screen_max.y = maxf(screen_max.y, screen_corner.y)
+		nearest_depth = minf(nearest_depth, depth)
+		projected_corner_count += 1
+
+	if projected_corner_count == 0:
+		return INF
+	var screen_bounds := Rect2(screen_min, screen_max - screen_min).grow(6.0)
+	if not screen_bounds.has_point(player_screen) or nearest_depth >= player_depth:
+		return INF
+
+	var half_extent := screen_bounds.size * 0.5
+	var normalized_screen_distance := screen_bounds.get_center().distance_to(player_screen) / maxf(half_extent.length(), 1.0)
+	return normalized_screen_distance + nearest_depth / maxf(player_depth, 0.001) * 0.1
+
+
+func _set_tree_alpha_smooth(tree: Node3D, target_alpha: float, delta: float) -> void:
+	var current_alpha := float(_tree_alpha_states.get(tree, 1.0))
+	var duration := TREE_FADE_OUT_SECONDS if target_alpha < current_alpha else TREE_FADE_IN_SECONDS
+	var step := delta / maxf(duration, 0.001)
+	current_alpha = move_toward(current_alpha, target_alpha, step)
+	_tree_alpha_states[tree] = current_alpha
+	_set_tree_alpha(tree, current_alpha)
+
+
+func _update_tree_shadow_budget(delta: float) -> void:
+	_tree_shadow_refresh_timer -= delta
+	if _tree_shadow_refresh_timer > 0.0:
+		return
+	_tree_shadow_refresh_timer = TREE_SHADOW_REFRESH_SECONDS
+	var player := get_tree().get_first_node_in_group("player") as Node3D
+	if player == null:
+		return
+	var max_distance_squared := TREE_SHADOW_DISTANCE * TREE_SHADOW_DISTANCE
+	var candidates: Array[Dictionary] = []
+	for tree in tree_list:
+		if not is_instance_valid(tree):
+			continue
+		var distance_squared := tree.global_position.distance_squared_to(player.global_position)
+		if distance_squared <= max_distance_squared:
+			candidates.append({"tree": tree, "distance_squared": distance_squared})
+	candidates.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		return float(a["distance_squared"]) < float(b["distance_squared"])
+	)
+	var shadow_trees: Dictionary = {}
+	for index in range(mini(TREE_SHADOW_MAX_COUNT, candidates.size())):
+		shadow_trees[candidates[index]["tree"]] = true
+	for tree in tree_list:
+		if is_instance_valid(tree):
+			_set_tree_shadow_enabled(tree, shadow_trees.has(tree))
+
+
+func _set_tree_shadow_enabled(node: Node, enabled: bool) -> void:
+	if node is GeometryInstance3D:
+		(node as GeometryInstance3D).cast_shadow = (
+			GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			if enabled
+			else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		)
+	for child in node.get_children():
+		_set_tree_shadow_enabled(child, enabled)
 
 func _tree_has_rendered_geometry(node: Node) -> bool:
 	if node is MeshInstance3D and (node as MeshInstance3D).mesh != null:

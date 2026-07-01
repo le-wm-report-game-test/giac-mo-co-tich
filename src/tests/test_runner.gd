@@ -5,6 +5,8 @@ extends SceneTree
 # Technical comments in English, Vietnamese for runner logic.
 
 const TEST_DIR := "res://src/tests/cases/"
+const TEST_FILTER_ENV := "E2E_TEST_FILTER"
+const TEST_METHOD_FILTER_ENV := "E2E_TEST_METHOD_FILTER"
 
 var _tests_run: int = 0
 var _tests_failed: int = 0
@@ -25,9 +27,14 @@ func _run_suite() -> void:
 	dir.list_dir_begin()
 	var file_name := dir.get_next()
 	var test_scripts: Array[String] = []
+	var test_filter := OS.get_environment(TEST_FILTER_ENV).strip_edges().to_lower()
 	
 	while file_name != "":
-		if not dir.current_is_dir() and file_name.ends_with(".gd"):
+		if (
+			not dir.current_is_dir()
+			and file_name.ends_with(".gd")
+			and (test_filter.is_empty() or test_filter in file_name.to_lower())
+		):
 			test_scripts.append(TEST_DIR + file_name)
 		file_name = dir.get_next()
 		
@@ -61,9 +68,13 @@ func _run_test_file(path: String) -> void:
 		
 	# Tìm các hàm bắt đầu bằng "test_" hoặc "scenario_"
 	var test_methods: Array[String] = []
+	var method_filter := OS.get_environment(TEST_METHOD_FILTER_ENV).strip_edges().to_lower()
 	for method_info in temp_instance.get_method_list():
 		var method_name: String = method_info["name"]
-		if method_name.begins_with("test_") or method_name.begins_with("scenario_"):
+		if (
+			(method_name.begins_with("test_") or method_name.begins_with("scenario_"))
+			and (method_filter.is_empty() or method_filter in method_name.to_lower())
+		):
 			test_methods.append(method_name)
 	test_methods.sort()
 	
