@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3 uid="uid://cofnhdcclon1w"]
+[gd_scene format=3 uid="uid://cofnhdcclon1w"]
 
 [ext_resource type="Script" path="res://demo/src/CodeGenerated.gd" id="1_h7vyv"]
 [ext_resource type="PackedScene" uid="uid://domhm87hbhbg1" path="res://demo/components/Player.tscn" id="2_3v2uf"]

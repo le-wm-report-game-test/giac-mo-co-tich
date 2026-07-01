@@ -57,3 +57,8 @@ See `../feature_list.json` for full feature tracking.
 3. **Asset paths** — use relative paths from project root, never absolute
 4. **No placeholder assets in production** — replace programmer art before marking feature done
 5. **Consult feature_list.json** before starting new work to avoid duplication
+
+## Protected Visual Design Contracts
+
+- Before modifying trees, camera occlusion, tree materials/shaders, or player readability, read and obey [Tree Occlusion & Player Readability](.agents/rules/tree_occlusion_readability_rules.md).
+- The tree fade constants and screen-space AABB algorithm are user-approved invariants. Do not replace them without explicit user approval.

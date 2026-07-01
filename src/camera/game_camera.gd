@@ -206,12 +206,10 @@ func _init_phantom_cameras() -> void:
 	player_pcam.follow_target = self
 	player_pcam.follow_offset = camera_offset
 	player_pcam.rotation_degrees = camera_rotate
-	# Damping in seconds. With the old value (0.2) the pcam lagged visibly
-	# behind the player anchor which _process updated every frame. Bumping
-	# to 1.0 keeps a gentle cinematic sway but snaps to the target fast enough
-	# that the player never sees the camera "catch up".
+	# PhantomCamera damping is a smoothing duration in seconds: lower values
+	# converge faster. Keep startup close to the player without losing all ease.
 	player_pcam.follow_damping = true
-	player_pcam.follow_damping_value = Vector3(1.0, 1.0, 1.0)
+	player_pcam.follow_damping_value = Vector3(0.08, 0.08, 0.08)
 
 	# Set up Noise for Screen Shake
 	camera_noise = PhantomCameraNoise3D.new()
