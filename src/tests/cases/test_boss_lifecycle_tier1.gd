@@ -108,10 +108,14 @@ func test_boss_victory_dialog_targets_main_menu() -> void:
 	var title := dialog.get_node_or_null("VictoryOverlay/VictoryPanel/VBoxContainer/VictoryTitle") as Label
 	assert_not_null(title, "Victory title should exist")
 	assert_true(title.text.contains("Chúc mừng"), "Victory title should congratulate the player")
+	assert_true(title.custom_minimum_size.x >= 600.0, "Victory title should reserve enough width to avoid per-character wrapping")
+	assert_eq(title.size_flags_horizontal, Control.SIZE_EXPAND_FILL, "Victory title should fill the panel width")
 	var body := dialog.get_node_or_null("VictoryOverlay/VictoryPanel/VBoxContainer/StoryScroll/VictoryBody") as RichTextLabel
 	assert_not_null(body, "Victory story body should exist")
 	assert_true(body.text.contains("Thạch Sanh"), "Victory story should tell the Thach Sanh ending")
 	assert_true(body.text.contains("Chằn Tinh"), "Victory story should mention the defeated boss")
+	assert_true(body.custom_minimum_size.x >= 600.0, "Victory body should reserve enough width to avoid vertical letter wrapping")
+	assert_eq(body.size_flags_horizontal, Control.SIZE_EXPAND_FILL, "Victory body should fill the scroll area width")
 	var return_button := dialog.get_node_or_null("VictoryOverlay/VictoryPanel/VBoxContainer/ReturnToMenuButton") as Button
 	assert_not_null(return_button, "Victory dialog should provide a manual return button")
 	assert_eq(return_button.text, "TRỞ VỀ MENU", "Victory dialog should not auto-redirect; it should expose a menu button")

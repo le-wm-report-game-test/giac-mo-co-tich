@@ -5,6 +5,9 @@ extends CanvasLayer
 
 const MAIN_MENU_SCENE_PATH := "res://src/ui/MainMenu.tscn"
 const VICTORY_CHIME := preload("res://Assets/audio/scratchonix-victory-chime-366449.mp3")
+const PANEL_WIDTH := 820.0
+const PANEL_HEIGHT := 520.0
+const CONTENT_WIDTH := 700.0
 const THACH_SANH_STORY := """Chúc mừng! Bạn đã dũng cảm đánh bại Chằn Tinh, giải cứu dân làng khỏi nỗi khiếp sợ bấy lâu. Bằng lòng can đảm, sự kiên trì và những nhát kiếm chính xác, bạn đã chứng minh mình là một người anh hùng thực thụ.
 
 Nhưng hành trình của Thạch Sanh vẫn chưa kết thúc. Phía trước còn nhiều thử thách và những bí mật đang chờ bạn khám phá. Hãy nghỉ ngơi, chuẩn bị hành trang và tiếp tục cuộc phiêu lưu để bảo vệ công lý và mang lại bình yên cho muôn dân.
@@ -54,14 +57,16 @@ func _build_dialog() -> void:
 	panel.anchor_bottom = 0.5
 	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
-	panel.offset_left = -410.0
-	panel.offset_right = 410.0
-	panel.offset_top = -260.0
-	panel.offset_bottom = 260.0
-	panel.custom_minimum_size = Vector2(760.0, 520.0)
+	panel.offset_left = -PANEL_WIDTH * 0.5
+	panel.offset_right = PANEL_WIDTH * 0.5
+	panel.offset_top = -PANEL_HEIGHT * 0.5
+	panel.offset_bottom = PANEL_HEIGHT * 0.5
+	panel.custom_minimum_size = Vector2(PANEL_WIDTH, PANEL_HEIGHT)
 	_overlay.add_child(panel)
 
 	var vbox := VBoxContainer.new()
+	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
 	vbox.add_theme_constant_override("separation", 16)
 	panel.add_child(vbox)
@@ -69,6 +74,8 @@ func _build_dialog() -> void:
 	var title := Label.new()
 	title.name = "VictoryTitle"
 	title.text = "Chúc mừng! Chằn Tinh đã bị tiêu diệt"
+	title.custom_minimum_size = Vector2(CONTENT_WIDTH, 0.0)
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	title.add_theme_font_size_override("font_size", 30)
@@ -83,7 +90,7 @@ func _build_dialog() -> void:
 
 	var scroll := ScrollContainer.new()
 	scroll.name = "StoryScroll"
-	scroll.custom_minimum_size = Vector2(0.0, 300.0)
+	scroll.custom_minimum_size = Vector2(CONTENT_WIDTH, 300.0)
 	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	vbox.add_child(scroll)
@@ -94,6 +101,8 @@ func _build_dialog() -> void:
 	body.fit_content = true
 	body.scroll_active = false
 	body.text = THACH_SANH_STORY
+	body.custom_minimum_size = Vector2(CONTENT_WIDTH, 0.0)
+	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	body.add_theme_font_size_override("font_size", 20)
 	body.add_theme_constant_override("line_separation", 7)
@@ -110,7 +119,7 @@ func _build_dialog() -> void:
 
 	panel.modulate.a = 0.0
 	panel.scale = Vector2(0.85, 0.85)
-	panel.pivot_offset = Vector2(410.0, 260.0)
+	panel.pivot_offset = Vector2(PANEL_WIDTH * 0.5, PANEL_HEIGHT * 0.5)
 	var tw := create_tween().set_parallel(true)
 	tw.tween_property(_overlay, "color", Color(0.0, 0.0, 0.0, 0.70), 0.35).set_trans(Tween.TRANS_SINE)
 	tw.tween_property(panel, "modulate:a", 1.0, 0.30).set_trans(Tween.TRANS_SINE).set_delay(0.10)
