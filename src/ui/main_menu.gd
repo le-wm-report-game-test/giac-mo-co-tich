@@ -67,9 +67,9 @@ func _ready() -> void:
 	container.grow_vertical = Control.GROW_DIRECTION_BOTH
 	container.custom_minimum_size = Vector2(400, 400)
 	container.offset_left = -200
-	container.offset_top = -100
+	container.offset_top = -40
 	container.offset_right = 200
-	container.offset_bottom = 300
+	container.offset_bottom = 360
 	add_child(container)
 	
 	# 3. Tạo Music Player

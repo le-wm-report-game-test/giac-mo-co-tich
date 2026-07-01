@@ -5,12 +5,21 @@ extends Control
 const DEFAULT_TARGET_SCENE: String = "res://src/world/world.tscn"
 const META_KEY: String = "loading_target_scene"
 
+const TIPS: Array[String] = [
+	"Mẹo: khám phá kỹ từng ngóc ngách để tìm báu vật ẩn giấu.",
+	"Mẹo: chú ý lắng nghe âm thanh xung quanh, kẻ thù có thể ở gần.",
+	"Mẹo: thu thập vật phẩm để hỗ trợ hành trình phía trước.",
+	"Cổ tích xưa kể rằng, lòng dũng cảm luôn dẫn lối người anh hùng...",
+]
+
 @onready var _progress_bar: ProgressBar = %ProgressBar
 @onready var _percent_label: Label = %PercentLabel
+@onready var _tip_label: Label = %TipLabel
 
 var _target_path: String = DEFAULT_TARGET_SCENE
 var _progress: Array = []
 var _request_started: bool = false
+var _tip_timer: Timer = null
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -19,8 +28,28 @@ func _ready() -> void:
 		_target_path = EventBus.get_meta(META_KEY)
 		EventBus.remove_meta(META_KEY)
 
+	_start_tip_rotation()
 	_update_ui(0.0)
 	_start_load()
+
+func _start_tip_rotation() -> void:
+	if TIPS.is_empty():
+		return
+	_tip_label.text = TIPS[0]
+	if TIPS.size() <= 1:
+		return
+	_tip_timer = Timer.new()
+	_tip_timer.wait_time = 3.0
+	_tip_timer.autostart = true
+	_tip_timer.timeout.connect(_on_tip_timer_timeout)
+	add_child(_tip_timer)
+
+func _on_tip_timer_timeout() -> void:
+	var next_index := (TIPS.find(_tip_label.text) + 1) % TIPS.size()
+	var tween := create_tween()
+	tween.tween_property(_tip_label, "modulate:a", 0.0, 0.25)
+	tween.tween_callback(func(): _tip_label.text = TIPS[next_index])
+	tween.tween_property(_tip_label, "modulate:a", 1.0, 0.25)
 
 func _start_load() -> void:
 	var err := ResourceLoader.load_threaded_request(_target_path)
