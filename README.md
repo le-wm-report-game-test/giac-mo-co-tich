@@ -18,18 +18,18 @@
   <img src="https://github.com/IvanMurzak/Godot-MCP/raw/main/docs/img/promo/ai-developer-banner.jpg" alt="AI Game Developer — Godot MCP" title="AI-driven Godot game development" width="100%">
 
   <p>
-    <a href="https://claude.ai/download"><img src="https://github.com/IvanMurzak/Godot-MCP/raw/main/docs/img/mcp-clients/claude-64.png" alt="Claude" title="Claude" height="36"></a>&nbsp;&nbsp;
-    <a href="https://openai.com/index/introducing-codex/"><img src="https://github.com/IvanMurzak/Godot-MCP/raw/main/docs/img/mcp-clients/codex-64.png" alt="Codex" title="Codex" height="36"></a>&nbsp;&nbsp;
-    <a href="https://www.cursor.com/"><img src="https://github.com/IvanMurzak/Godot-MCP/raw/main/docs/img/mcp-clients/cursor-64.png" alt="Cursor" title="Cursor" height="36"></a>&nbsp;&nbsp;
-    <a href="https://code.visualstudio.com/docs/copilot/overview"><img src="https://github.com/IvanMurzak/Godot-MCP/raw/main/docs/img/mcp-clients/github-copilot-64.png" alt="GitHub Copilot" title="GitHub Copilot" height="36"></a>&nbsp;&nbsp;
-    <a href="https://gemini.google.com/"><img src="https://github.com/IvanMurzak/Godot-MCP/raw/main/docs/img/mcp-clients/gemini-64.png" alt="Gemini" title="Gemini" height="36"></a>&nbsp;&nbsp;
-    <a href="https://antigravity.google/"><img src="https://github.com/IvanMurzak/Godot-MCP/raw/main/docs/img/mcp-clients/antigravity-64.png" alt="Antigravity" title="Antigravity" height="36"></a>&nbsp;&nbsp;
-    <a href="https://code.visualstudio.com/"><img src="https://github.com/IvanMurzak/Godot-MCP/raw/main/docs/img/mcp-clients/vs-code-64.png" alt="VS Code" title="VS Code" height="36"></a>&nbsp;&nbsp;
-    <a href="https://www.jetbrains.com/rider/"><img src="https://github.com/IvanMurzak/Godot-MCP/raw/main/docs/img/mcp-clients/rider-64.png" alt="Rider" title="Rider" height="36"></a>&nbsp;&nbsp;
-    <a href="https://visualstudio.microsoft.com/"><img src="https://github.com/IvanMurzak/Godot-MCP/raw/main/docs/img/mcp-clients/visual-studio-64.png" alt="Visual Studio" title="Visual Studio" height="36"></a>&nbsp;&nbsp;
-    <a href="https://github.com/anthropics/claude-code"><img src="https://github.com/IvanMurzak/Godot-MCP/raw/main/docs/img/mcp-clients/open-code-64.png" alt="Open Code" title="Open Code" height="36"></a>&nbsp;&nbsp;
-    <a href="https://github.com/cline/cline"><img src="https://github.com/IvanMurzak/Godot-MCP/raw/main/docs/img/mcp-clients/cline-64.png" alt="Cline" title="Cline" height="36"></a>&nbsp;&nbsp;
-    <a href="https://github.com/Kilo-Org/kilocode"><img src="https://github.com/IvanMurzak/Godot-MCP/raw/main/docs/img/mcp-clients/kilo-code-64.png" alt="Kilo Code" title="Kilo Code" height="36"></a>
+	<a href="https://claude.ai/download"><img src="https://github.com/IvanMurzak/Godot-MCP/raw/main/docs/img/mcp-clients/claude-64.png" alt="Claude" title="Claude" height="36"></a>&nbsp;&nbsp;
+	<a href="https://openai.com/index/introducing-codex/"><img src="https://github.com/IvanMurzak/Godot-MCP/raw/main/docs/img/mcp-clients/codex-64.png" alt="Codex" title="Codex" height="36"></a>&nbsp;&nbsp;
+	<a href="https://www.cursor.com/"><img src="https://github.com/IvanMurzak/Godot-MCP/raw/main/docs/img/mcp-clients/cursor-64.png" alt="Cursor" title="Cursor" height="36"></a>&nbsp;&nbsp;
+	<a href="https://code.visualstudio.com/docs/copilot/overview"><img src="https://github.com/IvanMurzak/Godot-MCP/raw/main/docs/img/mcp-clients/github-copilot-64.png" alt="GitHub Copilot" title="GitHub Copilot" height="36"></a>&nbsp;&nbsp;
+	<a href="https://gemini.google.com/"><img src="https://github.com/IvanMurzak/Godot-MCP/raw/main/docs/img/mcp-clients/gemini-64.png" alt="Gemini" title="Gemini" height="36"></a>&nbsp;&nbsp;
+	<a href="https://antigravity.google/"><img src="https://github.com/IvanMurzak/Godot-MCP/raw/main/docs/img/mcp-clients/antigravity-64.png" alt="Antigravity" title="Antigravity" height="36"></a>&nbsp;&nbsp;
+	<a href="https://code.visualstudio.com/"><img src="https://github.com/IvanMurzak/Godot-MCP/raw/main/docs/img/mcp-clients/vs-code-64.png" alt="VS Code" title="VS Code" height="36"></a>&nbsp;&nbsp;
+	<a href="https://www.jetbrains.com/rider/"><img src="https://github.com/IvanMurzak/Godot-MCP/raw/main/docs/img/mcp-clients/rider-64.png" alt="Rider" title="Rider" height="36"></a>&nbsp;&nbsp;
+	<a href="https://visualstudio.microsoft.com/"><img src="https://github.com/IvanMurzak/Godot-MCP/raw/main/docs/img/mcp-clients/visual-studio-64.png" alt="Visual Studio" title="Visual Studio" height="36"></a>&nbsp;&nbsp;
+	<a href="https://github.com/anthropics/claude-code"><img src="https://github.com/IvanMurzak/Godot-MCP/raw/main/docs/img/mcp-clients/open-code-64.png" alt="Open Code" title="Open Code" height="36"></a>&nbsp;&nbsp;
+	<a href="https://github.com/cline/cline"><img src="https://github.com/IvanMurzak/Godot-MCP/raw/main/docs/img/mcp-clients/cline-64.png" alt="Cline" title="Cline" height="36"></a>&nbsp;&nbsp;
+	<a href="https://github.com/Kilo-Org/kilocode"><img src="https://github.com/IvanMurzak/Godot-MCP/raw/main/docs/img/mcp-clients/kilo-code-64.png" alt="Kilo Code" title="Kilo Code" height="36"></a>
   </p>
 
 </div>
@@ -588,8 +588,8 @@ Opt in with **`WithRuntimeErrorCapture()`**:
 ```csharp
 _mcp = GodotMcpRuntime.Initialize(builder =>
 {
-    builder.WithConfig(cfg => { /* host / token … */ });
-    builder.WithRuntimeErrorCapture();   // capture in-game runtime errors + expose the runtime-errors-* tool
+	builder.WithConfig(cfg => { /* host / token … */ });
+	builder.WithRuntimeErrorCapture();   // capture in-game runtime errors + expose the runtime-errors-* tool
 }).Build();
 
 await _mcp.Connect();
@@ -663,45 +663,45 @@ using Godot;
 [AiToolType]
 public partial class GameMcpTools
 {
-    [AiTool("game-ping", Title = "Game Ping", ReadOnlyHint = true, IdempotentHint = true)]
-    [Description("Runtime readiness probe. Echoes 'message' back, or returns 'pong-from-game' when omitted.")]
-    public string GamePing(
-        [Description("Optional message to echo back. When null/empty, returns 'pong-from-game'.")]
-        string? message = null)
-    {
-        return string.IsNullOrEmpty(message) ? "pong-from-game" : message;
-    }
+	[AiTool("game-ping", Title = "Game Ping", ReadOnlyHint = true, IdempotentHint = true)]
+	[Description("Runtime readiness probe. Echoes 'message' back, or returns 'pong-from-game' when omitted.")]
+	public string GamePing(
+		[Description("Optional message to echo back. When null/empty, returns 'pong-from-game'.")]
+		string? message = null)
+	{
+		return string.IsNullOrEmpty(message) ? "pong-from-game" : message;
+	}
 
-    [AiTool("game-scene-tree-summary", Title = "Game Scene-Tree Summary", ReadOnlyHint = true)]
-    [Description("Summary of the LIVE running game's SceneTree (current scene + root child node names).")]
-    public SceneTreeSummary GameSceneTreeSummary()
-    {
-        // Touch the live SceneTree on the engine main thread — MainThread.Instance was installed by
-        // GodotMcpRuntime.Initialize(...). Touching Node APIs off the main thread would fault.
-        return MainThread.Instance.Run(() =>
-        {
-            var summary = new SceneTreeSummary();
-            if (Engine.GetMainLoop() is not SceneTree tree || tree.Root == null)
-            {
-                summary.CurrentSceneName = "<no-scene-tree>";
-                return summary;
-            }
+	[AiTool("game-scene-tree-summary", Title = "Game Scene-Tree Summary", ReadOnlyHint = true)]
+	[Description("Summary of the LIVE running game's SceneTree (current scene + root child node names).")]
+	public SceneTreeSummary GameSceneTreeSummary()
+	{
+		// Touch the live SceneTree on the engine main thread — MainThread.Instance was installed by
+		// GodotMcpRuntime.Initialize(...). Touching Node APIs off the main thread would fault.
+		return MainThread.Instance.Run(() =>
+		{
+			var summary = new SceneTreeSummary();
+			if (Engine.GetMainLoop() is not SceneTree tree || tree.Root == null)
+			{
+				summary.CurrentSceneName = "<no-scene-tree>";
+				return summary;
+			}
 
-            summary.CurrentSceneName = tree.CurrentScene?.Name ?? "<none>";
-            summary.RootChildCount   = tree.Root.GetChildCount();
-            foreach (var child in tree.Root.GetChildren())
-                summary.RootChildNames.Add(child.Name);
-            return summary;
-        });
-    }
+			summary.CurrentSceneName = tree.CurrentScene?.Name ?? "<none>";
+			summary.RootChildCount   = tree.Root.GetChildCount();
+			foreach (var child in tree.Root.GetChildren())
+				summary.RootChildNames.Add(child.Name);
+			return summary;
+		});
+	}
 }
 
 // Structured result (ReflectorNet-serialized — never ad-hoc string formatting for parseable output).
 public sealed class SceneTreeSummary
 {
-    public string CurrentSceneName { get; set; } = string.Empty;
-    public int RootChildCount { get; set; }
-    public System.Collections.Generic.List<string> RootChildNames { get; set; } = new();
+	public string CurrentSceneName { get; set; } = string.Empty;
+	public int RootChildCount { get; set; }
+	public System.Collections.Generic.List<string> RootChildNames { get; set; } = new();
 }
 ```
 
@@ -737,12 +737,12 @@ using Godot;
 [AiPromptType]
 public partial class GameMcpPrompts
 {
-    [AiPrompt(Name = "explain-game-state", Role = Role.User)]
-    [Description("Ask the assistant to summarize the current game state for the player.")]
-    public string ExplainGameState()
-    {
-        return "Read the live SceneTree via the game tools and explain the current game state in one paragraph.";
-    }
+	[AiPrompt(Name = "explain-game-state", Role = Role.User)]
+	[Description("Ask the assistant to summarize the current game state for the player.")]
+	public string ExplainGameState()
+	{
+		return "Read the live SceneTree via the game tools and explain the current game state in one paragraph.";
+	}
 }
 
 // A RESOURCE — addressable read-only content fetched by URI. Route is the URI template; the method
@@ -750,26 +750,26 @@ public partial class GameMcpPrompts
 [AiResourceType]
 public partial class GameMcpResources
 {
-    [AiResource(
-        Name = "Live SceneTree node names",
-        Route = "game://scene-tree/nodes",
-        MimeType = "application/json",
-        Description = "The root child node names of the live running game's SceneTree.")]
-    public ResponseResourceContent[] SceneTreeNodes(string uri)
-    {
-        return MainThread.Instance.Run(() =>
-        {
-            var names = new System.Collections.Generic.List<string>();
-            if (Engine.GetMainLoop() is SceneTree tree && tree.Root != null)
-            {
-                foreach (var child in tree.Root.GetChildren())
-                    names.Add(child.Name);
-            }
+	[AiResource(
+		Name = "Live SceneTree node names",
+		Route = "game://scene-tree/nodes",
+		MimeType = "application/json",
+		Description = "The root child node names of the live running game's SceneTree.")]
+	public ResponseResourceContent[] SceneTreeNodes(string uri)
+	{
+		return MainThread.Instance.Run(() =>
+		{
+			var names = new System.Collections.Generic.List<string>();
+			if (Engine.GetMainLoop() is SceneTree tree && tree.Root != null)
+			{
+				foreach (var child in tree.Root.GetChildren())
+					names.Add(child.Name);
+			}
 
-            var json = System.Text.Json.JsonSerializer.Serialize(names);
-            return new[] { ResponseResourceContent.CreateText(uri, json, "application/json") };
-        });
-    }
+			var json = System.Text.Json.JsonSerializer.Serialize(names);
+			return new[] { ResponseResourceContent.CreateText(uri, json, "application/json") };
+		});
+	}
 }
 ```
 

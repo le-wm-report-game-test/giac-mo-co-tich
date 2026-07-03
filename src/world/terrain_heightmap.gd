@@ -33,6 +33,16 @@ static func sample_height(x: float, z: float, hill_zones: Array) -> float:
 			var hill_h: float = h * t * t
 			if hill_h > max_h:
 				max_h = hill_h
+				
+	# Áp dụng lòng hồ nước (giảm độ cao xuống tạo lòng chảo thoải tự nhiên)
+	var c := Vector2(24.0, -24.0)
+	var dist_to_lake := p.distance_to(c)
+	var angle := atan2(p.y - c.y, p.x - c.x)
+	var perturbed_radius := 8.0 + 2.0 * sin(angle * 3.0) + 1.2 * cos(angle * 5.0)
+	if dist_to_lake < perturbed_radius:
+		var t := dist_to_lake / perturbed_radius
+		max_h += -1.8 * (1.0 - t * t) # Độ sâu tối đa 1.8m ở tâm hồ
+		
 	return max_h
 
 # Returns a Dictionary with:
@@ -42,7 +52,7 @@ static func sample_height(x: float, z: float, hill_zones: Array) -> float:
 #       enough to convert into a ConcavePolygonShape3D quickly.
 #   - hill_collision_centers: Array[Vector3], matching index to hill mesh
 #   - subdivisions / size_meters: grid info for callers that need it
-func build(hill_zones: Array) -> Dictionary:
+func build(hill_zones: Array, zone_sampler: Callable) -> Dictionary:
 	var size_meters: float = MAP_HALF * 2.0
 	var visual_subdivisions: int = int(size_meters * VISUAL_DIVISIONS_PER_METER)
 	var visual_step: float = size_meters / visual_subdivisions
@@ -59,18 +69,14 @@ func build(hill_zones: Array) -> Dictionary:
 	# Visual mesh: dense, smooth-shaded, with analytic normals.
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	# Godot 4 expects front faces to wind COUNTER-CLOCKWISE seen from the
-	# normal side (OpenGL convention). The previous order produced a CW
-	# winding from above, which made the whole heightmap render as a black
-	# back-face. Triangles below are listed CCW when viewed from +Y.
 	for j in range(visual_subdivisions - 1):
 		for i in range(visual_subdivisions - 1):
-			_emit_vert(st, i, j, visual_subdivisions, hill_zones, visual_heights)
-			_emit_vert(st, i + 1, j + 1, visual_subdivisions, hill_zones, visual_heights)
-			_emit_vert(st, i + 1, j, visual_subdivisions, hill_zones, visual_heights)
-			_emit_vert(st, i, j, visual_subdivisions, hill_zones, visual_heights)
-			_emit_vert(st, i, j + 1, visual_subdivisions, hill_zones, visual_heights)
-			_emit_vert(st, i + 1, j + 1, visual_subdivisions, hill_zones, visual_heights)
+			_emit_vert(st, i, j, visual_subdivisions, hill_zones, visual_heights, zone_sampler)
+			_emit_vert(st, i + 1, j + 1, visual_subdivisions, hill_zones, visual_heights, zone_sampler)
+			_emit_vert(st, i + 1, j, visual_subdivisions, hill_zones, visual_heights, zone_sampler)
+			_emit_vert(st, i, j, visual_subdivisions, hill_zones, visual_heights, zone_sampler)
+			_emit_vert(st, i, j + 1, visual_subdivisions, hill_zones, visual_heights, zone_sampler)
+			_emit_vert(st, i + 1, j + 1, visual_subdivisions, hill_zones, visual_heights, zone_sampler)
 	var ground_mesh: ArrayMesh = st.commit()
 
 	# Flat collision: keeps the player from falling through the world on the
@@ -112,7 +118,8 @@ func _emit_vert(
 	j: int,
 	subdivisions: int,
 	hill_zones: Array,
-	heights: PackedFloat32Array
+	heights: PackedFloat32Array,
+	zone_sampler: Callable
 ) -> void:
 	var size_meters: float = MAP_HALF * 2.0
 	var cell: float = size_meters / subdivisions
@@ -130,7 +137,24 @@ func _emit_vert(
 	var normal: Vector3 = Vector3(-slope_x, 1.0, -slope_z).normalized()
 
 	st.set_uv(Vector2(float(i) / (subdivisions - 1), float(j) / (subdivisions - 1)))
-	st.set_color(Color(0.45, 0.55, 0.30, 1.0))
+	
+	# Thiết lập màu đỉnh (Vertex Color) để trộn chất liệu
+	var color := Color(0.0, 0.0, 0.0, 1.0)
+	var zone = zone_sampler.call(x, z)
+	
+	# PATH = 2 (Đỏ)
+	if zone == 2:
+		color.r = 1.0
+	# CLEARING = 1 (Xanh lá)
+	elif zone == 1:
+		color.g = 1.0
+		
+	# Độ sâu lòng hồ nước -> nạp vào kênh Blue (COLOR.b)
+	var dist_to_lake := Vector2(x, z).distance_to(Vector2(24.0, -24.0))
+	if dist_to_lake < 8.0:
+		color.b = 1.0 - (dist_to_lake / 8.0)
+
+	st.set_color(color)
 	st.set_normal(normal)
 	st.add_vertex(Vector3(x, y, z))
 

@@ -1,47 +1,47 @@
 {
   "version": 1,
   "skills": {
-    "domain-modeling": {
-      "source": "mattpocock/skills",
-      "sourceType": "github",
-      "skillPath": "skills/engineering/domain-modeling/SKILL.md",
-      "computedHash": "65da9ce611a203fc6b9ecf95254cf845857243d958cb0d64df556cad87c76312"
-    },
-    "game-development": {
-      "source": "sickn33/antigravity-awesome-skills",
-      "sourceType": "github",
-      "skillPath": "skills/game-development/SKILL.md",
-      "computedHash": "4231a4f62874941e6d6665b03b84962fd4cf696283203616f031909fcd2d28e7"
-    },
-    "godot-gdscript-patterns": {
-      "source": "sickn33/antigravity-awesome-skills",
-      "sourceType": "github",
-      "skillPath": "skills/godot-gdscript-patterns/SKILL.md",
-      "computedHash": "6e018e05dbd307c8253e6d8febaa809986f7aee8557dcf53504e406b73785218"
-    },
-    "software-architecture": {
-      "source": "sickn33/antigravity-awesome-skills",
-      "sourceType": "github",
-      "skillPath": "skills/software-architecture/SKILL.md",
-      "computedHash": "4e63488e8ff45d6a1db2bd346734fdf84f31b05a45c3256d43029ae20db2b4d2"
-    },
-    "ui-ux-designer": {
-      "source": "sickn33/antigravity-awesome-skills",
-      "sourceType": "github",
-      "skillPath": "skills/ui-ux-designer/SKILL.md",
-      "computedHash": "fdccdfcc9b31cf185402e74d3d94b56709a6d4d2d92a4313d0fbafcca0a6d9a7"
-    },
-    "grill-me": {
-      "source": "mattpocock/skills",
-      "sourceType": "github",
-      "skillPath": "skills/engineering/grill-me/SKILL.md",
-      "computedHash": "65da9ce611a203fc6b9ecf95254cf845857243d958cb0d64df556cad87c76312"
-    },
-    "grill-with-docs": {
-      "source": "mattpocock/skills",
-      "sourceType": "github",
-      "skillPath": "skills/engineering/grill-me/SKILL.md",
-      "computedHash": "65da9ce611a203fc6b9ecf95254cf845857243d958cb0d64df556cad87c76312"
-    },
+	"domain-modeling": {
+	  "source": "mattpocock/skills",
+	  "sourceType": "github",
+	  "skillPath": "skills/engineering/domain-modeling/SKILL.md",
+	  "computedHash": "65da9ce611a203fc6b9ecf95254cf845857243d958cb0d64df556cad87c76312"
+	},
+	"game-development": {
+	  "source": "sickn33/antigravity-awesome-skills",
+	  "sourceType": "github",
+	  "skillPath": "skills/game-development/SKILL.md",
+	  "computedHash": "4231a4f62874941e6d6665b03b84962fd4cf696283203616f031909fcd2d28e7"
+	},
+	"godot-gdscript-patterns": {
+	  "source": "sickn33/antigravity-awesome-skills",
+	  "sourceType": "github",
+	  "skillPath": "skills/godot-gdscript-patterns/SKILL.md",
+	  "computedHash": "6e018e05dbd307c8253e6d8febaa809986f7aee8557dcf53504e406b73785218"
+	},
+	"software-architecture": {
+	  "source": "sickn33/antigravity-awesome-skills",
+	  "sourceType": "github",
+	  "skillPath": "skills/software-architecture/SKILL.md",
+	  "computedHash": "4e63488e8ff45d6a1db2bd346734fdf84f31b05a45c3256d43029ae20db2b4d2"
+	},
+	"ui-ux-designer": {
+	  "source": "sickn33/antigravity-awesome-skills",
+	  "sourceType": "github",
+	  "skillPath": "skills/ui-ux-designer/SKILL.md",
+	  "computedHash": "fdccdfcc9b31cf185402e74d3d94b56709a6d4d2d92a4313d0fbafcca0a6d9a7"
+	},
+	"grill-me": {
+	  "source": "mattpocock/skills",
+	  "sourceType": "github",
+	  "skillPath": "skills/engineering/grill-me/SKILL.md",
+	  "computedHash": "65da9ce611a203fc6b9ecf95254cf845857243d958cb0d64df556cad87c76312"
+	},
+	"grill-with-docs": {
+	  "source": "mattpocock/skills",
+	  "sourceType": "github",
+	  "skillPath": "skills/engineering/grill-me/SKILL.md",
+	  "computedHash": "65da9ce611a203fc6b9ecf95254cf845857243d958cb0d64df556cad87c76312"
+	},
   }
 }

@@ -24,13 +24,22 @@ extends Node3D
 	preload("res://Assets/Stylized Nature MegaKit[Standard]/glTF/Pine_3.gltf"),
 	preload("res://Assets/Stylized Nature MegaKit[Standard]/glTF/Pine_4.gltf"),
 	preload("res://Assets/Stylized Nature MegaKit[Standard]/glTF/Pine_5.gltf"),
+	preload("res://Assets/Stylized Nature MegaKit[Standard]/glTF/CommonTree_1.gltf"),
+	preload("res://Assets/Stylized Nature MegaKit[Standard]/glTF/CommonTree_2.gltf"),
+	preload("res://Assets/Stylized Nature MegaKit[Standard]/glTF/CommonTree_3.gltf"),
+	preload("res://Assets/Stylized Nature MegaKit[Standard]/glTF/CommonTree_4.gltf"),
+	preload("res://Assets/Stylized Nature MegaKit[Standard]/glTF/CommonTree_5.gltf"),
+	preload("res://Assets/Stylized Nature MegaKit[Standard]/glTF/DeadTree_1.gltf"),
+	preload("res://Assets/Stylized Nature MegaKit[Standard]/glTF/DeadTree_2.gltf"),
+	preload("res://Assets/Stylized Nature MegaKit[Standard]/glTF/DeadTree_3.gltf"),
+	preload("res://Assets/Stylized Nature MegaKit[Standard]/glTF/DeadTree_4.gltf"),
+	preload("res://Assets/Stylized Nature MegaKit[Standard]/glTF/DeadTree_5.gltf"),
 ]
 @export var bush_scenes: Array[PackedScene] = [
 	preload("res://Assets/Stylized Nature MegaKit[Standard]/glTF/Bush_Common.gltf"),
-	preload("res://Assets/Stylized Nature MegaKit[Standard]/glTF/Bush_Common_Flowers.gltf"),
 	preload("res://Assets/Stylized Nature MegaKit[Standard]/glTF/Fern_1.gltf"),
-	preload("res://Assets/Stylized Nature MegaKit[Standard]/glTF/Plant_1.gltf"),
-	preload("res://Assets/Stylized Nature MegaKit[Standard]/glTF/Plant_1_Big.gltf"),
+	preload("res://Assets/Stylized Nature MegaKit[Standard]/glTF/Plant_7.gltf"),
+	preload("res://Assets/Stylized Nature MegaKit[Standard]/glTF/Plant_7_Big.gltf"),
 ]
 
 # ─── Decoration Prop Meshes ────────────────────────────────────────────────
@@ -43,6 +52,9 @@ extends Node3D
 	preload("res://Assets/modular_terrain_collection/Hilly_Prop_Flower_Daisy.obj"),
 	preload("res://Assets/modular_terrain_collection/Hilly_Prop_Flower_Rose.obj"),
 	preload("res://Assets/modular_terrain_collection/Hilly_Prop_Flower_Tulip.obj"),
+	preload("res://Assets/modular_terrain_collection/Hilly_Prop_Flower_Sunflower.obj"),
+	preload("res://Assets/modular_terrain_collection/Hilly_Prop_Flower_Lily_Blue.obj"),
+	preload("res://Assets/modular_terrain_collection/Hilly_Prop_Flower_Lily_Pink.obj"),
 ]
 @export var mushroom_meshes: Array[Mesh] = [
 	preload("res://Assets/modular_terrain_collection/Hilly_Prop_Mushroom_1.obj"),
@@ -62,10 +74,10 @@ extends Node3D
 
 # ─── Forest Settings ───────────────────────────────────────────────────────
 @export_group("Forest Settings")
-@export var num_trees: int = 105
+@export var num_trees: int = 205
 @export var num_bushes: int = 200
-@export var num_grass_clumps: int = 350
-@export var num_flowers: int = 150
+@export var num_grass_clumps: int = 550
+@export var num_flowers: int = 450
 @export var num_mushrooms: int = 80
 @export var num_rocks: int = 100
 @export var num_boulders: int = 25
@@ -82,7 +94,7 @@ const MAP_HALF: float = 50.0
 const TILE_SIZE: float = 1.0
 
 # Zone enum để dễ đọc
-enum Zone { FOREST, CLEARING, PATH, HILL }
+enum Zone { FOREST, CLEARING, PATH, HILL, LAKE }
 
 # Bố cục clearing & path (tọa độ XZ, trục Y = 0 là mặt đất phẳng)
 # Spawn Clearing: trung tâm, bán kính 6m
@@ -139,10 +151,10 @@ func _ready() -> void:
 	_terrain_heightmap = TerrainHeightmap.new()
 	_terrain_heightmap.name = "TerrainHeightmap"
 	add_child(_terrain_heightmap)
-	_terrain_data = _terrain_heightmap.build(HILL_ZONES)
-	_build_ground_floor()
-	_build_under_floor()
+	_terrain_data = _terrain_heightmap.build(HILL_ZONES, Callable(self, "_get_zone"))
 	_build_ground_collision()
+	_build_visual_ground()
+	_build_lake()
 	_scatter_trees()
 	_scatter_bushes()
 	_scatter_decorations()
@@ -177,62 +189,10 @@ func _create_ground_material(
 
 # ─── Ground Floor (MultiMesh cỏ phẳng + đường mòn) ─────────────────────────
 func _build_ground_floor() -> void:
-	# Tính số lượng tile
-	var total_tiles: int = int(MAP_HALF * 2) * int(MAP_HALF * 2)
+	pass
 
-	# Đếm grass và path tiles trước
-	var grass_positions: Array[Transform3D] = []
-	var path_positions: Array[Transform3D] = []
-
-	var start: int = int(-MAP_HALF)
-	var end: int = int(MAP_HALF)
-
-	for x_i in range(start, end):
-		for z_i in range(start, end):
-			var xf: float = float(x_i) + 0.5
-			var zf: float = float(z_i) + 0.5
-			var pos := Vector3(xf, 0.0, zf)
-
-			var zone := _get_zone(xf, zf)
-			var height_offset: float = _get_hill_height(xf, zf)
-			pos.y = height_offset
-
-			var t := Transform3D(Basis.IDENTITY, pos)
-
-			if zone == Zone.PATH:
-				path_positions.append(t)
-			else:
-				grass_positions.append(t)
-
-	# Render grass tiles
-	if grass_positions.size() > 0 and grass_floor_mesh != null:
-		_spawn_multimesh(grass_floor_mesh, grass_positions, _mat_grass, "GrassTiles")
-
-	# Render path tiles
-	if path_positions.size() > 0 and path_center_mesh != null:
-		_spawn_multimesh(path_center_mesh, path_positions, _mat_dirt, "PathTiles")
-
-
-# ─── Nền lót dưới mặt đất (Under-floor để che khe hở) ──────────────────────────
 func _build_under_floor() -> void:
-	var mi := MeshInstance3D.new()
-	mi.name = "UnderFloor"
-	
-	var plane := PlaneMesh.new()
-	# Tạo diện tích lớn hơn map một chút để phủ kín hoàn toàn
-	plane.size = Vector2(MAP_HALF * 2.0 + 10.0, MAP_HALF * 2.0 + 10.0)
-	mi.mesh = plane
-	
-	var mat := StandardMaterial3D.new()
-	# Màu xanh cỏ đậm hoặc đất tối để khi hở khe nhìn tự nhiên như đổ bóng
-	mat.albedo_color = Color("#17251C")
-	mat.roughness = 1.0
-	mi.material_override = mat
-	
-	# Đặt thấp hơn mặt đất phẳng một chút để tránh hiện tượng Z-fighting
-	mi.position = Vector3(0.0, -0.02, 0.0)
-	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(mi)
+	pass
 
 
 # ─── Collision cho mặt đất ─────────────────────────────────────────────────
@@ -280,6 +240,63 @@ func _build_ground_collision() -> void:
 		ground_body.add_child(hill_col)
 
 
+# ─── Visual Ground Mesh Instance ───────────────────────────────────────────
+func _build_visual_ground() -> void:
+	var mi := MeshInstance3D.new()
+	mi.name = "VisualGround"
+	mi.mesh = _terrain_data["mesh"]
+	
+	# Tạo ShaderMaterial cho địa hình lượn sóng mượt mà
+	var mat := ShaderMaterial.new()
+	mat.shader = preload("res://src/world/ground_surface.gdshader")
+	
+	# Nạp các texture PBR chất lượng cao từ MegaKit
+	var grass_tex := preload("res://Assets/Stylized Nature MegaKit[Standard]/glTF/Grass.png")
+	var path_tex := preload("res://Assets/Stylized Nature MegaKit[Standard]/glTF/PathRocks_Diffuse.png")
+	var rock_tex := preload("res://Assets/Stylized Nature MegaKit[Standard]/glTF/Rocks_Diffuse.png")
+	
+	mat.set_shader_parameter("grass_texture", grass_tex)
+	mat.set_shader_parameter("path_texture", path_tex)
+	mat.set_shader_parameter("rock_texture", rock_tex)
+	
+	mi.material_override = mat
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(mi)
+
+# ─── Hồ nước 3D ────────────────────────────────────────────────────────────
+func _build_lake() -> void:
+	var mi := MeshInstance3D.new()
+	mi.name = "LakeWater"
+	
+	var plane := PlaneMesh.new()
+	plane.size = Vector2(24.0, 24.0) # Phủ kín rìa hồ uốn lượn uốn khúc tự nhiên
+	plane.subdivide_width = 48
+	plane.subdivide_depth = 48
+	mi.mesh = plane
+	
+	# Cấu hình Shader nước lóng lánh
+	var mat := ShaderMaterial.new()
+	mat.shader = preload("res://src/world/water.gdshader")
+	
+	mi.material_override = mat
+	# Đặt mặt nước ở độ cao Y = -0.4 (phù hợp với độ dốc của lòng hồ)
+	mi.position = Vector3(24.0, -0.4, -24.0)
+	add_child(mi)
+
+	# Tạo StaticBody3D làm rào cản vật lý ngăn người chơi đi vào hồ nước
+	var barrier := StaticBody3D.new()
+	barrier.name = "LakeCollisionBarrier"
+	barrier.position = Vector3(24.0, 0.0, -24.0)
+	
+	var col_shape := CollisionShape3D.new()
+	var cylinder := CylinderShape3D.new()
+	cylinder.radius = 8.0  # Bán kính 8m chặn quanh mép hồ nước uốn lượn
+	cylinder.height = 10.0 # Chiều cao đủ lớn để chặn player nhảy/rơi vào hồ
+	col_shape.shape = cylinder
+	barrier.add_child(col_shape)
+	add_child(barrier)
+
+
 # Preload Wind Sway Shader
 var _wind_shader: Shader = preload("res://src/world/wind_sway.gdshader")
 
@@ -312,6 +329,10 @@ func _create_wind_material(original_material: Material) -> ShaderMaterial:
 	if original_material is BaseMaterial3D:
 		var base_mat := original_material as BaseMaterial3D
 		tex = base_mat.albedo_texture
+		if tex != null:
+			var tex_path := tex.resource_path
+			if "Leaves_TwistedTree" in tex_path or "Flowers" in tex_path:
+				tex = preload("res://Assets/Stylized Nature MegaKit[Standard]/glTF/Leaves.png")
 		color = base_mat.albedo_color
 		normal_tex = base_mat.normal_texture
 		roughness_tex = base_mat.roughness_texture
@@ -388,8 +409,8 @@ func _scatter_trees() -> void:
 		var z: float = _rng.randf_range(-MAP_HALF + 2.0, MAP_HALF - 2.0)
 
 		var zone := _get_zone(x, z)
-		# Không đặt cây trong clearing hay path
-		if zone == Zone.CLEARING or zone == Zone.PATH:
+		# Không đặt cây trong clearing, path hay hồ nước
+		if zone == Zone.CLEARING or zone == Zone.PATH or zone == Zone.LAKE:
 			continue
 
 		var height: float = _get_hill_height(x, z)
@@ -472,7 +493,7 @@ func _scatter_bushes() -> void:
 		var z: float = _rng.randf_range(-MAP_HALF + 1.0, MAP_HALF - 1.0)
 
 		var zone := _get_zone(x, z)
-		if zone == Zone.PATH:
+		if zone == Zone.PATH or zone == Zone.LAKE:
 			continue
 
 		var height: float = _get_hill_height(x, z)
@@ -511,7 +532,7 @@ func _scatter_decorations() -> void:
 
 
 func _scatter_mesh_group(
-	meshes: Array[Mesh],
+	items: Array,
 	count: int,
 	avoid_clearing: bool,
 	mat_override: StandardMaterial3D,
@@ -522,7 +543,7 @@ func _scatter_mesh_group(
 	collision_height_offset_scale: float = 0.0,
 	name_prefix: String = "Decoration"
 ) -> void:
-	if meshes.is_empty():
+	if items.is_empty():
 		return
 
 	var placed: int = 0
@@ -535,37 +556,45 @@ func _scatter_mesh_group(
 		var z: float = _rng.randf_range(-MAP_HALF + 0.5, MAP_HALF - 0.5)
 
 		var zone := _get_zone(x, z)
-		if zone == Zone.PATH:
+		if zone == Zone.PATH or zone == Zone.LAKE:
 			continue
 		if avoid_clearing and zone == Zone.CLEARING:
 			continue
 
 		var height: float = _get_hill_height(x, z)
-		var mesh_idx: int = _rng.randi() % meshes.size()
-		var mesh: Mesh = meshes[mesh_idx]
-		if mesh == null:
+		var item_idx: int = _rng.randi() % items.size()
+		var item = items[item_idx]
+		if item == null:
 			continue
 
 		var scale_val: float = _rng.randf_range(scale_min, scale_max)
-		var mi := MeshInstance3D.new()
-		mi.mesh = mesh
-		if mat_override != null:
-			mi.material_override = mat_override
-		mi.position = Vector3(x, height, z)
-		mi.rotation.y = _rng.randf_range(0.0, TAU)
-		mi.scale = Vector3(scale_val, scale_val, scale_val)
-		mi.name = "%sMesh_%d" % [name_prefix, placed]
-		if apply_wind:
-			_apply_wind_shader(mi)
+		var instance: Node3D
+		if item is PackedScene:
+			instance = item.instantiate() as Node3D
+		elif item is Mesh:
+			instance = MeshInstance3D.new()
+			instance.mesh = item
 		else:
-			_configure_geometry_for_rendering(mi, 1.5)
-		add_child(mi)
+			continue
+
+		if mat_override != null and instance is MeshInstance3D:
+			instance.material_override = mat_override
+		instance.position = Vector3(x, height, z)
+		instance.rotation.y = _rng.randf_range(0.0, TAU)
+		instance.scale = Vector3(scale_val, scale_val, scale_val)
+		instance.name = "%sMesh_%d" % [name_prefix, placed]
+		
+		if apply_wind:
+			_apply_wind_shader(instance)
+		else:
+			_configure_geometry_for_rendering(instance, 1.5)
+		add_child(instance)
 
 		if collision_radius_scale > 0.0:
 			var body := StaticBody3D.new()
 			body.name = "%sBody_%d" % [name_prefix, placed]
-			body.position = mi.position
-			body.rotation.y = mi.rotation.y
+			body.position = instance.position
+			body.rotation.y = instance.rotation.y
 			body.add_to_group("rock_obstacles")
 			var col := CollisionShape3D.new()
 			var sphere := SphereShape3D.new()
@@ -603,38 +632,56 @@ func _scatter_boulders() -> void:
 		var bp := boulder_positions[i]
 		if boulder_meshes.is_empty():
 			continue
-		var mesh_idx: int = _rng.randi() % boulder_meshes.size()
-		var mesh: Mesh = boulder_meshes[mesh_idx]
-		if mesh == null:
+		var item_idx: int = _rng.randi() % boulder_meshes.size()
+		var item = boulder_meshes[item_idx]
+		if item == null:
 			continue
 
 		var height: float = _get_hill_height(bp.x, bp.y)
-		var scale_val: float = _rng.randf_range(1.0, 1.8)
+		var scale_val: float = _rng.randf_range(1.5, 2.5) # Phóng to đá PBR thành đá tảng lớn
 
-		var mi := MeshInstance3D.new()
-		mi.mesh = mesh
-		mi.position = Vector3(bp.x, height, bp.y)
-		mi.rotation.y = _rng.randf_range(0.0, TAU)
-		mi.scale = Vector3(scale_val, scale_val, scale_val)
-		_configure_geometry_for_rendering(mi, 2.0)
-		add_child(mi)
+		var instance: Node3D
+		if item is PackedScene:
+			instance = item.instantiate() as Node3D
+		elif item is Mesh:
+			instance = MeshInstance3D.new()
+			instance.mesh = item
+		else:
+			continue
+
+		instance.position = Vector3(bp.x, height, bp.y)
+		instance.rotation.y = _rng.randf_range(0.0, TAU)
+		instance.scale = Vector3(scale_val, scale_val, scale_val)
+		_configure_geometry_for_rendering(instance, 2.0)
+		add_child(instance)
 
 		# Collision cho boulder
 		var boulder_body := StaticBody3D.new()
 		boulder_body.name = "BoulderBody_%d" % i
-		boulder_body.position = mi.position
+		boulder_body.position = instance.position
 		boulder_body.add_to_group("rock_obstacles")
 		var boulder_col := CollisionShape3D.new()
 		var boulder_sphere := SphereShape3D.new()
-		boulder_sphere.radius = 1.2 * scale_val
+		boulder_sphere.radius = 1.0 * scale_val
 		boulder_col.shape = boulder_sphere
-		boulder_col.position.y = 0.8 * scale_val
+		boulder_col.position.y = 0.6 * scale_val
 		boulder_body.add_child(boulder_col)
 		add_child(boulder_body)
 
 
 # ─── Helper: Zone Detection ─────────────────────────────────────────────────
+func _is_in_lake(x: float, z: float) -> bool:
+	var c := Vector2(24.0, -24.0)
+	var p := Vector2(x, z)
+	var dist_to_lake := p.distance_to(c)
+	var angle := atan2(z - c.y, x - c.x)
+	var perturbed_radius := 8.0 + 2.0 * sin(angle * 3.0) + 1.2 * cos(angle * 5.0)
+	return dist_to_lake < perturbed_radius
+
 func _get_zone(x: float, z: float) -> Zone:
+	if _is_in_lake(x, z):
+		return Zone.LAKE
+		
 	var p := Vector2(x, z)
 
 	# Clearing zones
