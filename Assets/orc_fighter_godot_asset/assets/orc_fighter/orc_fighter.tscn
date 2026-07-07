@@ -1,0 +1,9 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="PackedScene" path="res://assets/orc_fighter/orc_fighter.glb" id="1_orcglb"]
+[ext_resource type="Script" path="res://assets/orc_fighter/orc_fighter_controller.gd" id="2_ctrl"]
+
+[node name="OrcFighter" type="Node3D"]
+script = ExtResource("2_ctrl")
+
+[node name="Model" parent="." instance=ExtResource("1_orcglb")]

@@ -11,6 +11,7 @@ const SPRITE_FEET_BASELINE_Y_PX: float = 56.0
 const SPRITE_GROUND_CLEARANCE: float = 0.03
 const BOSS_ATTACK_COOLDOWN: float = 2.2
 const BOSS_ATTACK_ANIMATION_FPS: float = 5.0
+const ORC_FIGHTER_SCENE_PATH := "res://Assets/orc_fighter_godot_asset/assets/orc_fighter/orc_fighter.tscn"
 const WORLD_RENDER_MASK: int = 1
 const COMBAT_ACTOR_RENDER_MASK: int = 2
 const REGULAR_HEALTH_BAR_SIZE := Vector2i(64, 8)
@@ -33,6 +34,10 @@ const HEALTH_BAR_PIXEL_SIZE_FACTOR: float = 0.08
 @export_range(0.0, 1.0, 0.05) var close_range_strafe_weight: float = 0.45
 @export var max_health: float = 50.0
 @export_range(0.01, 0.25, 0.005) var sprite_pixel_size: float = REGULAR_SPRITE_PIXEL_SIZE
+@export var use_3d_model: bool = false
+@export var model_scale: float = 1.0
+@export var model_height: float = 1.8
+@export var model_rotation_offset_deg: float = 0.0
 @export var attack_damage: float = 10.0:
 	set(val):
 		attack_damage = val
@@ -52,6 +57,9 @@ var facing_right: bool = true
 var candidate_directions: Array[Vector3] = []
 var _texture_cache: Dictionary = {}
 var sprite: Sprite3D
+var model: Node3D = null
+var _model_last_anim: String = ""
+var _model_ground_offset: float = 0.0
 var health_component: HealthComponent
 var hurtbox_component: HurtboxComponent
 var hitbox_component: HitboxComponent
@@ -102,7 +110,23 @@ func _setup_physics_collider(is_boss: bool) -> void:
 	add_child(col)
 
 func _setup_sprite_node() -> void:
+	if use_3d_model:
+		var scene: PackedScene = load(ORC_FIGHTER_SCENE_PATH) as PackedScene
+		var instance: Node = scene.instantiate() if scene else null
+		if instance is Node3D:
+			model = instance as Node3D
+			add_child(model)
+			_fit_model_to_height(model, model_height)
+			return
+		if instance:
+			instance.queue_free()
+		push_warning("OrcMob: không tải được model 3D orc_fighter tại %s, dùng sprite 2D thay thế." % ORC_FIGHTER_SCENE_PATH)
+		use_3d_model = false
+
 	sprite = Sprite3D.new()
+	_setup_sprite_visual()
+
+func _setup_sprite_visual() -> void:
 	sprite.billboard = StandardMaterial3D.BILLBOARD_FIXED_Y
 	sprite.shaded = true
 	sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
@@ -117,6 +141,34 @@ func _setup_sprite_node() -> void:
 	sprite.position.y = _get_grounded_sprite_y()
 	sprite.position.z = 0.0
 	add_child(sprite)
+
+func _fit_model_to_height(node: Node3D, target_height: float) -> void:
+	# Asset 3D là bản prototype, toạ độ gốc các bộ phận không đáng tin cậy;
+	# đo AABB thật của mesh rồi co giãn về đúng chiều cao mong muốn và đặt chân chạm đất.
+	var acc := {"aabb": AABB(), "has": false}
+	_accumulate_aabb(node, node, acc)
+	if not acc["has"] or (acc["aabb"] as AABB).size.y <= 0.0001:
+		node.scale = Vector3.ONE * model_scale
+		_model_ground_offset = 0.0
+		return
+	var aabb: AABB = acc["aabb"]
+	var fit_scale := (target_height / aabb.size.y) * model_scale
+	node.scale = Vector3.ONE * fit_scale
+	_model_ground_offset = -aabb.position.y * fit_scale
+
+func _accumulate_aabb(root: Node3D, current: Node, acc: Dictionary) -> void:
+	if current is VisualInstance3D:
+		var vi := current as VisualInstance3D
+		var local_aabb := vi.get_aabb()
+		var xform := root.global_transform.affine_inverse() * vi.global_transform
+		var world_aabb: AABB = xform * local_aabb
+		if acc["has"]:
+			acc["aabb"] = (acc["aabb"] as AABB).merge(world_aabb)
+		else:
+			acc["aabb"] = world_aabb
+			acc["has"] = true
+	for child in current.get_children():
+		_accumulate_aabb(root, child, acc)
 
 func _get_grounded_sprite_y() -> float:
 	var feet_offset_px := SPRITE_FEET_BASELINE_Y_PX - SPRITE_FRAME_CENTER_Y_PX
@@ -183,6 +235,8 @@ func _setup_health_bar(is_boss: bool) -> void:
 	_update_health_bar(health_component.current_health, health_component.max_health)
 
 func _get_health_bar_height(is_boss: bool) -> float:
+	if use_3d_model:
+		return model_height + 0.3
 	var height_factor := BOSS_HEALTH_BAR_HEIGHT_FACTOR if is_boss else REGULAR_HEALTH_BAR_HEIGHT_FACTOR
 	return _get_grounded_sprite_y() + height_factor * sprite_pixel_size
 
@@ -233,8 +287,11 @@ func _setup_hitbox(is_boss: bool) -> void:
 	hitbox_col.shape = hit_shape
 	hitbox_component.add_child(hitbox_col)
 	
-	# Load initial sprite
-	_update_sprite()
+	# Load initial visual (sprite frame hoặc model 3D)
+	if use_3d_model:
+		_update_model_visual()
+	else:
+		_update_sprite()
 
 func _physics_process(delta: float) -> void:
 	if current_state == State.DEATH:
@@ -249,9 +306,8 @@ func _physics_process(delta: float) -> void:
 	_update_sprite_height()
 
 func _update_sprite_height() -> void:
-	if sprite == null:
+	if sprite == null and model == null:
 		return
-	var base_y = _get_grounded_sprite_y()
 	var offset_y = 0.0
 	var forest = get_parent().get_node_or_null("Forest")
 	if forest and forest.has_method("_get_zone"):
@@ -259,7 +315,10 @@ func _update_sprite_height() -> void:
 		var is_path = (zone == 2) # Zone.PATH is 2
 		if not is_path:
 			offset_y = 0.2
-	sprite.position.y = base_y + offset_y
+	if sprite:
+		sprite.position.y = _get_grounded_sprite_y() + offset_y
+	elif model:
+		model.position.y = _model_ground_offset + offset_y
 
 func _update_ai_state(delta: float) -> void:
 	var player := get_tree().get_first_node_in_group("player") as Node3D
@@ -461,8 +520,44 @@ func _update_animation(delta: float) -> void:
 	
 	if current_state == State.ATTACK:
 		hitbox_component.monitoring = (current_frame == 4)
-	
-	_update_sprite()
+
+	if use_3d_model:
+		_update_model_visual()
+	else:
+		_update_sprite()
+
+func _update_model_visual() -> void:
+	if model == null:
+		return
+	_update_model_facing()
+
+	var wanted_anim := "idle"
+	match current_state:
+		State.ATTACK:
+			wanted_anim = "attack"
+		State.HURT:
+			wanted_anim = "hit"
+		State.DEATH:
+			wanted_anim = "defeated"
+		_:
+			wanted_anim = "idle"
+
+	if wanted_anim != _model_last_anim:
+		_model_last_anim = wanted_anim
+		if model.has_method(wanted_anim):
+			model.call(wanted_anim)
+
+func _update_model_facing() -> void:
+	if model == null or current_state == State.DEATH:
+		return
+	var look_dir := Vector3.ZERO
+	var player := get_tree().get_first_node_in_group("player") as Node3D
+	if (current_state == State.CHASE or current_state == State.ATTACK) and player:
+		look_dir = _get_planar_offset_to(player)
+	elif velocity.length_squared() > 0.01:
+		look_dir = Vector3(velocity.x, 0.0, velocity.z)
+	if look_dir.length_squared() > 0.0001:
+		model.rotation.y = atan2(look_dir.x, look_dir.z) + deg_to_rad(model_rotation_offset_deg)
 
 func _update_sprite() -> void:
 	var prefix := "idle"
@@ -625,8 +720,14 @@ func _process_death_state(delta: float) -> void:
 			current_frame += 1
 		else:
 			set_physics_process(false)
-			var tween := create_tween()
-			tween.tween_property(sprite, "modulate:a", 0.0, 1.5)
-			tween.tween_callback(queue_free)
+			if sprite:
+				var tween := create_tween()
+				tween.tween_property(sprite, "modulate:a", 0.0, 1.5)
+				tween.tween_callback(queue_free)
+			else:
+				get_tree().create_timer(1.5).timeout.connect(queue_free)
 			return
-	_update_sprite()
+	if use_3d_model:
+		_update_model_visual()
+	else:
+		_update_sprite()

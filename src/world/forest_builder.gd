@@ -793,6 +793,7 @@ func _spawn_orcs() -> void:
 			bot.set_script(orc_script)
 			bot.position = Vector3(x, 0.2, z)
 			bot.name = "OrcMob_%d" % i
+			bot.set("use_3d_model", true)
 			add_child(bot)
 			placed = true
 
