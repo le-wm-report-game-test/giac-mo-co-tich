@@ -38,10 +38,10 @@ func _collect_ground_materials() -> void:
 	_collect_materials_recursive(forest)
 
 func _collect_materials_recursive(node: Node) -> void:
-	if node is MultiMeshInstance3D:
-		var mmi := node as MultiMeshInstance3D
-		if mmi.material_override is ShaderMaterial:
-			var sm := mmi.material_override as ShaderMaterial
+	if node is MultiMeshInstance3D or node is MeshInstance3D:
+		var geom := node as GeometryInstance3D
+		if geom.material_override is ShaderMaterial:
+			var sm := geom.material_override as ShaderMaterial
 			if _uses_ground_shader(sm):
 				_ground_materials.append(sm)
 	for child in node.get_children():

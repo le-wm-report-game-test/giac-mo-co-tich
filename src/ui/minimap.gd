@@ -47,7 +47,7 @@ func _world_to_canvas(world_pos: Vector3) -> Vector2:
 	var clamped_x := clampf(world_pos.x, -map_limit, map_limit)
 	var clamped_z := clampf(world_pos.z, -map_limit, map_limit)
 	var cx := remap(clamped_x, -map_limit, map_limit, 0.0, size.x)
-	var cy := remap(clamped_z, map_limit, -map_limit, 0.0, size.y)
+	var cy := remap(clamped_z, -map_limit, map_limit, 0.0, size.y)
 	return Vector2(cx, cy)
 
 
