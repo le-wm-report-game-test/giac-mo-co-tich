@@ -61,5 +61,4 @@ theme/custom_font="res://Assets/UI/Fonts/Anton/Anton-Regular.ttf"
 
 rendering_device/driver.windows="d3d12"
 environment/ssil/quality=1
-environment/ssil/half_size=true
 environment/ssil/blur_passes=2
