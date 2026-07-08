@@ -74,7 +74,7 @@ func get_quality_preset() -> String:
 	return "Performance" if _quality == LightingQuality.PERFORMANCE else "Cinematic"
 
 func set_user_brightness(multiplier: float) -> void:
-	_user_brightness = clampf(multiplier, 0.85, 1.15)
+	_user_brightness = clampf(multiplier, 0.5, 2.0)
 	if _environment != null and _current_profile != null:
 		_environment.tonemap_exposure = _current_profile.exposure * _user_brightness
 
@@ -270,16 +270,18 @@ func _apply_quality_settings() -> void:
 	_environment.ssao_power = 1.35
 	_environment.ssao_detail = 0.62 if cinematic else 0.32
 	_environment.ssao_horizon = 0.4
+	# SSIL is expensive — enable only for Cinematic.
+	# SSAO + volumetric fog carry the depth stack in Performance mode.
 	_environment.ssil_enabled = cinematic
 	_environment.ssil_radius = 2.2
 	_environment.ssil_intensity = 0.52
-	_environment.volumetric_fog_enabled = true
+	_environment.volumetric_fog_enabled = cinematic
 	_environment.volumetric_fog_length = 58.0 if cinematic else 38.0
 	_environment.fog_enabled = true
 	_environment.fog_light_energy = 0.56 if cinematic else 0.48
 	_environment.fog_aerial_perspective = 0.62
 	_environment.fog_sky_affect = 0.5
-	_environment.glow_enabled = true
+	_environment.glow_enabled = cinematic
 	_environment.glow_bloom = 0.045
 	_environment.glow_strength = 0.1 if cinematic else 0.07
 	_environment.glow_blend_mode = Environment.GLOW_BLEND_MODE_SOFTLIGHT

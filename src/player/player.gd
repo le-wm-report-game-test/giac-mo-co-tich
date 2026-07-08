@@ -604,12 +604,17 @@ func _update_sprite() -> void:
 			
 	_update_attack_hitbox_position()
 
+const CRIT_CHANCE: float = 0.15
+const CRIT_MULTIPLIER: float = 2.0
+
 func _on_hitbox_area_entered(area: Area3D) -> void:
 	if area is HurtboxComponent:
 		var hurtbox := area as HurtboxComponent
-		hurtbox.receive_hit(attack_damage, self)
+		var is_critical := randf() < CRIT_CHANCE
+		var final_damage := attack_damage * CRIT_MULTIPLIER if is_critical else attack_damage
+		hurtbox.receive_hit(final_damage, self, is_critical)
 
-func _on_damaged(amount: float, source: Node3D) -> void:
+func _on_damaged(amount: float, source: Node3D, is_critical: bool = false) -> void:
 	if anim_state == AnimState.DEATH:
 		return
 

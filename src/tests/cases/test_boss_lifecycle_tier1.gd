@@ -15,7 +15,7 @@ func test_boss_not_spawned_initially() -> void:
 	assert_false(_world_manager.boss_spawned, "Boss should not be spawned initially")
 	var bosses := tree.get_nodes_in_group("boss")
 	assert_eq(bosses.size(), 0, "No boss in group 'boss' initially")
-	var hud_bar: Control = _world_manager.get_node_or_null("UI/BossHealthContainer") as Control
+	var hud_bar: Control = _world_manager.get_node_or_null("UI/BossHUDContainer") as Control
 	assert_true(hud_bar == null or not hud_bar.visible, "Boss health UI should be hidden/non-existent initially")
 
 func test_boss_spawn_trigger() -> void:
@@ -61,9 +61,9 @@ func test_boss_hud_visibility_on_spawn() -> void:
 	await wait_physics_frames(2)
 	dummy.queue_free()
 	
-	var hud_bar: Control = world_instance.get_node_or_null("WorldManager/UI/BossHealthContainer") as Control
-	assert_not_null(hud_bar, "HUD BossHealthContainer should exist")
-	assert_true(hud_bar.visible, "HUD BossHealthContainer should be visible")
+	var hud_bar: Control = world_instance.get_node_or_null("WorldManager/UI/BossHUDContainer") as Control
+	assert_not_null(hud_bar, "HUD BossHUDContainer should exist")
+	assert_true(hud_bar.visible, "HUD BossHUDContainer should be visible")
 
 func test_boss_death_sequence() -> void:
 	_world_manager.orcs_to_kill_for_boss = 1
@@ -88,8 +88,8 @@ func test_boss_death_sequence() -> void:
 	await tree.create_timer(2.5).timeout
 	assert_false(is_instance_valid(boss), "Boss should be freed and invalid")
 	
-	var hud_bar: Control = world_instance.get_node_or_null("WorldManager/UI/BossHealthContainer") as Control
-	assert_true(hud_bar == null or not hud_bar.visible, "HUD BossHealthContainer should be hidden on boss death")
+	var hud_bar: Control = world_instance.get_node_or_null("WorldManager/UI/BossHUDContainer") as Control
+	assert_true(hud_bar == null or not hud_bar.visible, "HUD BossHUDContainer should be hidden on boss death")
 
 func test_boss_victory_dialog_targets_main_menu() -> void:
 	# Khi boss bị đánh bại, hiện lời chúc mừng, bài văn và nút về menu chính

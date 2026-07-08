@@ -10,7 +10,8 @@ extends Control
 
 # Cache dữ liệu vị trí để _draw() sử dụng
 var _player_pos: Vector3 = Vector3.ZERO
-var _enemies: Array[Dictionary] = []  # [{position: Vector3, is_boss: bool}]
+var _enemies: Array[Dictionary] = []  # [{position: Vector3, is_boss: bool}] — chỉ quái đang tấn công
+var _foods: Array[Vector3] = []
 var _player_valid: bool = false
 
 # ─── Constants ───────────────────────────────────────────────────────────────
@@ -20,9 +21,11 @@ const BORDER_COLOR := Color(0.8, 0.8, 0.85, 0.9)
 const GRID_COLOR := Color(0.3, 0.3, 0.35, 0.4)
 const PLAYER_COLOR := Color(0.2, 0.5, 1.0)
 const ENEMY_COLOR := Color(1.0, 0.15, 0.15)
+const FOOD_COLOR := Color(0.25, 0.95, 0.35)
 const PLAYER_RADIUS: float = 3.0
 const ENEMY_RADIUS: float = 3.0
 const BOSS_RADIUS: float = 6.0
+const FOOD_RADIUS: float = 1.0
 
 
 func setup(size_pixels: Vector2) -> void:
@@ -31,9 +34,10 @@ func setup(size_pixels: Vector2) -> void:
 	queue_redraw()
 
 
-func update_positions(player_pos: Vector3, enemies: Array[Dictionary]) -> void:
+func update_positions(player_pos: Vector3, enemies: Array[Dictionary], foods: Array[Vector3] = []) -> void:
 	_player_pos = player_pos
 	_enemies = enemies
+	_foods = foods
 	_player_valid = true
 	queue_redraw()
 
@@ -57,8 +61,12 @@ func _draw() -> void:
 	
 	# Vẽ dot player theo vị trí thật trên map
 	draw_circle(_world_to_canvas(_player_pos), PLAYER_RADIUS, PLAYER_COLOR)
-	
-	# Vẽ dot orc
+
+	# Vẽ dot food (xanh lá, nhỏ)
+	for food_pos: Vector3 in _foods:
+		draw_circle(_world_to_canvas(food_pos), FOOD_RADIUS, FOOD_COLOR)
+
+	# Vẽ dot orc đang tấn công
 	for enemy: Dictionary in _enemies:
 		var enemy_pos: Vector3 = enemy.get("position", Vector3.ZERO)
 		var is_boss: bool = enemy.get("is_boss", false)

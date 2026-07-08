@@ -13,6 +13,7 @@ func test_clear_profile_is_the_cinematic_baseline() -> void:
 	assert_almost_eq(sun.light_energy, 1.65, 0.01, "Clear profile must use a strong but controlled warm key light")
 	assert_almost_eq(world_environment.environment.ambient_light_energy, 0.42, 0.01, "Cool ambient light must preserve readable shadows without black crush")
 	assert_true(world_environment.environment.volumetric_fog_enabled, "Cinematic baseline must enable volumetric fog")
+	assert_false(world_environment.environment.ssil_enabled, "Orthographic cinematic mode must avoid the disproportionate SSIL cost")
 	assert_true(world_environment.environment.fog_enabled, "Orthographic view must use light depth fog for layer separation")
 
 func test_weather_profiles_change_the_complete_light_stack() -> void:
@@ -33,9 +34,13 @@ func test_performance_quality_reduces_expensive_features() -> void:
 	director.set_quality_preset("Performance")
 	assert_eq(director.get_quality_preset(), "Performance", "Performance preset must be selectable")
 	assert_false(environment.ssil_enabled, "Performance must disable SSIL")
+	assert_false(environment.volumetric_fog_enabled, "Performance must disable volumetric fog")
+	assert_false(environment.glow_enabled, "Performance must disable glow")
 	assert_almost_eq(sun.directional_shadow_max_distance, 46.0, 0.01, "Performance must reduce shadow distance")
 	director.set_quality_preset("Cinematic")
-	assert_true(environment.ssil_enabled, "Cinematic must restore SSIL")
+	assert_false(environment.ssil_enabled, "Cinematic must use SSAO and fog instead of SSIL")
+	assert_true(environment.volumetric_fog_enabled, "Cinematic must restore volumetric fog")
+	assert_true(environment.glow_enabled, "Cinematic must restore glow")
 	assert_almost_eq(sun.directional_shadow_max_distance, 68.0, 0.01, "Cinematic must restore the wider shadow range")
 	assert_eq(sun.directional_shadow_mode, DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS, "Cinematic must stay within the two-cascade GPU budget")
 

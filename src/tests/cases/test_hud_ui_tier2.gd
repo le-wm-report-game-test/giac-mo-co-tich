@@ -55,7 +55,7 @@ func test_boss_health_bar_death_transition() -> void:
 	var world_manager: Node = world_instance.get_node_or_null("WorldManager")
 	assert_not_null(world_manager, "WorldManager must exist")
 	
-	var boss_container: Control = world_manager.get_node_or_null("UI/BossHealthContainer")
+	var boss_container: Control = world_manager.get_node_or_null("UI/BossHUDContainer")
 	assert_not_null(boss_container, "Boss health container must exist")
 	
 	world_manager.call("_show_boss_health_bar")
