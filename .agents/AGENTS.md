@@ -25,6 +25,8 @@ Khi nhận yêu cầu từ người dùng, hãy đối chiếu với bảng dư�
 | **Định nghĩa thuật ngữ game, viết/sửa từ điển thuật ngữ (`CONTEXT.md`), viết quyết định kiến trúc (ADR)** | `domain-modeling` | Giúp giữ ngôn ngữ đồng nhất (Ubiquitous Language) và lưu lại các quyết định kiến trúc quan trọng khó thay đổi tại `docs/adr/`. |
 | **Thiết kế giao diện người dùng (HUD, UI), Menu, UX tương tác, thiết kế accessibility (tiếp cận)** | `ui-ux-designer` | Hướng dẫn cách tạo UI khoa học, giảm tải nhận thức, tuân thủ WCAG và tối ưu luồng trải nghiệm người chơi. |
 | **Quy chuẩn clean code, DRY, cấu trúc file, thiết kế module độc lập, early return pattern** | `software-architecture` | Đảm bảo code sạch, các file GDScript không vượt quá 200 dòng, các hàm dưới 50 dòng, tránh đặt tên chung chung như `utils.gd` hay `helpers.gd`. |
+| **Tạo/sửa hệ thống chiến đấu, kỹ năng tấn công, CC, AoE, hitbox/hurtbox, animation attack, input buffer** | `combat-design-rules` | Bắt buộc đọc trước khi viết bất kỳ code combat nào. Enforce 3-pha attack, cấm Hard Stun, AoE phải có khe hở và telegraph, player response ≤100ms. Tham chiếu `REFERENCE.md` cho code templates. |
+| **Thiết kế level/màn chơi, sắp đặt cây cối/vật cản, ánh sáng/màu sắc bối cảnh, vẽ vật liệu 3D** | `level-art-rules` | Bắt buộc đọc trước khi thiết kế level, dựng cảnh 3D, hoặc cấu hình ánh sáng. Enforce thuật toán sinh cụm (clustering), tỷ lệ không gian D/L, 3-layer storytelling, grayscale test và prompt mẫu. |
 | **Phản biện kế hoạch phát triển, stress-test thiết kế hệ thống trước khi code** | `grill-me` hoặc `grill-with-docs` | `grill-me` dùng để hỏi đáp làm rõ nghiệp vụ. `grill-with-docs` kết hợp đối chiếu với glossary trong `CONTEXT.md`. |
 
 ---
