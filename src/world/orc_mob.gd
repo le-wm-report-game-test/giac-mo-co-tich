@@ -41,6 +41,10 @@ const BOSS_HEALTH_BAR_HEIGHT_FACTOR: float = 58.0
 # để quái to/nhỏ khác nhau vẫn có thanh máu dễ đọc như nhau.
 const REGULAR_HEALTH_BAR_PIXEL_SIZE: float = 0.008
 const BOSS_HEALTH_BAR_PIXEL_SIZE: float = 0.012
+# Tỉ lệ thanh máu so với sprite pixel size; dùng để override kích thước
+# thanh máu cho các lớp con (vd. OrcBossMob) mà không vi phạm quy tắc
+# GDScript không cho override const ở lớp cha.
+const HEALTH_BAR_PIXEL_SIZE_FACTOR: float = 0.519481  # 0.012 / 0.0231
 
 @export var speed: float = 2.0
 @export var gravity: float = 9.8

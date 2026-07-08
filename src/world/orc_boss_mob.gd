@@ -10,7 +10,7 @@ const HURT_ATLAS_PATH := "res://Assets/enemies/orc_boss/boss_hurt.png"
 const DEATH_ATLAS_PATH := "res://Assets/enemies/orc_boss/boss_death.png"
 const BOSS_VISUAL_PIXEL_SIZE: float = 0.02
 const BOSS_SPRITE_TINT := Color(1.50, 1.50, 1.38, 1.5)
-const BOSS_HEALTH_BAR_PIXEL_SIZE: float = OrcMob.REGULAR_SPRITE_PIXEL_SIZE * HEALTH_BAR_PIXEL_SIZE_FACTOR
+const BOSS_HEALTH_BAR_RENDER_PIXEL_SIZE: float = 0.012  # equals OrcMob.REGULAR_SPRITE_PIXEL_SIZE * OrcMob.HEALTH_BAR_PIXEL_SIZE_FACTOR
 const BOSS_HEALTH_BAR_TOP_MARGIN: float = 0.06
 
 const WALK_DIR_UP_LEFT := "wa"
@@ -60,7 +60,7 @@ func _ready() -> void:
 		sprite.position.y = _get_grounded_sprite_y()
 		sprite.modulate = BOSS_SPRITE_TINT
 	if is_instance_valid(health_bar_sprite):
-		health_bar_sprite.pixel_size = BOSS_HEALTH_BAR_PIXEL_SIZE
+		health_bar_sprite.pixel_size = BOSS_HEALTH_BAR_RENDER_PIXEL_SIZE
 		health_bar_sprite.position.y = _get_health_bar_height(is_in_group("boss"))
 	if is_instance_valid(health_component):
 		health_component.max_health = max_health
@@ -311,7 +311,7 @@ func _update_sprite() -> void:
 	_active_frame_size = region.size
 	sprite.position.y = _get_grounded_sprite_y()
 	if is_instance_valid(health_bar_sprite):
-		health_bar_sprite.pixel_size = BOSS_HEALTH_BAR_PIXEL_SIZE
+		health_bar_sprite.pixel_size = BOSS_HEALTH_BAR_RENDER_PIXEL_SIZE
 		health_bar_sprite.position.y = _get_health_bar_height(is_in_group("boss"))
 
 func _should_flip_walk_direction(direction_key: String) -> bool:
