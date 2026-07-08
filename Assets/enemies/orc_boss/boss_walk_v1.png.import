@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://rgo2au1m5inv"
-path="res://.godot/imported/boss_death.png-97395def930a8e9b4322d01126d7d3f1.ctex"
+uid="uid://bu18tnj1w7sy5"
+path="res://.godot/imported/boss_walk_v1.png-b3bb157414c56466b10a5b6ea2276207.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/enemies/orc_boss/boss_death.png"
-dest_files=["res://.godot/imported/boss_death.png-97395def930a8e9b4322d01126d7d3f1.ctex"]
+source_file="res://Assets/enemies/orc_boss/boss_walk_v1.png"
+dest_files=["res://.godot/imported/boss_walk_v1.png-b3bb157414c56466b10a5b6ea2276207.ctex"]
 
 [params]
 

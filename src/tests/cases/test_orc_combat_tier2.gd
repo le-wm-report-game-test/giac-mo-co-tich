@@ -96,3 +96,32 @@ func test_boss_health_bar_is_larger_and_hides_on_death() -> void:
 	boss.health_component.take_damage(boss.health_component.max_health, null)
 	assert_false(boss.health_bar_sprite.visible, "Boss health bar should hide immediately on death")
 	boss.queue_free()
+
+func test_boss_visual_scale_stays_close_to_regular_orc() -> void:
+	var boss := OrcBossMob.new()
+	boss.add_to_group("boss")
+	world_instance.add_child(boss)
+	boss.set_physics_process(false)
+
+	var boss_sprite := boss.sprite as Sprite3D
+	assert_not_null(boss_sprite, "Boss should create its Sprite3D visual")
+	assert_almost_eq(boss_sprite.pixel_size, OrcBossMob.BOSS_VISUAL_PIXEL_SIZE, 0.0001, "Boss visual should follow the dedicated boss scale constant")
+	boss.queue_free()
+
+func test_boss_diagonal_walk_falls_back_to_cardinal_frames() -> void:
+	var boss := OrcBossMob.new()
+	boss.add_to_group("boss")
+	world_instance.add_child(boss)
+	boss.set_physics_process(false)
+
+	var diagonal_keys := [
+		OrcBossMob.WALK_DIR_UP_LEFT,
+		OrcBossMob.WALK_DIR_UP_RIGHT,
+		OrcBossMob.WALK_DIR_DOWN_LEFT,
+		OrcBossMob.WALK_DIR_DOWN_RIGHT,
+	]
+	for key in diagonal_keys:
+		boss._walk_direction_key = key
+		var frames: Array = boss._get_frames_for_state("walk")
+		assert_true(frames.is_empty(), "Boss walk lookup should not provide separate diagonal frame sets anymore")
+	boss.queue_free()

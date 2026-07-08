@@ -177,16 +177,16 @@ func _on_enemy_died(enemy: Node3D) -> void:
 
 func _spawn_boss() -> void:
 	boss_spawned = true
-	print("BOSS SPAWNED! Chằn Tinh xuất hiện!")
+	print("BOSS SPAWNED! Orc Boss xuất hiện!")
 	
-	# Create boss using Minotaur asset
+	# Create boss using Orc Boss atlas asset set
 	var boss := CharacterBody3D.new()
 	boss.name = "BossChằnTinh"
 	boss.add_to_group("boss")
 	boss.add_to_group("orc_mobs")
 	
 	# Script will be added via set_script
-	var boss_script := preload("res://src/world/chan_tinh_mob.gd")
+	var boss_script := preload("res://src/world/orc_boss_mob.gd")
 	boss.set_script(boss_script)
 	
 	# Position boss at boss arena center

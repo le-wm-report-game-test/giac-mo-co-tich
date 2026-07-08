@@ -60,6 +60,6 @@ theme/custom_font="res://Assets/UI/Fonts/Anton/Anton-Regular.ttf"
 [rendering]
 
 rendering_device/driver.windows="d3d12"
+renderer/rendering_method="gl_compatibility"
 environment/ssil/quality=1
-environment/ssil/half_size=true
 environment/ssil/blur_passes=2
