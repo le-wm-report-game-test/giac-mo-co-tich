@@ -36,7 +36,12 @@ func _ready() -> void:
 	var world_manager := WorldManager.new()
 	world_manager.name = "WorldManager"
 	add_child(world_manager)
-	
+
+	# 3.5. Create Slime Manager (passive ambient slimes scattered around the forest)
+	var slime_manager := WorldSlimeManager.new()
+	slime_manager.name = "SlimeManager"
+	add_child(slime_manager)
+
 	# 4. Create Audio Manager
 	var audio_manager := AudioManager.new()
 	audio_manager.name = "AudioManager"
