@@ -217,10 +217,10 @@ func test_player_visual_assets_are_prewarmed_for_startup() -> void:
 		return
 
 	var required_paths := [
-		"res://Assets/player/thach_sanh/movement_frames/down_idle_0.png",
-		"res://Assets/player/thach_sanh/movement_frames/up_walk_0.png",
-		"res://Assets/player/thach_sanh/movement_frames/right_attack_0.png",
-		"res://Assets/player/thach_sanh/movement_frames/left_effect_0.png",
+		"res://Assets/_ThachSanh/idle/down_idle_0.png",
+		"res://Assets/_ThachSanh/run/up_run_0.png",
+		"res://Assets/_ThachSanh/attack/right_attack_0.png",
+		"res://Assets/_ThachSanh/hurt/left_hurt_0.png",
 	]
 
 	for tex_path: String in required_paths:
@@ -302,7 +302,7 @@ func test_player_walk_w_a_uses_up_left_direction_with_left_facing_asset() -> voi
 
 	assert_eq(player.move_direction, Player.MoveDir.UP_LEFT, "W + A should keep the up-left movement direction")
 	assert_true(Vector3(player.hitbox_shape.position.x, 0.0, player.hitbox_shape.position.z).dot(up_left_dir) > 0.1, "W + A should keep hitbox aligned with up-left movement")
-	assert_true(player.sprite.texture.resource_path.ends_with("left_walk_0.png"), "W + A should use a clearly left-facing walk asset")
+	assert_true(player.sprite.texture.resource_path.ends_with("left_run_0.png"), "W + A should use a clearly left-facing walk asset")
 
 func test_player_hitbox_supports_diagonal_facing() -> void:
 	# Interaction 9: HÆ°á»›ng di chuyá»ƒn chÃ©o pháº£i cáº­p nháº­t hitbox theo 8 hÆ°á»›ng

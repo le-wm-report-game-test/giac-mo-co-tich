@@ -20,9 +20,9 @@ var _target_velocity: Vector3 = Vector3.ZERO
 enum AnimState { IDLE, WALK, ATTACK, HURT, DEATH }
 enum MoveDir { DOWN, UP, RIGHT, LEFT, DOWN_RIGHT, DOWN_LEFT, UP_RIGHT, UP_LEFT }
 
-const MOVEMENT_IDLE_FRAMES := 3
-const MOVEMENT_WALK_FRAMES := 8
-const MOVEMENT_FRAME_DIR := "res://Assets/player/thach_sanh/movement_frames"
+const MOVEMENT_IDLE_FRAMES := 2
+const MOVEMENT_WALK_FRAMES := 3
+const MOVEMENT_FRAME_DIR := "res://Assets/_ThachSanh"
 const PLAYER_VISUAL_DIRECTIONS := [
 	"down",
 	"up",
@@ -34,13 +34,13 @@ const PLAYER_VISUAL_DIRECTIONS := [
 	"up_left",
 ]
 const ANIMATION_FRAME_COUNTS := {
-	"idle": 3,
-	"walk": 8,
-	"attack": 4,
-	"hurt": 4,
-	"death": 4,
+	"idle": 2,
+	"run": 3,
+	"attack": 2,
+	"hurt": 1,
+	"death": 1,
 }
-const ATTACK_EFFECT_FRAME_COUNT := 2
+const ATTACK_EFFECT_FRAME_COUNT := 0
 const WORLD_RENDER_MASK: int = 1
 const COMBAT_ACTOR_RENDER_MASK: int = 2
 const PLAYER_ACCENT_RENDER_MASK: int = 4
@@ -145,12 +145,14 @@ func _ready() -> void:
 func prewarm_visual_assets() -> void:
 	for dir_name: String in PLAYER_VISUAL_DIRECTIONS:
 		for anim_name: String in ANIMATION_FRAME_COUNTS:
+			var folder := anim_name
+			var suffix := anim_name
+			if anim_name == "death":
+				folder = "hurt"
+				suffix = "hurt"
 			var frame_count: int = ANIMATION_FRAME_COUNTS[anim_name]
 			for frame_index in range(frame_count):
-				_cache_texture("%s/%s_%s_%d.png" % [MOVEMENT_FRAME_DIR, dir_name, anim_name, frame_index])
-
-		for effect_frame in range(ATTACK_EFFECT_FRAME_COUNT):
-			_cache_texture("%s/%s_effect_%d.png" % [MOVEMENT_FRAME_DIR, dir_name, effect_frame])
+				_cache_texture("%s/%s/%s_%s_%d.png" % [MOVEMENT_FRAME_DIR, folder, dir_name, suffix, frame_index])
 
 func _cache_texture(tex_path: String) -> Texture2D:
 	if _texture_cache.has(tex_path):
@@ -500,16 +502,16 @@ func _process_animation(delta: float) -> void:
 		anim_frame += 1
 		_check_animation_end()
 	
-	# Enable hitbox during specific attack frame (frame index 2 is the strike point in 4-frame animation)
+	# Enable hitbox during specific attack frame (frame index 1 is the strike point in 2-frame animation)
 	if anim_state == AnimState.ATTACK:
-		hitbox_area.monitoring = (anim_frame == 2)
+		hitbox_area.monitoring = (anim_frame == 1)
 	
 	_update_sprite()
 
 func _check_animation_end() -> void:
 	match anim_state:
 		AnimState.IDLE:
-			var max_frames := 3
+			var max_frames := 2
 			if anim_frame >= max_frames:
 				anim_frame = 0
 		AnimState.WALK:
@@ -517,7 +519,7 @@ func _check_animation_end() -> void:
 			if anim_frame >= max_frames:
 				anim_frame = 0
 		AnimState.ATTACK:
-			var max_frames := 4
+			var max_frames := 2
 			if anim_frame >= max_frames:
 				is_attacking = false
 				anim_state = AnimState.IDLE
@@ -525,44 +527,50 @@ func _check_animation_end() -> void:
 				attack_cooldown = 0.3
 				hitbox_area.monitoring = false
 		AnimState.HURT:
-			var max_frames := 4
+			var max_frames := 1
 			if anim_frame >= max_frames:
 				anim_state = AnimState.IDLE
 				anim_frame = 0
 		AnimState.DEATH:
-			var max_frames := 4
+			var max_frames := 1
 			if anim_frame >= max_frames:
 				set_physics_process(false)
 
 func _update_sprite() -> void:
 	var frame_count := 1
-	var anim_name := "idle"
+	var folder := "idle"
+	var suffix := "idle"
 	
 	match anim_state:
 		AnimState.IDLE:
-			frame_count = 3
-			anim_name = "idle"
+			frame_count = 2
+			folder = "idle"
+			suffix = "idle"
 		AnimState.WALK:
-			frame_count = 8
-			anim_name = "walk"
+			frame_count = 3
+			folder = "run"
+			suffix = "run"
 		AnimState.ATTACK:
-			frame_count = 4
-			anim_name = "attack"
+			frame_count = 2
+			folder = "attack"
+			suffix = "attack"
 		AnimState.HURT:
-			frame_count = 4
-			anim_name = "hurt"
+			frame_count = 1
+			folder = "hurt"
+			suffix = "hurt"
 		AnimState.DEATH:
-			frame_count = 4
-			anim_name = "death"
+			frame_count = 1
+			folder = "hurt"
+			suffix = "hurt"
 
 	var clamped_frame := clampi(anim_frame, 0, frame_count - 1)
 	var dir_name := _get_visual_dir_name(move_direction)
-	var tex_path := "%s/%s_%s_%d.png" % [MOVEMENT_FRAME_DIR, dir_name, anim_name, clamped_frame]
+	var tex_path := "%s/%s/%s_%s_%d.png" % [MOVEMENT_FRAME_DIR, folder, dir_name, suffix, clamped_frame]
 	
 	var tex := _cache_texture(tex_path)
 	if tex == null:
 		# Fallback to down direction if specific direction is missing
-		var fallback_path := "%s/down_%s_%d.png" % [MOVEMENT_FRAME_DIR, anim_name, clamped_frame]
+		var fallback_path := "%s/%s/down_%s_%d.png" % [MOVEMENT_FRAME_DIR, folder, suffix, clamped_frame]
 		tex = _cache_texture(fallback_path)
 
 	if tex == null:
@@ -585,22 +593,7 @@ func _update_sprite() -> void:
 	
 	# Update attack effect visibility and texture
 	if attack_effect:
-		if anim_state == AnimState.ATTACK and (clamped_frame == 2 or clamped_frame == 3):
-			var effect_frame := clamped_frame - 2  # frame 2 -> effect 0, frame 3 -> effect 1
-			var eff_path := "%s/%s_effect_%d.png" % [MOVEMENT_FRAME_DIR, dir_name, effect_frame]
-			var eff_tex := _cache_texture(eff_path)
-			if eff_tex:
-				attack_effect.texture = eff_tex
-				attack_effect.region_enabled = false
-				attack_effect.flip_h = false
-				var eff_h := eff_tex.get_height()
-				attack_effect.pixel_size = target_sprite_height / eff_h
-				attack_effect.position.y = sprite.position.y # align with player height
-				attack_effect.visible = true
-			else:
-				attack_effect.visible = false
-		else:
-			attack_effect.visible = false
+		attack_effect.visible = false
 			
 	_update_attack_hitbox_position()
 
