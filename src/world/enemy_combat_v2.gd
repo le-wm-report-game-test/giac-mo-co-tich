@@ -10,6 +10,8 @@
 class_name EnemyCombatV2
 extends Node
 
+const AttackTelegraph = preload("res://src/world/attack_telegraph.gd")
+
 enum AttackPhase { ANTICIPATION, ATTACK, RECOVERY }
 
 @export var enabled: bool = true
@@ -28,10 +30,17 @@ var recovery_dur: float = 0.0
 # Lifecycle
 var is_active: bool = false
 
+# Telegraph configuration (set by enemy before attack starts)
+var telegraph_radius: float = 1.0
+var telegraph_duration_override: float = 0.0  # 0 means use anticipation_dur
+
 # Owner wiring
 var _hitbox_component: Node = null
+var _telegraph_node: Node3D = null
+var _enemy_owner: Node3D = null
 
 func bind(owner: Node3D, hitbox: Node) -> void:
+	_enemy_owner = owner
 	_hitbox_component = hitbox
 
 func on_attack_started(anim_fps: float, attack_frame_count: int) -> void:
@@ -94,11 +103,18 @@ func _set_hitbox_monitoring(on: bool) -> void:
 		_hitbox_component.monitoring = on
 
 func _spawn_telegraph() -> void:
-	# Telegraph is created by the enemy (which knows its AoE radius). Hook only.
-	# When Phase 2 lands attack_telegraph.gd, enemy._ready will register a
-	# callback here; for Phase 1.5 we leave the no-op default.
-	pass
+	# Telegraph must be visible for the entire ANTICIPATION window, never
+	# less than telegraph_min_duration (E2 minimum).
+	if not _enemy_owner or not is_instance_valid(_enemy_owner):
+		return
+	var dur: float = telegraph_duration_override
+	if dur <= 0.0:
+		dur = maxf(anticipation_dur, telegraph_min_duration)
+	var telegraph: Node3D = AttackTelegraph.build_circle(_enemy_owner.global_position, telegraph_radius, dur)
+	get_tree().current_scene.add_child(telegraph)
+	_telegraph_node = telegraph
 
 func _remove_telegraph() -> void:
-	# Stub — no telegraph spawned yet (Phase 2 will provide one).
-	pass
+	if _telegraph_node and is_instance_valid(_telegraph_node):
+		_telegraph_node.cancel()
+		_telegraph_node = null

@@ -220,6 +220,7 @@ func _setup_health_component() -> void:
 
 	if combat_v2:
 		combat_v2.bind(self, hitbox_component)
+		combat_v2.telegraph_radius = attack_range * 1.1
 
 func _setup_health_bar(is_boss: bool) -> void:
 	var bar_size := BOSS_HEALTH_BAR_SIZE if is_boss else REGULAR_HEALTH_BAR_SIZE

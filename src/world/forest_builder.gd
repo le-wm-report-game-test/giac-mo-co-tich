@@ -155,6 +155,8 @@ func _ready() -> void:
 	_build_ground_collision()
 	_build_visual_ground()
 	_build_lake()
+	_build_map_walls()
+	_build_boss_arena_enclosure()
 	_scatter_trees()
 	_scatter_bushes()
 	_scatter_decorations()
@@ -855,3 +857,74 @@ func _is_under_large_tree_canopy(x: float, z: float) -> bool:
 		if dist < 4.0:
 			return true
 	return false
+
+# ─── Map Walls (C6) ────────────────────────────────────────────────────────
+# Invisible static bodies around the playable area at MAP_HALF = 50.
+# Players and enemies cannot walk off the map.
+func _build_map_walls() -> void:
+	const WALL_HEIGHT: float = 6.0
+	const WALL_THICKNESS: float = 1.0
+	var wall_specs: Array = [
+		{"pos": Vector3(0.0, WALL_HEIGHT * 0.5, -MAP_HALF), "size": Vector3(MAP_HALF * 2.0 + WALL_THICKNESS * 2.0, WALL_HEIGHT, WALL_THICKNESS)},
+		{"pos": Vector3(0.0, WALL_HEIGHT * 0.5,  MAP_HALF), "size": Vector3(MAP_HALF * 2.0 + WALL_THICKNESS * 2.0, WALL_HEIGHT, WALL_THICKNESS)},
+		{"pos": Vector3(-MAP_HALF, WALL_HEIGHT * 0.5, 0.0), "size": Vector3(WALL_THICKNESS, WALL_HEIGHT, MAP_HALF * 2.0 + WALL_THICKNESS * 2.0)},
+		{"pos": Vector3( MAP_HALF, WALL_HEIGHT * 0.5, 0.0), "size": Vector3(WALL_THICKNESS, WALL_HEIGHT, MAP_HALF * 2.0 + WALL_THICKNESS * 2.0)},
+	]
+	var walls_root := Node3D.new()
+	walls_root.name = "MapWalls"
+	add_child(walls_root)
+	for spec in wall_specs:
+		var body := StaticBody3D.new()
+		body.position = spec["pos"]
+		body.collision_layer = 1
+		body.collision_mask = 0
+		var shape := CollisionShape3D.new()
+		var box := BoxShape3D.new()
+		box.size = spec["size"]
+		shape.shape = box
+		body.add_child(shape)
+		walls_root.add_child(body)
+
+# ─── Boss Arena Enclosure (C7) ─────────────────────────────────────────────
+# 8 large boulders arranged in a ring around the boss arena center.
+# Creates visual framing and a hard physical boundary.
+func _build_boss_arena_enclosure() -> void:
+	const BOSS_ARENA_CENTER := Vector3(-15.0, 0.0, -15.0)
+	const BOSS_ARENA_RADIUS: float = 9.0
+	const BOSS_ARENA_BOULDER_COUNT: int = 8
+	const BOSS_ARENA_BOULDER_SCALE: float = 2.8
+	var enclosure_root := Node3D.new()
+	enclosure_root.name = "BossArenaEnclosure"
+	add_child(enclosure_root)
+	for i in BOSS_ARENA_BOULDER_COUNT:
+		var angle: float = TAU * float(i) / float(BOSS_ARENA_BOULDER_COUNT)
+		var pos := BOSS_ARENA_CENTER + Vector3(cos(angle) * BOSS_ARENA_RADIUS, 0.0, sin(angle) * BOSS_ARENA_RADIUS)
+		var boulder := _spawn_boss_arena_boulder(pos, BOSS_ARENA_BOULDER_SCALE)
+		if boulder:
+			enclosure_root.add_child(boulder)
+
+func _spawn_boss_arena_boulder(pos: Vector3, scale_val: float) -> StaticBody3D:
+	# Use the same boulder mesh that _scatter_boulders uses. We don't need
+	# the full visual material setup; a single large rock is enough.
+	var body := StaticBody3D.new()
+	body.position = pos
+	body.scale = Vector3.ONE * scale_val
+	var shape := CollisionShape3D.new()
+	var sphere := SphereShape3D.new()
+	sphere.radius = 0.6
+	shape.shape = sphere
+	body.add_child(shape)
+	# Visual approximation: a small SphereMesh so the boulder is visible
+	var mesh := MeshInstance3D.new()
+	var sphere_mesh := SphereMesh.new()
+	sphere_mesh.radius = 0.5
+	sphere_mesh.height = 1.0
+	sphere_mesh.radial_segments = 8
+	sphere_mesh.rings = 6
+	mesh.mesh = sphere_mesh
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.45, 0.4, 0.35)
+	mat.roughness = 0.95
+	mesh.set_surface_override_material(0, mat)
+	body.add_child(mesh)
+	return body
