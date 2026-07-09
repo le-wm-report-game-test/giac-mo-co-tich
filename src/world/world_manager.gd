@@ -5,6 +5,7 @@ extends Node
 
 const UITheme = preload("res://src/ui/ui_theme.gd")
 const SettingsMenuScript = preload("res://src/common/settings_menu.gd")
+const BossHealthBar = preload("res://src/ui/boss_health_bar.gd")
 
 # ─── Boss Config ─────────────────────────────────────────────────────────────
 @export var orcs_to_kill_for_boss: int = 5
@@ -153,9 +154,12 @@ func _process(delta: float) -> void:
 # BOSS SYSTEM
 # ══════════════════════════════════════════════════════════════════════════════
 
+var _boss_health_bar: BossHealthBar = null
+
 func _on_enemy_died(enemy: Node3D) -> void:
 	if enemy.is_in_group("boss"):
-		_hide_boss_health_bar()
+		if _boss_health_bar and is_instance_valid(_boss_health_bar):
+			_boss_health_bar.detach()
 		boss_instance = null
 		var lighting := get_tree().get_first_node_in_group("lighting_director") as LightingDirector
 		if lighting != null:
@@ -205,7 +209,7 @@ func _spawn_boss() -> void:
 		boss.detection_range = 20.0
 	
 	# Show boss health bar
-	_show_boss_health_bar()
+	_show_boss_health_bar(boss)
 	
 	# Activate camera magnet at boss arena
 	_activate_camera_magnet(Vector3(-15.0, 0.0, -15.0), 25.0, 8.0)
@@ -753,11 +757,20 @@ func _on_player_health_changed(current: float, max_h: float) -> void:
 func _format_orc_counter_text() -> String:
 	return "Orc đã hạ: %d/%d" % [orcs_killed, orcs_to_kill_for_boss]
 
-func _show_boss_health_bar() -> void:
-	return
+func _show_boss_health_bar(boss: Node3D) -> void:
+	var ui := get_node_or_null("UI")
+	if ui == null:
+		return
+	_boss_health_bar = BossHealthBar.new()
+	_boss_health_bar.name = "BossHealthBar"
+	ui.add_child(_boss_health_bar)
+	_boss_health_bar.attach(boss, "Chằn Tinh")
 
 func _hide_boss_health_bar() -> void:
-	return
+	if _boss_health_bar and is_instance_valid(_boss_health_bar):
+		_boss_health_bar.detach()
+		_boss_health_bar.queue_free()
+		_boss_health_bar = null
 
 # ══════════════════════════════════════════════════════════════════════════════
 # DAMAGE NUMBERS
