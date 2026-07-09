@@ -83,7 +83,7 @@ extends Node3D
 @export var num_boulders: int = 25
 @export var num_orcs: int = 24
 @export var random_seed: int = 2025
-@export_range(0.0, 1.0, 0.01) var large_tree_spawn_multiplier: float = 0.75
+@export_range(0.0, 1.0, 0.01) var large_tree_spawn_multiplier: float = 0.60
 @export_range(1.0, 3.0, 0.05) var large_tree_scale_threshold: float = 1.65
 @export_range(1.0, 8.0, 0.1) var tree_min_spacing: float = 4.2
 @export_range(0.0, 5.0, 0.1) var tree_large_spacing_bonus: float = 1.1

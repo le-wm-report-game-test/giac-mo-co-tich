@@ -8,9 +8,15 @@ extends Node3D
 @export var follow_speed: float = 8.0
 @export var map_limit: float = 50.0
 @export var normal_camera_size: float = 15.0
+@export var min_camera_size: float = 12.0  # 20% closer than normal
+@export var scroll_zoom_sensitivity: float = 0.5
+@export var scroll_zoom_tween_duration: float = 0.15
 @export var startup_close_camera_size: float = 5.5
 @export var startup_close_hold_time: float = 0.8
 @export var startup_zoom_out_duration: float = 1.4
+
+var _scroll_tween: Tween = null
+var _current_camera_size: float = 15.0
 
 var target: Node3D
 var player_pcam: PhantomCamera3D
@@ -54,6 +60,35 @@ func _process(delta: float) -> void:
 	if target == null:
 		return
 	global_position = _clamp_position(target.global_position)
+
+
+func _input(event: InputEvent) -> void:
+	if event is InputEventMouseButton:
+		var mb := event as InputEventMouseButton
+		if mb.button_index == MOUSE_BUTTON_WHEEL_UP or mb.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			if not mb.pressed:
+				return
+			var delta_size := -scroll_zoom_sensitivity if mb.button_index == MOUSE_BUTTON_WHEEL_UP else scroll_zoom_sensitivity
+			_zoom_camera(_current_camera_size + delta_size)
+
+
+func _zoom_camera(target_size: float) -> void:
+	var clamped := clampf(target_size, min_camera_size, normal_camera_size)
+	if is_equal_approx(clamped, _current_camera_size):
+		return
+	if _scroll_tween:
+		_scroll_tween.kill()
+	_scroll_tween = create_tween()
+	_scroll_tween.set_trans(Tween.TRANS_CUBIC)
+	_scroll_tween.set_ease(Tween.EASE_OUT)
+	_scroll_tween.tween_method(
+		func(v: float) -> void:
+			_current_camera_size = v
+			_set_player_camera_size(v),
+		_current_camera_size,
+		clamped,
+		scroll_zoom_tween_duration
+	)
 
 
 func set_target(new_target: Node3D) -> void:
@@ -111,6 +146,7 @@ func skip_startup_intro() -> void:
 	startup_intro_active = false
 	startup_intro_finished = true
 	_set_player_camera_size(normal_camera_size)
+	_current_camera_size = normal_camera_size
 	_set_target_input_locked(false)
 	snap_to_target()
 
@@ -119,6 +155,7 @@ func _finish_startup_intro() -> void:
 	startup_intro_active = false
 	startup_intro_finished = true
 	_set_player_camera_size(normal_camera_size)
+	_current_camera_size = normal_camera_size
 	_set_target_input_locked(false)
 
 
