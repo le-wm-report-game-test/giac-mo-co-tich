@@ -1,4 +1,4 @@
-[gd_scene load_steps=10 format=3 uid="uid://c6y7n0i37h8d5"]
+[gd_scene load_steps=11 format=3 uid="uid://c6y7n0i37h8d5"]
 
 [ext_resource type="Script" path="res://src/player/player.gd" id="1_player_gd"]
 [ext_resource type="Script" path="res://src/components/health_component.gd" id="2_health_component"]
@@ -6,6 +6,7 @@
 [ext_resource type="Texture2D" path="res://Assets/player/thach_sanh/thach_sanh_idle.png" id="4_thach_sanh_idle"]
 [ext_resource type="Script" path="res://src/player/movement_dust_trail.gd" id="5_movement_dust"]
 [ext_resource type="Script" path="res://src/player/player_sprite_animator.gd" id="6_sprite_animator"]
+[ext_resource type="Script" path="res://src/player/player_combat_v2.gd" id="7_combat_v2"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_p1"]
 radius = 0.4
@@ -63,3 +64,6 @@ monitoring = false
 [node name="HitboxShape" type="CollisionShape3D" parent="HitboxArea"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5175, 0.9, 0)
 shape = SubResource("BoxShape3D_hitbox")
+
+[node name="PlayerCombatV2" type="Node" parent="."]
+script = ExtResource("7_combat_v2")

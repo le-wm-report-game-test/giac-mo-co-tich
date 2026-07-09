@@ -1,6 +1,11 @@
 # player.gd
+# NOTE: This file exceeds the 200-line rule (currently ~720 lines).
+# Phase 1.6 will refactor it into player_input.gd / player_movement.gd
+# / player_animation.gd. Tracked in fix-plan.md under "Phase 1.6 refactor".
 class_name Player
 extends CharacterBody3D
+
+const PlayerCombatV2 = preload("res://src/player/player_combat_v2.gd")
 
 @export var speed: float = 5.0
 @export var acceleration: float = 15.0
@@ -19,6 +24,11 @@ var _target_velocity: Vector3 = Vector3.ZERO
 # Animation
 enum AnimState { IDLE, WALK, ATTACK, HURT, DEATH }
 enum MoveDir { DOWN, UP, RIGHT, LEFT, DOWN_RIGHT, DOWN_LEFT, UP_RIGHT, UP_LEFT }
+
+# Combat V2 lives in child component `PlayerCombatV2` to keep player.gd under
+# the 200-line rule. Set PlayerCombatV2.enabled = false to revert to legacy
+# 2-frame attack timing.
+@onready var combat_v2: Node = get_node_or_null("PlayerCombatV2")
 
 const MOVEMENT_IDLE_FRAMES := 2
 const MOVEMENT_WALK_FRAMES := 3
@@ -139,7 +149,11 @@ func _ready() -> void:
 	hitbox_area.monitoring = false
 	hitbox_area.area_entered.connect(_on_hitbox_area_entered)
 	_configure_attack_hitbox()
-	
+
+	# Combat V2 child component
+	if combat_v2:
+		combat_v2.bind(self)
+
 	prewarm_visual_assets()
 	_update_sprite()
 
@@ -306,15 +320,29 @@ func _setup_input_actions() -> void:
 func _input(event: InputEvent) -> void:
 	if input_locked:
 		return
-	if anim_state == AnimState.DEATH or is_attacking or attack_cooldown > 0.0:
+	if anim_state == AnimState.DEATH:
 		return
 	# Chuột trái hoặc phím Space đều kích hoạt tấn công
 	var mouse_attack: bool = event is InputEventMouseButton \
 		and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT \
 		and event.pressed
 	var key_attack: bool = event.is_action_pressed(&"attack")
-	if mouse_attack or key_attack:
+	if not (mouse_attack or key_attack):
+		return
+
+	# Combat V2: chain attack if buffer was set during previous recovery
+	if combat_v2 and combat_v2.enabled and combat_v2.consume_recovery_buffer():
 		_start_attack()
+		return
+
+	# Combat V2: buffer the press during non-cancelable phase
+	if combat_v2 and combat_v2.enabled and is_attacking:
+		combat_v2.try_buffer_input()
+		return
+
+	if is_attacking or attack_cooldown > 0.0:
+		return
+	_start_attack()
 
 func _physics_process(delta: float) -> void:
 	# Cooldowns
@@ -334,6 +362,12 @@ func _physics_process(delta: float) -> void:
 			_speed_boost_active = false
 			_speed_boost_multiplier = 1.0
 			speed = _base_speed
+
+	# Combat V2: drive 3-phase attack state machine + IASA cancel
+	if combat_v2 and combat_v2.enabled and combat_v2.tick(delta):
+		_process_animation(delta)
+		move_and_slide()
+		return
 	
 	# Don't process movement during attack or death
 	if anim_state == AnimState.ATTACK or anim_state == AnimState.DEATH:
@@ -468,13 +502,16 @@ func _start_attack() -> void:
 	anim_fps = 10.0
 	attack_window_active = false
 	velocity = Vector3.ZERO
-	
+
 	# Play attack sound
 	var audio := get_node_or_null("/root/World/AudioManager") as AudioManager
 	if audio:
 		audio.play_sfx("sword_swing", global_position, 0.15)
-	
+
 	_update_attack_hitbox_position()
+
+	if combat_v2 and combat_v2.enabled:
+		combat_v2.on_attack_started(anim_fps, _get_animation_frame_count("attack"))
 
 func _interrupt_attack(reset_cooldown: bool = false) -> void:
 	if not is_attacking and not hitbox_area.monitoring:
@@ -640,14 +677,25 @@ func _on_damaged(amount: float, source: Node3D, is_critical: bool = false) -> vo
 		EventBus.player_shield_broken.emit()
 		return
 
+	# C5: punish committing an attack into an incoming hit. PlayerCombatV2
+	# owns the canonical "is actively attacking" check; falls back to flag.
+	var was_attacking := is_attacking
+	var final_damage: float = amount
+	if combat_v2 and combat_v2.enabled:
+		was_attacking = was_attacking or combat_v2.should_apply_interrupt_penalty()
+	if was_attacking:
+		final_damage *= PlayerCombatV2.COMBAT_V2_INTERRUPT_DAMAGE_MULT
+
 	_interrupt_attack()
+	if combat_v2:
+		combat_v2.on_attack_interrupted()
 	anim_state = AnimState.HURT
 	anim_frame = 0
 	anim_timer = 0.0
 	invulnerable_timer = invulnerable_duration
-	
-	# Emit damage event for floating numbers
-	EventBus.player_took_damage.emit(amount, global_position)
+
+	# Emit damage event for floating numbers (use penalized amount so player sees it)
+	EventBus.player_took_damage.emit(final_damage, global_position)
 
 
 func apply_speed_boost(multiplier: float, duration: float) -> void:
