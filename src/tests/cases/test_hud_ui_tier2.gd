@@ -13,13 +13,14 @@ func test_player_health_underflow_and_overflow() -> void:
 	await tree.process_frame
 	var bar: TextureProgressBar = world_manager.get_node_or_null("UI/PlayerHealthContainer/PlayerHealthBar")
 	var text: Label = world_manager.get_node_or_null("UI/PlayerHealthContainer/PlayerHealthText")
+	assert_false(text.visible, "Hidden HUD text should remain hidden even on health edge cases")
 	assert_eq(bar.value, -50.0, "Progress bar should clamp or hold negative health value")
-	assert_eq(text.text, "-50/100", "Label text should display negative health")
+	assert_eq(text.text, "-50 / 100", "Label text should display negative health")
 	
 	EventBus.player_health_changed.emit(150.0, 100.0)
 	await tree.process_frame
 	assert_eq(bar.value, 150.0, "Progress bar value should match raw current health")
-	assert_eq(text.text, "150/100", "Label text should display health overflow")
+	assert_eq(text.text, "150 / 100", "Label text should display health overflow")
 
 func test_damage_number_offscreen() -> void:
 	# Kiểm tra tạo số sát thương khi ở quá xa camera (không gây lỗi unproject)
@@ -50,16 +51,14 @@ func test_rapid_damage_spawning() -> void:
 	var end_count: int = ui.get_child_count()
 	assert_eq(end_count, start_count + 50, "50 damage labels should be spawned concurrently")
 
-func test_boss_health_bar_death_transition() -> void:
-	# Ẩn thanh máu Boss khi Boss bị tiêu diệt
+func test_boss_hud_death_transition_is_noop() -> void:
+	# Boss HUD trên màn hình đã bị bỏ nên hide/show chỉ còn là no-op.
 	var world_manager: Node = world_instance.get_node_or_null("WorldManager")
 	assert_not_null(world_manager, "WorldManager must exist")
 	
 	var boss_container: Control = world_manager.get_node_or_null("UI/BossHUDContainer")
-	assert_not_null(boss_container, "Boss health container must exist")
-	
 	world_manager.call("_show_boss_health_bar")
-	assert_true(boss_container.visible, "Boss container should be visible")
+	assert_null(boss_container, "Boss HUD container should remain absent")
 	
 	var dummy_boss: CharacterBody3D = CharacterBody3D.new()
 	dummy_boss.add_to_group("boss")
@@ -67,7 +66,7 @@ func test_boss_health_bar_death_transition() -> void:
 	world_instance.add_child(dummy_boss)
 	
 	world_manager.call("_hide_boss_health_bar")
-	assert_false(boss_container.visible, "Boss container should hide after death")
+	assert_null(world_manager.get_node_or_null("UI/BossHUDContainer"), "Boss HUD container should still be absent after hide")
 	
 	dummy_boss.queue_free()
 	await tree.process_frame
@@ -82,3 +81,6 @@ func test_hud_ui_recreation_safety() -> void:
 	
 	var ui: CanvasLayer = world_manager.get_node_or_null("UI")
 	assert_not_null(ui, "UI must still exist after multiple create calls")
+	var minimap_container: Control = world_manager.get_node_or_null("UI/MinimapContainer")
+	assert_not_null(minimap_container, "Minimap container must survive HUD recreation")
+	assert_eq(minimap_container.anchor_right, 1.0, "Minimap should stay anchored to the right edge")

@@ -58,19 +58,14 @@ func test_boss_damage_ui_sync() -> void:
 	
 	var boss := _world_manager.boss_instance as CharacterBody3D
 	assert_not_null(boss, "Boss must exist")
-	
-	var hud_fill: ColorRect = world_instance.get_node_or_null("WorldManager/UI/BossHUDContainer/BossHealthMask/BossHealthFill") as ColorRect
-	assert_not_null(hud_fill, "Boss health fill must exist")
-	var mat: ShaderMaterial = hud_fill.material as ShaderMaterial
-	assert_not_null(mat, "Boss health fill must have ShaderMaterial")
 
-	# Gây sát thương và kiểm tra shader fill_ratio đồng bộ với máu boss
+	# Máu boss giờ chỉ còn ở health bar trên đầu, nên HUD fill trên màn hình phải vắng mặt.
 	boss.health_component.take_damage(60.0)
 	await wait_physics_frames(2)
-
-	var expected_ratio: float = 240.0 / 300.0
-	var actual_ratio: float = float(mat.get_shader_parameter("fill_ratio"))
-	assert_almost_eq(actual_ratio, expected_ratio, 0.02, "Boss health fill_ratio should sync with boss health")
+	assert_null(
+		world_instance.get_node_or_null("WorldManager/UI/BossHUDContainer"),
+		"Boss screen HUD should stay removed while boss health changes"
+	)
 
 func test_boss_camera_magnet_activation() -> void:
 	_world_manager.orcs_to_kill_for_boss = 1

@@ -19,9 +19,10 @@ var _player_valid: bool = false
 const BG_COLOR := Color(0.05, 0.05, 0.08, 0.6)
 const BORDER_COLOR := Color(0.8, 0.8, 0.85, 0.9)
 const GRID_COLOR := Color(0.3, 0.3, 0.35, 0.4)
-const PLAYER_COLOR := Color(0.2, 0.5, 1.0)
-const ENEMY_COLOR := Color(1.0, 0.15, 0.15)
-const FOOD_COLOR := Color(0.25, 0.95, 0.35)
+const PLAYER_COLOR := Color(0.25, 0.72, 1.0)
+const ENEMY_COLOR := Color(0.9, 0.18, 0.16)
+const BOSS_COLOR := Color(0.96, 0.78, 0.22)
+const FOOD_COLOR := Color(0.3, 0.95, 0.45)
 const PLAYER_RADIUS: float = 3.0
 const ENEMY_RADIUS: float = 3.0
 const BOSS_RADIUS: float = 6.0
@@ -60,7 +61,9 @@ func _draw() -> void:
 		return
 	
 	# Vẽ dot player theo vị trí thật trên map
-	draw_circle(_world_to_canvas(_player_pos), PLAYER_RADIUS, PLAYER_COLOR)
+	var player_canvas := _world_to_canvas(_player_pos)
+	draw_circle(player_canvas, PLAYER_RADIUS + 1.0, Color(0.04, 0.12, 0.16, 0.75))
+	draw_circle(player_canvas, PLAYER_RADIUS, PLAYER_COLOR)
 
 	# Vẽ dot food (xanh lá, nhỏ)
 	for food_pos: Vector3 in _foods:
@@ -74,7 +77,9 @@ func _draw() -> void:
 		var canvas_pos := _world_to_canvas(enemy_pos)
 		
 		var radius: float = BOSS_RADIUS if is_boss else ENEMY_RADIUS
-		draw_circle(canvas_pos, radius, ENEMY_COLOR)
+		var color := BOSS_COLOR if is_boss else ENEMY_COLOR
+		draw_circle(canvas_pos, radius + 1.0, Color(0.12, 0.06, 0.06, 0.75))
+		draw_circle(canvas_pos, radius, color)
 
 
 func _draw_background() -> void:

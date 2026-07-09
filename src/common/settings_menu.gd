@@ -2,31 +2,20 @@
 class_name SettingsMenu
 extends CanvasLayer
 
+const UITheme = preload("res://src/ui/ui_theme.gd")
+
 const SETTINGS_PATH: String = "user://settings.cfg"
 const DEFAULT_LIGHTING_QUALITY: String = "Cinematic"
-const PANEL_MIN_SIZE: Vector2 = Vector2(820, 560)
+const PANEL_MIN_SIZE: Vector2 = Vector2(760, 520)
 const BODY_FONT_SIZE: int = 16
 const SECTION_FONT_SIZE: int = 18
 const TITLE_FONT_SIZE: int = 26
 const FIELD_MIN_HEIGHT: float = 42.0
 
-const TEX_PANEL_BG: Texture2D = preload("res://Assets/SettingAssets/parts/01_large_settings_panel.png")
-const TEX_BTN_NORMAL: Texture2D = preload("res://Assets/SettingAssets/parts/10_button_normal_forest.png")
-const TEX_BTN_HOVER: Texture2D = preload("res://Assets/SettingAssets/parts/11_button_hover_forest.png")
 const TEX_CLOSE_X: Texture2D = preload("res://Assets/SettingAssets/parts/24_close_button_x.png")
 const TEX_DROPDOWN_CLOSED: Texture2D = preload("res://Assets/SettingAssets/parts/05_dropdown_closed_down.png")
 const TEX_DROPDOWN_OPEN: Texture2D = preload("res://Assets/SettingAssets/parts/09_dropdown_open_list.png")
 const TEX_KNOB_GOLD: Texture2D = preload("res://Assets/SettingAssets/parts/17_round_knob_gold_small.png")
-const TEX_SEPARATOR: Texture2D = preload("res://Assets/SettingAssets/parts/27_decorative_separator.png")
-
-const FONT_HEADING: Font = preload("res://Assets/UI/Fonts/CormorantSC/CormorantSC-SemiBold.ttf")
-const FONT_HEADING_BOLD: Font = preload("res://Assets/UI/Fonts/CormorantSC/CormorantSC-Bold.ttf")
-const FONT_BODY: Font = preload("res://Assets/UI/Fonts/BeVietnamPro/BeVietnamPro-Regular.ttf")
-const FONT_BODY_MEDIUM: Font = preload("res://Assets/UI/Fonts/BeVietnamPro/BeVietnamPro-Medium.ttf")
-const FONT_BODY_SEMIBOLD: Font = preload("res://Assets/UI/Fonts/BeVietnamPro/BeVietnamPro-SemiBold.ttf")
-
-const GOLD_TEXT_COLOR: Color = Color(0.92, 0.78, 0.4)
-const GOLD_TEXT_HOVER_COLOR: Color = Color(1.0, 0.9, 0.55)
 
 var is_open: bool = false
 var brightness: float = 1.0
@@ -76,11 +65,7 @@ func _create_ui() -> void:
 	_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
 	_panel.custom_minimum_size = PANEL_MIN_SIZE
 
-	var style := _make_stylebox_texture(TEX_PANEL_BG, 30, 30, 30, 30)
-	style.content_margin_left = 40
-	style.content_margin_right = 40
-	style.content_margin_top = 32
-	style.content_margin_bottom = 28
+	var style := UITheme.make_panel_style()
 	_panel.add_theme_stylebox_override("panel", style)
 	add_child(_panel)
 
@@ -92,12 +77,12 @@ func _create_ui() -> void:
 	vbox.add_child(top_row)
 
 	var title := Label.new()
-	title.text = "CÀI ĐẶT / SETTINGS"
+	title.text = "CÀI ĐẶT"
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_override("font", FONT_HEADING_BOLD)
+	title.add_theme_font_override("font", UITheme.FONT_HEADING_BOLD)
 	title.add_theme_font_size_override("font_size", TITLE_FONT_SIZE + 4)
-	title.add_theme_color_override("font_color", Color(0.95, 0.75, 0.2))
+	title.add_theme_color_override("font_color", UITheme.GOLD_TEXT_COLOR)
 	top_row.add_child(title)
 
 	var close_btn := TextureButton.new()
@@ -110,11 +95,7 @@ func _create_ui() -> void:
 	close_btn.pressed.connect(toggle_menu)
 	top_row.add_child(close_btn)
 
-	var separator := TextureRect.new()
-	separator.texture = TEX_SEPARATOR
-	separator.stretch_mode = TextureRect.STRETCH_SCALE
-	separator.custom_minimum_size = Vector2(0, 18)
-	separator.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var separator := UITheme.create_separator()
 	vbox.add_child(separator)
 
 	var columns := HBoxContainer.new()
@@ -127,15 +108,15 @@ func _create_ui() -> void:
 	columns.add_child(display_column)
 	
 	var display_title := Label.new()
-	display_title.text = "HIỂN THỊ / DISPLAY"
+	display_title.text = "HIỂN THỊ"
 	display_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_style_section_title(display_title)
 	display_column.add_child(display_title)
 	
 	_create_brightness_control(display_column)
-	_add_option(display_column, "Chất lượng ánh sáng / Lighting Quality:", ["Cinematic", "Performance"], 1 if lighting_quality == "Performance" else 0, _on_lighting_quality_selected)
-	_add_option(display_column, "Chế độ hiển thị (1920x1080) / Window Mode:", ["Cửa sổ (Windowed)", "Không viền (Borderless)", "Toàn màn hình (Fullscreen)"], window_mode_index, _on_window_mode_selected)
-	_add_option(display_column, "Giới hạn FPS / FPS Limit:", ["Không giới hạn (Unlimited)", "30 FPS", "60 FPS", "120 FPS"], fps_index, _on_fps_selected)
+	_add_option(display_column, "Chất lượng ánh sáng", ["Điện ảnh", "Hiệu năng"], 1 if lighting_quality == "Performance" else 0, _on_lighting_quality_selected)
+	_add_option(display_column, "Chế độ màn hình", ["Cửa sổ", "Không viền", "Toàn màn hình"], window_mode_index, _on_window_mode_selected)
+	_add_option(display_column, "Giới hạn FPS", ["Không giới hạn", "30 FPS", "60 FPS", "120 FPS"], fps_index, _on_fps_selected)
 	
 	var audio_column := VBoxContainer.new()
 	audio_column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -151,7 +132,7 @@ func _create_brightness_control(parent: Control) -> void:
 	container.add_theme_constant_override("separation", 8)
 	parent.add_child(container)
 	_brightness_label = Label.new()
-	_brightness_label.text = "Độ sáng / Brightness: %d%%" % int(brightness * 100)
+	_brightness_label.text = "Độ sáng: %d%%" % int(brightness * 100)
 	_style_setting_label(_brightness_label)
 	container.add_child(_brightness_label)
 	var slider := HSlider.new()
@@ -165,22 +146,22 @@ func _create_brightness_control(parent: Control) -> void:
 
 func _create_audio_controls(parent: Control) -> void:
 	var title := Label.new()
-	title.text = "ÂM THANH / AUDIO"
+	title.text = "ÂM THANH"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_style_section_title(title)
 	parent.add_child(title)
 	
 	_music_label = Label.new()
 	_style_setting_label(_music_label)
-	_add_audio_slider(parent, _music_label, "Nhạc nền / Music", music_volume, _on_music_volume_changed)
+	_add_audio_slider(parent, _music_label, "Nhạc nền", music_volume, _on_music_volume_changed)
 	
 	_sfx_label = Label.new()
 	_style_setting_label(_sfx_label)
-	_add_audio_slider(parent, _sfx_label, "Hiệu ứng / SFX", sfx_volume, _on_sfx_volume_changed)
+	_add_audio_slider(parent, _sfx_label, "Hiệu ứng", sfx_volume, _on_sfx_volume_changed)
 	
 	_ambience_label = Label.new()
 	_style_setting_label(_ambience_label)
-	_add_audio_slider(parent, _ambience_label, "Môi trường / Ambience", ambience_volume, _on_ambience_volume_changed)
+	_add_audio_slider(parent, _ambience_label, "Môi trường", ambience_volume, _on_ambience_volume_changed)
 	
 	_update_audio_labels()
 
@@ -199,9 +180,9 @@ func _add_audio_slider(parent: Control, label: Label, _text_lbl: String, val: fl
 	container.add_child(slider)
 
 func _update_audio_labels() -> void:
-	_music_label.text = "Nhạc nền / Music Volume: %d%%" % int(music_volume * 100)
-	_sfx_label.text = "Hiệu ứng / SFX Volume: %d%%" % int(sfx_volume * 100)
-	_ambience_label.text = "Môi trường / Ambience Volume: %d%%" % int(ambience_volume * 100)
+	_music_label.text = "Nhạc nền: %d%%" % int(music_volume * 100)
+	_sfx_label.text = "Hiệu ứng: %d%%" % int(sfx_volume * 100)
+	_ambience_label.text = "Môi trường: %d%%" % int(ambience_volume * 100)
 
 func _add_option(parent: Control, label_text: String, items: Array[String], selected_idx: int, callback: Callable) -> void:
 	var container := VBoxContainer.new()
@@ -222,27 +203,27 @@ func _add_option(parent: Control, label_text: String, items: Array[String], sele
 	container.add_child(opt)
 
 func _style_dropdown(opt: OptionButton) -> void:
-	opt.add_theme_font_override("font", FONT_BODY_MEDIUM)
+	opt.add_theme_font_override("font", UITheme.FONT_BODY_MEDIUM)
 	var closed_style := _make_stylebox_texture(TEX_DROPDOWN_CLOSED, 18, 12, 40, 12)
 	opt.add_theme_stylebox_override("normal", closed_style)
 	opt.add_theme_stylebox_override("hover", closed_style)
 	opt.add_theme_stylebox_override("pressed", closed_style)
 	opt.add_theme_stylebox_override("focus", closed_style)
-	opt.add_theme_color_override("font_color", GOLD_TEXT_COLOR)
-	opt.add_theme_color_override("font_hover_color", GOLD_TEXT_HOVER_COLOR)
+	opt.add_theme_color_override("font_color", UITheme.GOLD_TEXT_COLOR)
+	opt.add_theme_color_override("font_hover_color", UITheme.GOLD_TEXT_HOVER_COLOR)
 	var blank_arrow := ImageTexture.create_from_image(Image.create(1, 1, false, Image.FORMAT_RGBA8))
 	opt.add_theme_icon_override("arrow", blank_arrow)
 
 	var popup := opt.get_popup()
-	popup.add_theme_font_override("font", FONT_BODY_MEDIUM)
+	popup.add_theme_font_override("font", UITheme.FONT_BODY_MEDIUM)
 	var popup_style := _make_stylebox_texture(TEX_DROPDOWN_OPEN, 16, 16, 16, 16)
 	popup.add_theme_stylebox_override("panel", popup_style)
 	var item_highlight := StyleBoxFlat.new()
 	item_highlight.bg_color = Color(0.7, 0.55, 0.2, 0.5)
 	item_highlight.set_corner_radius_all(4)
 	popup.add_theme_stylebox_override("hover", item_highlight)
-	popup.add_theme_color_override("font_color", GOLD_TEXT_COLOR)
-	popup.add_theme_color_override("font_hover_color", GOLD_TEXT_HOVER_COLOR)
+	popup.add_theme_color_override("font_color", UITheme.GOLD_TEXT_COLOR)
+	popup.add_theme_color_override("font_hover_color", UITheme.GOLD_TEXT_HOVER_COLOR)
 
 func _create_action_buttons(parent: Control) -> void:
 	var hbox: HBoxContainer = HBoxContainer.new()
@@ -251,31 +232,31 @@ func _create_action_buttons(parent: Control) -> void:
 	parent.add_child(hbox)
 	
 	var resume_btn: Button = Button.new()
-	resume_btn.text = "TIẾP TỤC / RESUME"
+	resume_btn.text = "TIẾP TỤC"
 	_style_action_button(resume_btn)
 	resume_btn.pressed.connect(toggle_menu)
 	hbox.add_child(resume_btn)
 	
 	var main_menu_btn: Button = Button.new()
-	main_menu_btn.text = "VỀ MENU / MAIN MENU"
+	main_menu_btn.text = "VỀ MENU"
 	_style_action_button(main_menu_btn)
 	main_menu_btn.pressed.connect(_on_main_menu_pressed)
 	hbox.add_child(main_menu_btn)
 	
 	var quit_btn: Button = Button.new()
-	quit_btn.text = "THOÁT / QUIT"
+	quit_btn.text = "THOÁT"
 	_style_action_button(quit_btn)
 	quit_btn.pressed.connect(func() -> void: get_tree().quit())
 	hbox.add_child(quit_btn)
 
 func _style_setting_label(label: Label) -> void:
-	label.add_theme_font_override("font", FONT_HEADING_BOLD)
+	label.add_theme_font_override("font", UITheme.FONT_HEADING_BOLD)
 	label.add_theme_font_size_override("font_size", BODY_FONT_SIZE + 5)
-	label.add_theme_color_override("font_color", GOLD_TEXT_COLOR)
+	label.add_theme_color_override("font_color", UITheme.GOLD_TEXT_COLOR)
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 
 func _style_section_title(label: Label) -> void:
-	label.add_theme_font_override("font", FONT_HEADING)
+	label.add_theme_font_override("font", UITheme.FONT_HEADING)
 	label.add_theme_font_size_override("font_size", SECTION_FONT_SIZE + 2)
 	label.add_theme_color_override("font_color", Color(0.85, 0.65, 0.15))
 
@@ -307,27 +288,10 @@ func _style_slider(slider: HSlider) -> void:
 
 func _style_action_button(button: Button) -> void:
 	button.custom_minimum_size = Vector2(190, 48)
-	button.add_theme_font_override("font", FONT_BODY_SEMIBOLD)
-	button.add_theme_font_size_override("font_size", BODY_FONT_SIZE)
-
-	var normal_style := _make_stylebox_texture(TEX_BTN_NORMAL, 22, 20, 22, 20)
-	var hover_style := _make_stylebox_texture(TEX_BTN_HOVER, 22, 20, 22, 20)
-	button.add_theme_stylebox_override("normal", normal_style)
-	button.add_theme_stylebox_override("hover", hover_style)
-	button.add_theme_stylebox_override("pressed", hover_style)
-	button.add_theme_stylebox_override("focus", hover_style)
-	button.add_theme_color_override("font_color", GOLD_TEXT_COLOR)
-	button.add_theme_color_override("font_hover_color", GOLD_TEXT_HOVER_COLOR)
-	button.add_theme_color_override("font_pressed_color", GOLD_TEXT_HOVER_COLOR)
+	UITheme.apply_button(button, "danger" if button.text == "THOÁT" else "primary")
 
 func _make_stylebox_texture(tex: Texture2D, margin_left: int, margin_top: int, margin_right: int, margin_bottom: int) -> StyleBoxTexture:
-	var sb := StyleBoxTexture.new()
-	sb.texture = tex
-	sb.texture_margin_left = margin_left
-	sb.texture_margin_top = margin_top
-	sb.texture_margin_right = margin_right
-	sb.texture_margin_bottom = margin_bottom
-	return sb
+	return UITheme.make_texture_stylebox(tex, margin_left, margin_top, margin_right, margin_bottom)
 
 func _on_main_menu_pressed() -> void:
 	get_tree().paused = false
@@ -344,7 +308,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _on_brightness_changed(value: float) -> void:
 	brightness = clampf(value, 0.5, 2.0)
-	_brightness_label.text = "Độ sáng / Brightness: %d%%" % int(brightness * 100)
+	_brightness_label.text = "Độ sáng: %d%%" % int(brightness * 100)
 	_apply_brightness()
 	_save_settings()
 
