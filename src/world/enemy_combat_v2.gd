@@ -13,11 +13,10 @@ extends Node
 enum AttackPhase { ANTICIPATION, ATTACK, RECOVERY }
 
 @export var enabled: bool = true
-@export var anticipation_ratio: float = 0.30
-@export var active_ratio: float = 0.20
-@export var recovery_ratio: float = 0.50
-@export var telegraph_min_duration: float = 0.4
-@export var active_hitbox_frame_index: int = 4
+@export_range(0.25, 0.6, 0.01) var anticipation_ratio: float = 0.30
+@export_range(0.05, 0.15, 0.01) var active_ratio: float = 0.15
+@export_range(0.30, 0.6, 0.01) var recovery_ratio: float = 0.55
+@export_range(0.4, 1.5, 0.05) var telegraph_min_duration: float = 0.8
 
 # Phase state
 var phase: AttackPhase = AttackPhase.ANTICIPATION
@@ -28,14 +27,11 @@ var recovery_dur: float = 0.0
 
 # Lifecycle
 var is_active: bool = false
-var _telegraph_node: Node3D = null
 
 # Owner wiring
-var _owner_node: Node3D = null
 var _hitbox_component: Node = null
 
 func bind(owner: Node3D, hitbox: Node) -> void:
-	_owner_node = owner
 	_hitbox_component = hitbox
 
 func on_attack_started(anim_fps: float, attack_frame_count: int) -> void:
@@ -104,6 +100,5 @@ func _spawn_telegraph() -> void:
 	pass
 
 func _remove_telegraph() -> void:
-	if _telegraph_node and is_instance_valid(_telegraph_node):
-		_telegraph_node.queue_free()
-		_telegraph_node = null
+	# Stub — no telegraph spawned yet (Phase 2 will provide one).
+	pass

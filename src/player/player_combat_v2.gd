@@ -17,9 +17,9 @@ const IASA_MOVEMENT_INPUT_MIN: float = 0.01
 enum AttackPhase { ANTICIPATION, ATTACK, RECOVERY }
 
 @export var enabled: bool = true
-@export var anticipation_ratio: float = 0.30
-@export var active_ratio: float = 0.20
-@export var recovery_ratio: float = 0.50
+@export_range(0.25, 0.6, 0.01) var anticipation_ratio: float = 0.30
+@export_range(0.05, 0.15, 0.01) var active_ratio: float = 0.15
+@export_range(0.30, 0.6, 0.01) var recovery_ratio: float = 0.55
 
 # Phase state
 var phase: AttackPhase = AttackPhase.ANTICIPATION
@@ -34,14 +34,11 @@ var _buffered_attack: bool = false
 
 # Lifecycle
 var is_active: bool = false
-var _attack_started_frame: int = -1
 
 # Owner wiring
-var _player: CharacterBody3D = null
 var _hitbox_area: Area3D = null
 
 func bind(player: CharacterBody3D) -> void:
-	_player = player
 	_hitbox_area = player.get_node_or_null("HitboxArea") as Area3D
 
 func on_attack_started(anim_fps: float, attack_frame_count: int) -> void:

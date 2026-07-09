@@ -55,6 +55,7 @@ func _ready() -> void:
 	speed = 1.3
 	sprite_pixel_size = BOSS_VISUAL_PIXEL_SIZE
 	attack_cooldown_time = 2.5
+	attack_frame_count = 6  # boss attack animation has fewer frames than orc
 	if is_instance_valid(sprite):
 		sprite.pixel_size = sprite_pixel_size
 		sprite.position.y = _get_grounded_sprite_y()

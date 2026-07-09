@@ -6,7 +6,7 @@ const EnemyCombatV2 = preload("res://src/world/enemy_combat_v2.gd")
 
 enum State { IDLE, WANDER, CHASE, ATTACK, HURT, DEATH }
 
-const ORC_ATTACK_FRAME_COUNT: int = 8  # legacy sprite sheet attack sequence
+@export var attack_frame_count: int = 8  # used by EnemyCombatV2 for 3-phase timing
 
 const REGULAR_SPRITE_PIXEL_SIZE: float = 0.0231
 const BOSS_SPRITE_PIXEL_SIZE: float = 0.0346
@@ -371,7 +371,7 @@ func _update_ai_state(delta: float) -> void:
 		frame_timer = 0.0
 		velocity = Vector3.ZERO
 		if combat_v2 and combat_v2.enabled:
-			combat_v2.on_attack_started(attack_animation_fps, ORC_ATTACK_FRAME_COUNT)
+			combat_v2.on_attack_started(attack_animation_fps, attack_frame_count)
 		return
 	if dist <= detection_range:
 		current_state = State.CHASE

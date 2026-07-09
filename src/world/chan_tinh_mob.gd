@@ -21,7 +21,8 @@ var move_direction: MoveDir = MoveDir.DOWN
 
 func _ready() -> void:
 	super._ready()
-	
+	attack_frame_count = 5  # Chằn Tinh attack animation frame count
+
 	# Thiết lập chỉ số cho Chằn Tinh sau super._ready() để tránh bị ghi đè bởi cấu hình OrcMob thường
 	if not is_in_group("boss"):
 		max_health = 80.0
