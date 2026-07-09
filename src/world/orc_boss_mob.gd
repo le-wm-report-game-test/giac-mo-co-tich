@@ -47,14 +47,31 @@ var _flip_h_visual: bool = false
 var _atlas_images: Dictionary = {}
 var _walk_direction_key: String = WALK_DIR_DOWN
 
+# Boss-tier stats. Override via configure_arena() or Inspector. Defaults
+# match the original _spawn_boss values from world_manager.gd.
+@export var boss_max_health: float = 300.0
+@export var boss_attack_damage: float = 25.0
+@export var boss_speed: float = 1.3
+@export var boss_attack_cooldown_time: float = 2.5
+@export var boss_attack_range: float = 1.65
+@export var boss_detection_range: float = 20.0
+
+# Spawn state set by configure_arena(); used by _ready to apply stats.
+var _arena_position: Vector3 = Vector3(-15.0, 0.2, -15.0)
+var _stats_applied: bool = false
+
+func configure_arena(arena_pos: Vector3) -> void:
+	# Called by WorldManager BEFORE add_child(). Stores arena position and
+	# defers stat application to _ready() so the parent scene tree is set
+	# up by the time we touch health_component / sprite.
+	_arena_position = arena_pos
+	position = arena_pos
+
 func _ready() -> void:
 	_build_frame_manifest()
 	super._ready()
-	max_health = 300.0
-	attack_damage = 25.0
-	speed = 1.3
+	_apply_boss_stats()
 	sprite_pixel_size = BOSS_VISUAL_PIXEL_SIZE
-	attack_cooldown_time = 2.5
 	attack_frame_count = 6  # boss attack animation has fewer frames than orc
 	if is_instance_valid(sprite):
 		sprite.pixel_size = sprite_pixel_size
@@ -66,6 +83,17 @@ func _ready() -> void:
 	if is_instance_valid(health_component):
 		health_component.max_health = max_health
 		health_component.current_health = max_health
+
+func _apply_boss_stats() -> void:
+	if _stats_applied:
+		return
+	_stats_applied = true
+	max_health = boss_max_health
+	attack_damage = boss_attack_damage
+	speed = boss_speed
+	attack_cooldown_time = boss_attack_cooldown_time
+	attack_range = boss_attack_range
+	detection_range = boss_detection_range
 
 func _build_frame_manifest() -> void:
 	_frames_by_state = {

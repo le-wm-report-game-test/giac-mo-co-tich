@@ -177,43 +177,23 @@ func _on_enemy_died(enemy: Node3D) -> void:
 func _spawn_boss() -> void:
 	boss_spawned = true
 	print("BOSS SPAWNED! Orc Boss xuất hiện!")
-	
-	# Create boss using Orc Boss atlas asset set
-	var boss := CharacterBody3D.new()
+
+	# Use the OrcBossMob class directly instead of constructing a bare
+	# CharacterBody3D and assigning properties ad-hoc. The class itself
+	# owns boss stats via @export defaults; configure_arena() applies the
+	# arena position before the node enters the tree.
+	var boss := OrcBossMob.new()
 	boss.name = "BossChằnTinh"
-	boss.add_to_group("boss")
-	boss.add_to_group("orc_mobs")
-	
-	# Script will be added via set_script
-	var boss_script := preload("res://src/world/orc_boss_mob.gd")
-	boss.set_script(boss_script)
-	
-	# Position boss at boss arena center
-	boss.position = Vector3(-15.0, 0.2, -15.0)
-	
-	# Boss dùng sprite lớn hơn Orc thường nhưng physics vẫn scale 1 để không phóng đại hitbox.
-	boss.set("sprite_pixel_size", OrcMob.BOSS_SPRITE_PIXEL_SIZE)
-	boss.set("attack_range", 2.5)
-	
+	boss.configure_arena(Vector3(-15.0, 0.2, -15.0))
 	get_parent().add_child(boss)
 	boss_instance = boss
-	
-	# Override boss stats
-	if boss.has_method("_setup_nodes"):
-		if boss.health_component:
-			boss.health_component.max_health = 300.0
-			boss.health_component.current_health = 300.0
-		boss.speed = 1.5
-		boss.attack_damage = 25.0
-		boss.attack_range = 1.65
-		boss.detection_range = 20.0
-	
+
 	# Show boss health bar
 	_show_boss_health_bar(boss)
-	
+
 	# Activate camera magnet at boss arena
 	_activate_camera_magnet(Vector3(-15.0, 0.0, -15.0), 25.0, 8.0)
-	
+
 	EventBus.boss_spawned.emit(boss)
 	var lighting := get_tree().get_first_node_in_group("lighting_director") as LightingDirector
 	if lighting != null:
