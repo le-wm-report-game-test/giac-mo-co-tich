@@ -169,8 +169,12 @@ func _update_animation(delta: float) -> void:
 					current_frame = 0
 	
 	if current_state == State.ATTACK:
-		hitbox_component.monitoring = (current_frame == 2)
-	
+		if combat_v2 and combat_v2.enabled:
+			combat_v2.tick(delta)
+			hitbox_component.monitoring = combat_v2.phase == EnemyCombatV2.AttackPhase.ATTACK
+		else:
+			hitbox_component.monitoring = (current_frame == 2)
+
 	_update_sprite()
 
 func _process_death_state(delta: float) -> void:

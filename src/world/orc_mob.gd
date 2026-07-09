@@ -2,7 +2,11 @@
 class_name OrcMob
 extends CharacterBody3D
 
+const EnemyCombatV2 = preload("res://src/world/enemy_combat_v2.gd")
+
 enum State { IDLE, WANDER, CHASE, ATTACK, HURT, DEATH }
+
+const ORC_ATTACK_FRAME_COUNT: int = 8  # legacy sprite sheet attack sequence
 
 const REGULAR_SPRITE_PIXEL_SIZE: float = 0.0231
 const BOSS_SPRITE_PIXEL_SIZE: float = 0.0346
@@ -93,8 +97,14 @@ var health_bar_viewport: SubViewport
 var health_bar_sprite: Sprite3D
 var health_bar_fill: ColorRect
 var health_bar_fill_max_width: float = 0.0
+var combat_v2: Node = null
 
 func _ready() -> void:
+	# Mount Combat V2 child component (3-phase attack + telegraph)
+	combat_v2 = EnemyCombatV2.new()
+	combat_v2.name = "EnemyCombatV2"
+	add_child(combat_v2)
+
 	# Giữ physics node ở scale 1; chỉ scale Sprite3D bằng pixel_size để hitbox không bị phóng đại.
 	scale = Vector3.ONE
 	if is_in_group("boss"):
@@ -207,6 +217,9 @@ func _setup_health_component() -> void:
 	health_component.died.connect(_on_died)
 	health_component.damaged.connect(_on_damaged)
 	health_component.health_changed.connect(_on_health_changed)
+
+	if combat_v2:
+		combat_v2.bind(self, hitbox_component)
 
 func _setup_health_bar(is_boss: bool) -> void:
 	var bar_size := BOSS_HEALTH_BAR_SIZE if is_boss else REGULAR_HEALTH_BAR_SIZE
@@ -357,6 +370,8 @@ func _update_ai_state(delta: float) -> void:
 		current_frame = 0
 		frame_timer = 0.0
 		velocity = Vector3.ZERO
+		if combat_v2 and combat_v2.enabled:
+			combat_v2.on_attack_started(attack_animation_fps, ORC_ATTACK_FRAME_COUNT)
 		return
 	if dist <= detection_range:
 		current_state = State.CHASE
@@ -544,7 +559,11 @@ func _update_animation(delta: float) -> void:
 					current_frame = 0
 	
 	if current_state == State.ATTACK:
-		hitbox_component.monitoring = (current_frame == 4)
+		if combat_v2 and combat_v2.enabled:
+			combat_v2.tick(delta)
+			hitbox_component.monitoring = combat_v2.phase == EnemyCombatV2.AttackPhase.ATTACK
+		else:
+			hitbox_component.monitoring = (current_frame == 4)
 
 	if use_3d_model:
 		_update_model_visual()

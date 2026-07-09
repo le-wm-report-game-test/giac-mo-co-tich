@@ -286,7 +286,11 @@ func _update_animation(delta: float) -> void:
 				_:
 					current_frame = 0
 	if current_state == State.ATTACK:
-		hitbox_component.monitoring = (current_frame == clampi(int(max_frames / 2), 1, max_frames - 1))
+		if combat_v2 and combat_v2.enabled:
+			combat_v2.tick(delta)
+			hitbox_component.monitoring = combat_v2.phase == EnemyCombatV2.AttackPhase.ATTACK
+		else:
+			hitbox_component.monitoring = (current_frame == clampi(int(max_frames / 2), 1, max_frames - 1))
 	_update_sprite()
 
 func _update_sprite() -> void:
