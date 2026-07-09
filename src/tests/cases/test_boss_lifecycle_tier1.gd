@@ -16,7 +16,7 @@ func test_boss_not_spawned_initially() -> void:
 	var bosses := tree.get_nodes_in_group("boss")
 	assert_eq(bosses.size(), 0, "No boss in group 'boss' initially")
 	var hud_bar: Control = _world_manager.get_node_or_null("UI/BossHUDContainer") as Control
-	assert_true(hud_bar == null or not hud_bar.visible, "Boss health UI should be hidden/non-existent initially")
+	assert_null(hud_bar, "Boss health HUD should not exist anymore")
 
 func test_boss_spawn_trigger() -> void:
 	_world_manager.orcs_to_kill_for_boss = 3
@@ -52,7 +52,7 @@ func test_boss_initial_properties() -> void:
 	assert_eq(boss.health_component.max_health, 300.0, "Boss max health should be 300")
 	assert_eq(boss.speed, 1.5, "Boss speed should be 1.5")
 
-func test_boss_hud_visibility_on_spawn() -> void:
+func test_boss_hud_stays_removed_on_spawn() -> void:
 	_world_manager.orcs_to_kill_for_boss = 1
 	var dummy := CharacterBody3D.new()
 	dummy.add_to_group("orc_mobs")
@@ -62,8 +62,7 @@ func test_boss_hud_visibility_on_spawn() -> void:
 	dummy.queue_free()
 	
 	var hud_bar: Control = world_instance.get_node_or_null("WorldManager/UI/BossHUDContainer") as Control
-	assert_not_null(hud_bar, "HUD BossHUDContainer should exist")
-	assert_true(hud_bar.visible, "HUD BossHUDContainer should be visible")
+	assert_null(hud_bar, "HUD BossHUDContainer should stay removed after boss spawn")
 
 func test_boss_death_sequence() -> void:
 	_world_manager.orcs_to_kill_for_boss = 1
@@ -89,7 +88,7 @@ func test_boss_death_sequence() -> void:
 	assert_false(is_instance_valid(boss), "Boss should be freed and invalid")
 	
 	var hud_bar: Control = world_instance.get_node_or_null("WorldManager/UI/BossHUDContainer") as Control
-	assert_true(hud_bar == null or not hud_bar.visible, "HUD BossHUDContainer should be hidden on boss death")
+	assert_null(hud_bar, "HUD BossHUDContainer should remain absent on boss death")
 
 func test_boss_victory_dialog_targets_main_menu() -> void:
 	# Khi boss bị đánh bại, hiện lời chúc mừng, bài văn và nút về menu chính
@@ -116,14 +115,39 @@ func test_boss_victory_dialog_targets_main_menu() -> void:
 	assert_true(body.text.contains("Chằn Tinh"), "Victory story should mention the defeated boss")
 	assert_true(body.custom_minimum_size.x >= 600.0, "Victory body should reserve enough width to avoid vertical letter wrapping")
 	assert_eq(body.size_flags_horizontal, Control.SIZE_EXPAND_FILL, "Victory body should fill the scroll area width")
+	var summary := dialog.get_node_or_null("VictoryOverlay/VictoryPanel/VBoxContainer/VictorySummary") as Label
+	assert_not_null(summary, "Victory dialog should include a short summary line")
+	assert_false(dialog.has_node("VictoryOverlay/VictoryPanel/VBoxContainer/RewardsHBox"), "Victory dialog should not show fake reward blocks")
 	var return_button := dialog.get_node_or_null("VictoryOverlay/VictoryPanel/VBoxContainer/ReturnToMenuButton") as Button
 	assert_not_null(return_button, "Victory dialog should provide a manual return button")
-	assert_eq(return_button.text, "TRỞ VỀ MENU", "Victory dialog should not auto-redirect; it should expose a menu button")
+	assert_eq(return_button.text, "Trở về menu", "Victory dialog should not auto-redirect; it should expose a menu button")
 	var chime_player := dialog.get_node_or_null("VictoryChimePlayer") as AudioStreamPlayer
 	assert_not_null(chime_player, "Victory dialog should create the victory chime player")
 	assert_not_null(chime_player.stream, "Victory chime player should have the imported MP3 stream")
 	assert_eq(VictoryDialog.MAIN_MENU_SCENE_PATH, "res://src/ui/MainMenu.tscn", "Victory should return to main menu")
 	
 	boss.free()
+	dialog.queue_free()
+	await tree.process_frame
+
+func test_death_dialog_offers_menu_escape() -> void:
+	var dialog := DeathDialog.new()
+	world_instance.add_child(dialog)
+	await tree.process_frame
+
+	dialog.call("_on_player_died")
+	await tree.process_frame
+
+	var overlay := dialog.get_node_or_null("DeathOverlay") as Control
+	assert_not_null(overlay, "Death overlay should appear")
+	var replay_button := dialog.get_node_or_null("DeathOverlay/DeathPanel/VBoxContainer/HBoxContainer/ReplayButton") as Button
+	assert_not_null(replay_button, "Death dialog should expose a replay button")
+	assert_eq(replay_button.text, "Chơi lại", "Replay button should use localized copy")
+	var menu_button := dialog.get_node_or_null("DeathOverlay/DeathPanel/VBoxContainer/HBoxContainer/MenuButton") as Button
+	assert_not_null(menu_button, "Death dialog should expose a menu button")
+	assert_eq(menu_button.text, "Về menu", "Menu button should use localized copy")
+	var buttons := dialog.get_node("DeathOverlay/DeathPanel/VBoxContainer/HBoxContainer")
+	assert_eq(buttons.get_child_count(), 2, "Death dialog should expose both replay and menu actions")
+
 	dialog.queue_free()
 	await tree.process_frame

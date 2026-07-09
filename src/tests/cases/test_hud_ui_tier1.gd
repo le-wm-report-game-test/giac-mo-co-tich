@@ -17,8 +17,9 @@ func test_player_health_bar_update() -> void:
 	
 	assert_not_null(bar, "Player health progress bar must exist")
 	assert_not_null(text, "Player health label must exist")
+	assert_false(text.visible, "Player health text should stay hidden in the main HUD")
 	assert_eq(bar.value, 75.0, "Progress bar value should match current health")
-	assert_eq(text.text, "75/100", "Label text should display current/max health")
+	assert_eq(text.text, "75 / 100", "Label text should display current/max health")
 
 func test_orc_counter_update() -> void:
 	# Tăng bộ đếm quái đã diệt trên HUD khi Orc chết
@@ -35,22 +36,18 @@ func test_orc_counter_update() -> void:
 	EventBus.enemy_died.emit(dummy_orc)
 	await tree.process_frame
 	
-	assert_eq(orc_count_label.text, "1", "Orc counter label should show only completed kills")
+	assert_eq(orc_count_label.text, "Orc đã hạ: 1/5", "Orc counter label should show progress toward the boss")
 	
 	dummy_orc.queue_free()
 	await tree.process_frame
 
-func test_boss_health_bar_appears() -> void:
-	# Hiển thị thanh máu Boss khi Boss xuất hiện
+func test_boss_hud_is_removed() -> void:
+	# Boss đã có máu trên đầu nên không còn thanh HUD riêng trên màn hình.
 	var world_manager: Node = world_instance.get_node_or_null("WorldManager")
 	assert_not_null(world_manager, "WorldManager must exist")
 	
 	var boss_container: Control = world_manager.get_node_or_null("UI/BossHUDContainer")
-	assert_not_null(boss_container, "Boss health container must exist")
-	assert_false(boss_container.visible, "Boss health container should be hidden initially")
-	
-	world_manager.call("_show_boss_health_bar")
-	assert_true(boss_container.visible, "Boss health container should be visible after showing")
+	assert_null(boss_container, "Boss HUD container should not exist anymore")
 
 func test_minimap_player_dot_uses_world_position() -> void:
 	# Chấm xanh phải đi theo vị trí thật của player trên map, không đứng yên ở tâm

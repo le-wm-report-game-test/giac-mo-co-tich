@@ -4,6 +4,9 @@
 class_name DeathDialog
 extends CanvasLayer
 
+const UITheme = preload("res://src/ui/ui_theme.gd")
+
+const MAIN_MENU_SCENE_PATH := "res://src/ui/MainMenu.tscn"
 
 var _overlay: Control = null
 
@@ -19,7 +22,6 @@ func _on_player_died() -> void:
 	_build_dialog()
 
 func _build_dialog() -> void:
-	# ── Lớp phủ tối mờ ──────────────────────────────────────────
 	_overlay = ColorRect.new()
 	_overlay.name = "DeathOverlay"
 	_overlay.color = Color(0.0, 0.0, 0.0, 0.0)
@@ -27,17 +29,9 @@ func _build_dialog() -> void:
 	_overlay.anchor_bottom = 1.0
 	add_child(_overlay)
 
-	# ── Hộp thoại ───────────────────────────────────────────────
 	var panel := PanelContainer.new()
 	panel.name = "DeathPanel"
-	var panel_style := StyleBoxFlat.new()
-	panel_style.bg_color      = Color(0.06, 0.04, 0.04, 0.97)
-	panel_style.border_color  = Color(0.72, 0.22, 0.18, 0.9)
-	panel_style.set_border_width_all(2)
-	panel_style.set_corner_radius_all(14)
-	panel_style.set_content_margin_all(36.0)
-	panel_style.shadow_color = Color(0.6, 0.05, 0.05, 0.4)
-	panel_style.shadow_size  = 20
+	var panel_style := UITheme.make_panel_style()
 	panel.add_theme_stylebox_override("panel", panel_style)
 	panel.anchor_left   = 0.5
 	panel.anchor_top    = 0.5
@@ -53,60 +47,47 @@ func _build_dialog() -> void:
 
 	var vbox := VBoxContainer.new()
 	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
-	vbox.add_theme_constant_override("separation", 22)
+	vbox.add_theme_constant_override("separation", 16)
 	panel.add_child(vbox)
-
-	# ── Tiêu đề ─────────────────────────────────────────────────
-	var skull := Label.new()
-	skull.text = "💀"
-	skull.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	skull.add_theme_font_size_override("font_size", 52)
-	vbox.add_child(skull)
 
 	var title := Label.new()
 	title.text = "Bạn Đã Ngã Xuống"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 28)
-	title.add_theme_color_override("font_color", Color(0.95, 0.30, 0.25))
+	UITheme.apply_heading(title, 28)
+	title.add_theme_color_override("font_color", Color(0.97, 0.78, 0.68))
 	vbox.add_child(title)
 
-	var sep := HSeparator.new()
-	var sep_style := StyleBoxFlat.new()
-	sep_style.bg_color = Color(0.72, 0.22, 0.18, 0.45)
-	sep_style.set_content_margin_all(0.0)
-	sep.add_theme_stylebox_override("separator", sep_style)
+	var sep := UITheme.create_separator(14.0)
 	vbox.add_child(sep)
 
 	var sub := Label.new()
-	sub.text = "Hành trình chưa kết thúc..."
+	sub.text = "Hành trình chưa kết thúc. Hãy đứng dậy hoặc trở về menu để chuẩn bị lại."
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	sub.add_theme_font_size_override("font_size", 16)
-	sub.add_theme_color_override("font_color", Color(0.75, 0.65, 0.60))
+	sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	sub.custom_minimum_size = Vector2(420.0, 0.0)
+	UITheme.apply_body(sub, 15, UITheme.BODY_MUTED_COLOR)
 	vbox.add_child(sub)
 
-	# ── Hàng nút ────────────────────────────────────────────────
 	var btn_row := HBoxContainer.new()
 	btn_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	btn_row.add_theme_constant_override("separation", 28)
+	btn_row.add_theme_constant_override("separation", 16)
 	vbox.add_child(btn_row)
 
-	var replay_style := _make_style(Color(0.12, 0.28, 0.14, 0.92), Color(0.45, 0.80, 0.42), 4)
-	var replay_hover := _make_style(Color(0.16, 0.38, 0.18, 0.97), Color(0.65, 1.00, 0.60), 7)
-
 	var btn_replay := Button.new()
-	btn_replay.text = "⟳  Chơi Lại"
+	btn_replay.name = "ReplayButton"
+	btn_replay.text = "Chơi lại"
 	btn_replay.custom_minimum_size = Vector2(200, 52)
-	btn_replay.add_theme_stylebox_override("normal",  replay_style)
-	btn_replay.add_theme_stylebox_override("hover",   replay_hover)
-	btn_replay.add_theme_stylebox_override("pressed", replay_style)
-	btn_replay.add_theme_stylebox_override("focus",   replay_hover)
-	btn_replay.add_theme_color_override("font_color",       Color(0.85, 1.00, 0.85))
-	btn_replay.add_theme_color_override("font_hover_color", Color.WHITE)
-	btn_replay.add_theme_font_size_override("font_size", 18)
+	UITheme.apply_button(btn_replay)
 	btn_replay.pressed.connect(_on_replay_pressed)
 	btn_row.add_child(btn_replay)
 
-	# ── Animate in ──────────────────────────────────────────────
+	var btn_menu := Button.new()
+	btn_menu.name = "MenuButton"
+	btn_menu.text = "Về menu"
+	btn_menu.custom_minimum_size = Vector2(200, 52)
+	UITheme.apply_button(btn_menu, "danger")
+	btn_menu.pressed.connect(_on_menu_pressed)
+	btn_row.add_child(btn_menu)
+
 	panel.modulate.a = 0.0
 	panel.scale = Vector2(0.80, 0.80)
 	panel.pivot_offset = Vector2(260.0, 150.0)
@@ -118,18 +99,8 @@ func _build_dialog() -> void:
 	tw.tween_property(panel, "scale", Vector2(1.0, 1.0), 0.30)\
 		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT).set_delay(0.15)
 
-func _make_style(bg: Color, border: Color, shadow_sz: int = 0) -> StyleBoxFlat:
-	var s := StyleBoxFlat.new()
-	s.bg_color     = bg
-	s.border_color = border
-	s.set_border_width_all(2)
-	s.set_corner_radius_all(8)
-	if shadow_sz > 0:
-		s.shadow_color = Color(border.r, border.g, border.b, 0.25)
-		s.shadow_size  = shadow_sz
-	return s
-
 func _on_replay_pressed() -> void:
-	# Chơi lại màn hiện tại, nhân vật reset về spawn point
 	get_tree().reload_current_scene()
 
+func _on_menu_pressed() -> void:
+	get_tree().change_scene_to_file(MAIN_MENU_SCENE_PATH)

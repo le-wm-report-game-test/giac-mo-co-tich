@@ -6,10 +6,10 @@ const DEFAULT_TARGET_SCENE: String = "res://src/world/world.tscn"
 const META_KEY: String = "loading_target_scene"
 
 const TIPS: Array[String] = [
-	"Mẹo: khám phá kỹ từng ngóc ngách để tìm báu vật ẩn giấu.",
-	"Mẹo: chú ý lắng nghe âm thanh xung quanh, kẻ thù có thể ở gần.",
-	"Mẹo: thu thập vật phẩm để hỗ trợ hành trình phía trước.",
-	"Cổ tích xưa kể rằng, lòng dũng cảm luôn dẫn lối người anh hùng...",
+	"Rừng sâu thường giấu lối đi bên dưới những tán lá tĩnh lặng.",
+	"Lắng nghe bước chân và tiếng gầm xa, đó là cách người anh hùng sống sót.",
+	"Mỗi vật phẩm nhặt được đều có thể cứu bạn trong trận chiến kế tiếp.",
+	"Cổ tích chỉ mở đường cho người đủ dũng cảm tiến về phía trước.",
 ]
 
 @onready var _progress_bar: ProgressBar = %ProgressBar
