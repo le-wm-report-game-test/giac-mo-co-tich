@@ -1,0 +1,8 @@
+Corrected RUNNING sprite sheet for Thach Sanh V2.
+Target: 384x256 PNG, 6 columns x 4 rows, 64x64 cells.
+Reference image role: running gait/cadence only. Use alternating left/right foot rhythm, wide stride silhouettes, arm pumping, contact/push/flight phases.
+Character identity: Ancient Vietnamese mythological fantasy woodcutter from Hung King era, muscular, dark sunbaked skin, shirtless, ragged beige loincloth, barefoot, black top bun, cloth headband, primitive stone axe in right hand.
+Row order: front, back, left-profile, right-profile.
+Critical cadence per row: frame 1 left foot forward contact/right foot back; frame 2 left foot pushing off/right knee driving forward; frame 3 airborne passing pose; frame 4 right foot forward contact/left foot back; frame 5 right foot pushing off/left knee driving forward; frame 6 airborne recovery looping to frame 1.
+Constraints: running only, no attack, no weapon swing, no weapon trail, no repeated identical leg pose, white background, no text/logos/scenery/modern elements.
+Generated with built-in image_gen and normalized to 384x256 by nearest-neighbor resize from raw generated sheet. Previous flawed stride version preserved as spr_thach_sanh_run_6x4_v1_bad_stride.*

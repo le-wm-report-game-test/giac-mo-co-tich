@@ -1,0 +1,7 @@
+IDLE sprite sheet for Thach Sanh V2.
+Target: 384x256 PNG, 6 columns x 4 rows, 64x64 cells.
+Character identity: Ancient Vietnamese mythological fantasy woodcutter from Hung King era, muscular, dark sunbaked skin, shirtless, ragged beige loincloth, barefoot, black top bun, cloth headband, primitive stone axe in right hand.
+Row order: front, back, left-profile, right-profile.
+Frame sequence per row: frame 1 neutral standing stance with weapon resting; frame 2 slight inhale with chest and shoulders rising; frame 3 strongest inhale with subtle torso lift and loincloth/axe bob; frame 4 exhale with shoulders lowering; frame 5 settle with weapon hand relaxing and cloth/hair secondary motion; frame 6 return pose looping to frame 1.
+Constraints: idle only, standing still, breathing stance, weapon resting, no walking/running/attacking, no weapon swing/trail, no repeated identical frames, white background, no text/logos/scenery/modern elements.
+Generated with built-in image_gen and normalized to 384x256 by nearest-neighbor resize from raw generated sheet.

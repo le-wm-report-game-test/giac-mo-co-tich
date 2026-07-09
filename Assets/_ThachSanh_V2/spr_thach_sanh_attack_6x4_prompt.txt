@@ -1,0 +1,6 @@
+64x64 resolution modern pixel art character sprite sheet, Ancient Vietnamese mythological fantasy game. A muscular and strong young woodcutter from the Hung King era, dark sunbaked skin, shirtless, wearing a simple ragged loincloth, holding a primitive stone axe in his right hand. Top-down 2.5D perspective, 4-directional views (front, back, left-profile, right-profile). Sequential animation frames for ATTACK ONLY: 6 frames per direction, 6 columns x 4 rows, 384x256 PNG target. Frame sequence per row: anticipation stance, raising axe, axe high overhead, powerful downward strike, impact follow-through with weapon trail, recovery stance. Modern pixel art style, smooth shading, sharp details, colorful and vibrant, clean pixel placement, highly readable action silhouettes, warm sunlight. Solid white background, no text, no logos, no modern elements, no blurred pixels, no static repetitive frames.
+
+Reference image role: character identity, body proportions, hair bun, headband, sunbaked skin, ragged loincloth, primitive stone axe.
+Row order: front, back, left-profile, right-profile.
+Cell size: 64x64.
+Final generated with built-in image_gen, then normalized to 384x256 by nearest-neighbor resize from the raw generated sheet.

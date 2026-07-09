@@ -1,0 +1,19 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://sonfbuu6g3xo"
+
+[deps]
+
+files=["res://Assets/_ThachSanh_V2/_evidence/center_fix_20260709_225108/before_cell_metrics.phase.translation", "res://Assets/_ThachSanh_V2/_evidence/center_fix_20260709_225108/before_cell_metrics.row.translation", "res://Assets/_ThachSanh_V2/_evidence/center_fix_20260709_225108/before_cell_metrics.col.translation", "res://Assets/_ThachSanh_V2/_evidence/center_fix_20260709_225108/before_cell_metrics.bbox.translation", "res://Assets/_ThachSanh_V2/_evidence/center_fix_20260709_225108/before_cell_metrics.bbox.translation", "res://Assets/_ThachSanh_V2/_evidence/center_fix_20260709_225108/before_cell_metrics.bbox.translation", "res://Assets/_ThachSanh_V2/_evidence/center_fix_20260709_225108/before_cell_metrics.bbox.translation", "res://Assets/_ThachSanh_V2/_evidence/center_fix_20260709_225108/before_cell_metrics.bbox.translation", "res://Assets/_ThachSanh_V2/_evidence/center_fix_20260709_225108/before_cell_metrics.bbox.translation", "res://Assets/_ThachSanh_V2/_evidence/center_fix_20260709_225108/before_cell_metrics.center.translation", "res://Assets/_ThachSanh_V2/_evidence/center_fix_20260709_225108/before_cell_metrics.bottom.translation", "res://Assets/_ThachSanh_V2/_evidence/center_fix_20260709_225108/before_cell_metrics.edge.translation", "res://Assets/_ThachSanh_V2/_evidence/center_fix_20260709_225108/before_cell_metrics.near.translation", "res://Assets/_ThachSanh_V2/_evidence/center_fix_20260709_225108/before_cell_metrics.has.translation"]
+
+source_file="res://Assets/_ThachSanh_V2/_evidence/center_fix_20260709_225108/before_cell_metrics.csv"
+dest_files=["res://Assets/_ThachSanh_V2/_evidence/center_fix_20260709_225108/before_cell_metrics.phase.translation", "res://Assets/_ThachSanh_V2/_evidence/center_fix_20260709_225108/before_cell_metrics.row.translation", "res://Assets/_ThachSanh_V2/_evidence/center_fix_20260709_225108/before_cell_metrics.col.translation", "res://Assets/_ThachSanh_V2/_evidence/center_fix_20260709_225108/before_cell_metrics.bbox.translation", "res://Assets/_ThachSanh_V2/_evidence/center_fix_20260709_225108/before_cell_metrics.bbox.translation", "res://Assets/_ThachSanh_V2/_evidence/center_fix_20260709_225108/before_cell_metrics.bbox.translation", "res://Assets/_ThachSanh_V2/_evidence/center_fix_20260709_225108/before_cell_metrics.bbox.translation", "res://Assets/_ThachSanh_V2/_evidence/center_fix_20260709_225108/before_cell_metrics.bbox.translation", "res://Assets/_ThachSanh_V2/_evidence/center_fix_20260709_225108/before_cell_metrics.bbox.translation", "res://Assets/_ThachSanh_V2/_evidence/center_fix_20260709_225108/before_cell_metrics.center.translation", "res://Assets/_ThachSanh_V2/_evidence/center_fix_20260709_225108/before_cell_metrics.bottom.translation", "res://Assets/_ThachSanh_V2/_evidence/center_fix_20260709_225108/before_cell_metrics.edge.translation", "res://Assets/_ThachSanh_V2/_evidence/center_fix_20260709_225108/before_cell_metrics.near.translation", "res://Assets/_ThachSanh_V2/_evidence/center_fix_20260709_225108/before_cell_metrics.has.translation"]
+
+[params]
+
+compress=1
+delimiter=0
+unescape_keys=false
+unescape_translations=true

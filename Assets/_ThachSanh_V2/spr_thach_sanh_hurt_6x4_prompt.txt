@@ -1,0 +1,7 @@
+HURT sprite sheet for Thach Sanh V2.
+Target: 384x256 PNG, 6 columns x 4 rows, 64x64 cells.
+Character identity: Ancient Vietnamese mythological fantasy woodcutter from Hung King era, muscular, dark sunbaked skin, shirtless, ragged beige loincloth, barefoot, black top bun, cloth headband, primitive stone axe in right hand.
+Row order: front, back, left-profile, right-profile.
+Frame sequence per row: frame 1 sudden impact/startle; frame 2 flinch with shoulders hunched and torso twisting away; frame 3 recoil backward with axe arm pulled off-line; frame 4 peak off-balance with bent knees and displaced torso; frame 5 bracing recovery while still hurt; frame 6 return-to-ready hurt stance.
+Constraints: hurt only, no walking/running/attacking, no weapon swing/trail, no death collapse, no blood/gore, axe remains in right hand and follows recoil, no repeated identical frames, white background, no text/logos/scenery/modern elements.
+Generated with built-in image_gen and normalized to 384x256 by nearest-neighbor resize from raw generated sheet.

@@ -1,0 +1,55 @@
+---
+description: Godot 4.7 GDScript and scene rules for the giac-mo-co-tich project. Auto-loads for .gd / .tscn / .tres files.
+globs: ["**/*.gd", "**/*.tscn", "**/*.tres", "**/*.gdshader"]
+alwaysApply: false
+---
+
+# Godot 4.7 Rules
+
+This is a **Godot 4.7** project. Default to Godot 4.7 APIs and reject Godot 3 patterns.
+
+## Strict API rules
+
+- Use `CharacterBody3D` / `CharacterBody2D` (NOT `KinematicBody*`)
+- Use `Node3D` (NOT `Spatial`)
+- Use `await signal.timeout` (NOT `yield(signal, "timeout")`)
+- Use `signal.connect(callable)` Callable syntax (NOT `connect("name", self, "method")`)
+- Use `@export`, `@onready`, `@tool` (NOT `export`, `onready`, `tool`)
+- Use `move_and_slide()` with no argument (NOT `move_and_slide(velocity)`)
+- Use `Time.get_ticks_msec()` (NOT `OS.get_ticks_msec()`)
+- Use `randi_range()` / `randf_range()` (NOT `randi() % N` / `randf() * N`)
+- Use `FileAccess.open()` (NOT `File.new()`)
+- Use `create_tween()` + `tween_property()` (NOT `Tween.new()` + `interpolate_property`)
+- Use `instantiate()` (NOT `instance()`)
+- Use `process_frame` / `physics_frame` signals (NOT `idle_frame` / `idle_physics_frame`)
+
+## Project conventions (giac-mo-co-tich)
+
+- GDScript, PascalCase classes, snake_case functions/variables
+- Signals prefixed with their domain (no generic `signal_changed`)
+- Composition over inheritance — split complex nodes into `[parent]_[purpose].gd` components
+- File ≤ 200 lines, functions ≤ 50 lines
+- Vietnamese for game-logic comments, English for technical comments
+- Per-tunable values via `@export`, never hardcoded
+- Weather/profile state via `Resource` swap, never mutate `.tres` in-place
+- Always verify changes in Godot editor (F5) before committing
+
+## When asked to write code
+
+1. Check the existing scene in `src/` for matching patterns first
+2. Read one nearby correct file before generating — match its API style
+3. Use `@export var` for anything tunable; `@onready var x: Type = $Child` for node refs
+4. Static-type parameters and returns
+5. Use `push_error()` / `push_warning()` for runtime guards, not silent fallbacks
+
+## When NOT to apply this rule
+
+- C# files (Godot supports C#, but this project is GDScript-only)
+- Addon scripts under `addons/` that target their own engine version (e.g., phantom_camera 4.4 compat)
+- Generated import files (`.gd.uid`, `.tscn.uid`, `.import`)
+
+## Companion skills
+
+- `godot-4.7-game-dev` — strict patterns reference
+- `godot-gdscript-patterns` — general 4.x patterns
+- `godot-mcp` — MCP server integration for live scene inspection

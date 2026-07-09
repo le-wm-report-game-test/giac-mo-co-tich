@@ -1,10 +1,11 @@
-[gd_scene load_steps=9 format=3 uid="uid://c6y7n0i37h8d5"]
+[gd_scene load_steps=10 format=3 uid="uid://c6y7n0i37h8d5"]
 
 [ext_resource type="Script" path="res://src/player/player.gd" id="1_player_gd"]
 [ext_resource type="Script" path="res://src/components/health_component.gd" id="2_health_component"]
 [ext_resource type="Script" path="res://src/components/hurtbox_component.gd" id="3_hurtbox_component"]
 [ext_resource type="Texture2D" path="res://Assets/player/thach_sanh/thach_sanh_idle.png" id="4_thach_sanh_idle"]
 [ext_resource type="Script" path="res://src/player/movement_dust_trail.gd" id="5_movement_dust"]
+[ext_resource type="Script" path="res://src/player/player_sprite_animator.gd" id="6_sprite_animator"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_p1"]
 radius = 0.4
@@ -38,6 +39,9 @@ visible = false
 
 [node name="MovementDustTrail" type="Node3D" parent="."]
 script = ExtResource("5_movement_dust")
+
+[node name="SpriteAnimator" type="Node" parent="."]
+script = ExtResource("6_sprite_animator")
 
 [node name="HealthComponent" type="Node" parent="."]
 script = ExtResource("2_health_component")

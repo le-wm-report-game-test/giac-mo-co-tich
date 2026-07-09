@@ -97,6 +97,7 @@ var _sprite_feet_offsets: Dictionary = {}
 @onready var hitbox_area: Area3D = $HitboxArea
 @onready var hitbox_shape: CollisionShape3D = $HitboxArea/HitboxShape
 @onready var movement_dust: MovementDustTrail = $MovementDustTrail
+@onready var sprite_animator: PlayerSpriteAnimator = get_node_or_null("SpriteAnimator") as PlayerSpriteAnimator
 
 func _ready() -> void:
 	_setup_input_actions()
@@ -143,6 +144,9 @@ func _ready() -> void:
 	_update_sprite()
 
 func prewarm_visual_assets() -> void:
+	if sprite_animator != null:
+		sprite_animator.prewarm()
+
 	for dir_name: String in PLAYER_VISUAL_DIRECTIONS:
 		for anim_name: String in ANIMATION_FRAME_COUNTS:
 			var folder := anim_name
@@ -502,24 +506,24 @@ func _process_animation(delta: float) -> void:
 		anim_frame += 1
 		_check_animation_end()
 	
-	# Enable hitbox during specific attack frame (frame index 1 is the strike point in 2-frame animation)
+	# V2 attack has wind-up, strike, impact, recover; legacy keeps the old 2-frame timing.
 	if anim_state == AnimState.ATTACK:
-		hitbox_area.monitoring = (anim_frame == 1)
+		hitbox_area.monitoring = _is_attack_damage_frame(anim_frame)
 	
 	_update_sprite()
 
 func _check_animation_end() -> void:
 	match anim_state:
 		AnimState.IDLE:
-			var max_frames := 2
+			var max_frames := _get_animation_frame_count("idle")
 			if anim_frame >= max_frames:
 				anim_frame = 0
 		AnimState.WALK:
-			var max_frames := MOVEMENT_WALK_FRAMES
+			var max_frames := _get_animation_frame_count("run")
 			if anim_frame >= max_frames:
 				anim_frame = 0
 		AnimState.ATTACK:
-			var max_frames := 2
+			var max_frames := _get_animation_frame_count("attack")
 			if anim_frame >= max_frames:
 				is_attacking = false
 				anim_state = AnimState.IDLE
@@ -527,14 +531,24 @@ func _check_animation_end() -> void:
 				attack_cooldown = 0.3
 				hitbox_area.monitoring = false
 		AnimState.HURT:
-			var max_frames := 1
+			var max_frames := _get_animation_frame_count("hurt")
 			if anim_frame >= max_frames:
 				anim_state = AnimState.IDLE
 				anim_frame = 0
 		AnimState.DEATH:
-			var max_frames := 1
+			var max_frames := _get_animation_frame_count("death")
 			if anim_frame >= max_frames:
 				set_physics_process(false)
+
+func _get_animation_frame_count(anim_name: String) -> int:
+	if sprite_animator != null and sprite_animator.has_animation(anim_name):
+		return sprite_animator.get_frame_count(anim_name)
+	return int(ANIMATION_FRAME_COUNTS.get(anim_name, 1))
+
+func _is_attack_damage_frame(frame_index: int) -> bool:
+	if _get_animation_frame_count("attack") >= 6:
+		return frame_index == 3 or frame_index == 4
+	return frame_index == 1
 
 func _update_sprite() -> void:
 	var frame_count := 1
@@ -563,8 +577,17 @@ func _update_sprite() -> void:
 			folder = "hurt"
 			suffix = "hurt"
 
+	frame_count = _get_animation_frame_count(suffix)
 	var clamped_frame := clampi(anim_frame, 0, frame_count - 1)
 	var dir_name := _get_visual_dir_name(move_direction)
+	if sprite_animator != null and sprite_animator.apply_to_sprite(sprite, suffix, clamped_frame, dir_name, target_sprite_height):
+		if attack_effect:
+			attack_effect.visible = false
+		_update_attack_hitbox_position()
+		return
+
+	frame_count = int(ANIMATION_FRAME_COUNTS.get(suffix, frame_count))
+	clamped_frame = clampi(anim_frame, 0, frame_count - 1)
 	var tex_path := "%s/%s/%s_%s_%d.png" % [MOVEMENT_FRAME_DIR, folder, dir_name, suffix, clamped_frame]
 	
 	var tex := _cache_texture(tex_path)
