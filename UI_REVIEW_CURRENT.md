@@ -18,7 +18,6 @@
 
 ## Uu tien 3
 
-- Day cum button main menu xuong thap hon mot chut de tranh che logo/artwork.
 - Giam size button main menu khoang 10-15% de background thoang hon.
 - Them lop shadow/gradient nhe sau cum button main menu de tang do doc.
 - Chinh loading screen bot generic, them motif rieng cua game.

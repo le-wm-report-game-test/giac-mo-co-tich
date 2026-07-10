@@ -53,3 +53,20 @@ func test_continue_button_reflects_save_state() -> void:
 
 	menu.queue_free()
 	SaveManager.delete_save()
+
+func test_main_menu_priority3_layout_is_more_breathable() -> void:
+	var menu := MainMenu.new()
+	tree.root.add_child(menu)
+	await tree.process_frame
+
+	var continue_button := menu.get_node_or_null("ButtonBackdrop/ButtonContainer/ContinueEntry/Continue") as Button
+	var backdrop := menu.get_node_or_null("ButtonBackdrop") as PanelContainer
+	var glow := menu.get_node_or_null("ButtonGlow") as ColorRect
+	assert_not_null(continue_button, "Continue button must still exist after menu polish")
+	assert_not_null(backdrop, "Button backdrop must still exist after menu polish")
+	assert_not_null(glow, "Button glow layer must exist behind the menu buttons")
+	assert_eq(continue_button.custom_minimum_size, Vector2(246.0, 44.0), "Menu buttons should be reduced for a more breathable layout")
+	assert_eq(backdrop.offset_top, MainMenu.BACKDROP_TOP, "Button cluster should sit lower to avoid crowding the key art")
+	assert_true(glow.offset_top < backdrop.offset_top, "Glow layer should start above the backdrop to soften readability against the art")
+
+	menu.queue_free()

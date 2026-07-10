@@ -10,8 +10,11 @@ const GAME_SCENE_PATH: String = "res://src/world/world.tscn"
 const LEGACY_GAME_SCENE_PATH: String = "res://Scenes/Game.tscn"
 const LOADING_SCENE_PATH: String = "res://src/ui/LoadingScreen.tscn"
 const BG_PATH: String = "res://Assets/OpenScreenAssets/Background_Screen.png"
-const BUTTON_WIDTH: float = 280.0
-const BUTTON_HEIGHT: float = 50.0
+const BUTTON_WIDTH: float = 246.0
+const BUTTON_HEIGHT: float = 44.0
+const BACKDROP_HALF_WIDTH: float = 188.0
+const BACKDROP_TOP: float = 84.0
+const BACKDROP_BOTTOM: float = 312.0
 
 @export var hover_sfx: AudioStream = preload("res://Assets/audio/Select_Sound.mp3")
 @export var bg_music: AudioStream = preload("res://Assets/audio/intro.mp3")
@@ -45,6 +48,20 @@ func _ready() -> void:
 	add_child(bg)
 	_update_background_size()
 
+	var button_glow := ColorRect.new()
+	button_glow.name = "ButtonGlow"
+	button_glow.anchor_left = 0.5
+	button_glow.anchor_top = 0.5
+	button_glow.anchor_right = 0.5
+	button_glow.anchor_bottom = 0.5
+	button_glow.offset_left = -260
+	button_glow.offset_top = 58
+	button_glow.offset_right = 260
+	button_glow.offset_bottom = 338
+	button_glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	button_glow.material = _create_button_glow_material()
+	add_child(button_glow)
+
 	var button_backdrop := PanelContainer.new()
 	button_backdrop.name = "ButtonBackdrop"
 	button_backdrop.anchor_left = 0.5
@@ -53,40 +70,40 @@ func _ready() -> void:
 	button_backdrop.anchor_bottom = 0.5
 	button_backdrop.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	button_backdrop.grow_vertical = Control.GROW_DIRECTION_BOTH
-	button_backdrop.offset_left = -210
-	button_backdrop.offset_top = 50
-	button_backdrop.offset_right = 210
-	button_backdrop.offset_bottom = 305
+	button_backdrop.offset_left = -BACKDROP_HALF_WIDTH
+	button_backdrop.offset_top = BACKDROP_TOP
+	button_backdrop.offset_right = BACKDROP_HALF_WIDTH
+	button_backdrop.offset_bottom = BACKDROP_BOTTOM
 	var backdrop_style := StyleBoxFlat.new()
-	backdrop_style.bg_color = Color(0.04, 0.08, 0.05, 0.58)
+	backdrop_style.bg_color = Color(0.03, 0.06, 0.04, 0.52)
 	backdrop_style.set_corner_radius_all(18)
 	backdrop_style.set_border_width_all(1)
 	backdrop_style.border_color = Color(0.75, 0.63, 0.38, 0.45)
-	backdrop_style.shadow_color = Color(0.0, 0.0, 0.0, 0.32)
-	backdrop_style.shadow_size = 20
-	backdrop_style.content_margin_left = 32.0
-	backdrop_style.content_margin_right = 32.0
-	backdrop_style.content_margin_top = 26.0
-	backdrop_style.content_margin_bottom = 26.0
+	backdrop_style.shadow_color = Color(0.0, 0.0, 0.0, 0.24)
+	backdrop_style.shadow_size = 10
+	backdrop_style.content_margin_left = 26.0
+	backdrop_style.content_margin_right = 26.0
+	backdrop_style.content_margin_top = 22.0
+	backdrop_style.content_margin_bottom = 22.0
 	button_backdrop.add_theme_stylebox_override("panel", backdrop_style)
 	add_child(button_backdrop)
 
 	var container: VBoxContainer = VBoxContainer.new()
 	container.name = "ButtonContainer"
 	container.alignment = BoxContainer.ALIGNMENT_CENTER
-	container.add_theme_constant_override("separation", 14)
+	container.add_theme_constant_override("separation", 12)
 	button_backdrop.add_child(container)
 
 	var menu_title := Label.new()
 	menu_title.text = "Hành Trình Cổ Tích"
-	UITheme.apply_heading(menu_title, 26)
+	UITheme.apply_heading(menu_title, 24)
 	container.add_child(menu_title)
 
 	var menu_subtitle := Label.new()
 	menu_subtitle.text = "Thắp kiếm, bước vào khu rừng và viết tiếp truyền thuyết Thạch Sanh."
 	menu_subtitle.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	menu_subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	UITheme.apply_body(menu_subtitle, 14, UITheme.BODY_TEXT_COLOR)
+	UITheme.apply_body(menu_subtitle, 13, UITheme.BODY_TEXT_COLOR)
 	container.add_child(menu_subtitle)
 
 	container.add_child(UITheme.create_separator(14.0))
@@ -291,3 +308,21 @@ func _update_background_size() -> void:
 		target_height = tex_size.y
 	bg.size = Vector2(target_width, target_height)
 	bg.position = (screen_size - bg.size) / 2.0
+
+func _create_button_glow_material() -> ShaderMaterial:
+	var shader := Shader.new()
+	shader.code = """
+shader_type canvas_item;
+render_mode unshaded;
+
+void fragment() {
+	vec2 centered_uv = UV * 2.0 - vec2(1.0);
+	float radial = 1.0 - smoothstep(0.18, 1.0, length(centered_uv * vec2(0.95, 1.2)));
+	float vertical = smoothstep(1.0, 0.2, abs(centered_uv.y));
+	float alpha = radial * vertical * 0.44;
+	COLOR = vec4(0.03, 0.05, 0.04, alpha);
+}
+"""
+	var material := ShaderMaterial.new()
+	material.shader = shader
+	return material
