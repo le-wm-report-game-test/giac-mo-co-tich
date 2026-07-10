@@ -783,7 +783,8 @@ func _on_damaged(amount: float, source: Node3D, is_critical: bool = false) -> vo
 		])
 		particles.color_ramp = gradient
 		
-		get_parent().add_child(particles)
+		var world_root := get_tree().root
+		world_root.add_child(particles)
 		particles.global_position = global_position + Vector3(0.0, 0.6, 0.0)
 		particles.emitting = true
 		
