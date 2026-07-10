@@ -126,7 +126,7 @@ func test_enemy_damage_number_spawn() -> void:
 	var dummy_enemy: Node3D = Node3D.new()
 	world_instance.add_child(dummy_enemy)
 	
-	EventBus.enemy_damaged.emit(dummy_enemy, 20.0, Vector3(2.0, 0.0, 2.0))
+	EventBus.enemy_damaged.emit(dummy_enemy, 20.0, Vector3(2.0, 0.0, 2.0), false)
 	await tree.process_frame
 	
 	var current_labels: int = 0

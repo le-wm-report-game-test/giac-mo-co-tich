@@ -84,8 +84,8 @@ func scenario_mob_kiting_aggro() -> void:
 	for i in range(10):
 		await tree.process_frame
 		
-	EventBus.enemy_damaged.emit(orcs[0], 15.0, orcs[0].global_position)
-	EventBus.enemy_damaged.emit(orcs[1], 25.0, orcs[1].global_position)
+	EventBus.enemy_damaged.emit(orcs[0], 15.0, orcs[0].global_position, false)
+	EventBus.enemy_damaged.emit(orcs[1], 25.0, orcs[1].global_position, false)
 	await tree.process_frame
 	
 	var world_manager := world_instance.get_node("WorldManager") as WorldManager

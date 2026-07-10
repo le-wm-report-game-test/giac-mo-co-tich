@@ -51,7 +51,7 @@ var _walk_direction_key: String = WALK_DIR_DOWN
 # match the original _spawn_boss values from world_manager.gd.
 @export var boss_max_health: float = 300.0
 @export var boss_attack_damage: float = 25.0
-@export var boss_speed: float = 1.3
+@export var boss_speed: float = 1.5
 @export var boss_attack_cooldown_time: float = 2.5
 @export var boss_attack_range: float = 1.65
 @export var boss_detection_range: float = 20.0

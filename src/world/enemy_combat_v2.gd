@@ -18,7 +18,7 @@ enum AttackPhase { ANTICIPATION, ATTACK, RECOVERY }
 @export_range(0.25, 0.6, 0.01) var anticipation_ratio: float = 0.30
 @export_range(0.05, 0.15, 0.01) var active_ratio: float = 0.15
 @export_range(0.30, 0.6, 0.01) var recovery_ratio: float = 0.55
-@export_range(0.4, 1.5, 0.05) var telegraph_min_duration: float = 0.8
+@export_range(0.2, 1.0, 0.05) var telegraph_min_duration: float = 0.4
 
 # Phase state
 var phase: AttackPhase = AttackPhase.ANTICIPATION
@@ -103,10 +103,6 @@ func _set_hitbox_monitoring(on: bool) -> void:
 		_hitbox_component.monitoring = on
 
 func _spawn_telegraph() -> void:
-	# Telegraph must be visible for the entire ANTICIPATION window, never
-	# less than telegraph_min_duration (E2 minimum).
-	if not _enemy_owner or not is_instance_valid(_enemy_owner):
-		return
 	var dur: float = telegraph_duration_override
 	if dur <= 0.0:
 		dur = maxf(anticipation_dur, telegraph_min_duration)

@@ -149,8 +149,8 @@ func _on_player_stepped(pos: Vector3) -> void:
 			_footstep_player.play()
 		_footstep_timeout = 0.8
 
-func _on_enemy_damaged(_enemy: Node3D, _amount: float, pos: Vector3) -> void:
-	play_sfx("hit", pos, 0.1)
+func _on_enemy_damaged(_enemy: Node3D, _amount: float, _pos: Vector3, _is_critical: bool) -> void:
+	play_sfx("hit", _pos, 0.1)
 
 func _on_enemy_died(enemy: Node3D) -> void:
 	play_sfx("death", enemy.global_position, 0.1)

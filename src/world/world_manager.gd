@@ -185,6 +185,11 @@ func _spawn_boss() -> void:
 	var boss := OrcBossMob.new()
 	boss.name = "BossChằnTinh"
 	boss.configure_arena(Vector3(-15.0, 0.2, -15.0))
+	# Groups MUST be set before add_child() so OrcMob._ready()'s
+	# `is_in_group("boss")` check (used by _setup_physics_collider /
+	# _setup_hitbox / attack-frame-count branches) returns true.
+	boss.add_to_group("orc_mobs")
+	boss.add_to_group("boss")
 	get_parent().add_child(boss)
 	boss_instance = boss
 

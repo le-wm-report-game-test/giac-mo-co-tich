@@ -49,7 +49,7 @@ func cancel() -> void:
 		return
 	_active = false
 	var tween := create_tween()
-	tween.tween_property(self, "modulate:a", 0.0, 0.15)
+	tween.tween_property(self, "modulate:a", 0.0, 0.18)
 	tween.tween_callback(queue_free)
 
 func _process(delta: float) -> void:

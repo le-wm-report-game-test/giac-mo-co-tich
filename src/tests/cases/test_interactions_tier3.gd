@@ -153,7 +153,7 @@ func test_storm_weather_orc_damage_popup() -> void:
 	var ui := world_instance.get_node("WorldManager/UI") as CanvasLayer
 	var start_labels := ui.get_child_count()
 	
-	EventBus.enemy_damaged.emit(orc, 15.0, orc.global_position)
+	EventBus.enemy_damaged.emit(orc, 15.0, orc.global_position, false)
 	await tree.process_frame
 	
 	var end_labels := ui.get_child_count()
