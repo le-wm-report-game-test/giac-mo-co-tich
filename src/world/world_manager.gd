@@ -44,6 +44,7 @@ const MINIMAP_INNER_POSITION := Vector2(58.0, 58.0)
 const MINIMAP_INNER_SIZE := Vector2(379.0, 379.0)
 const MINIMAP_ZOOM_SCALE := 2.6
 const MINIMAP_ZOOM_DURATION := 0.25
+const BOSS_DISPLAY_NAME := "Chằn Tinh"
 
 # ─── HUD References ──────────────────────────────────────────────────────────
 var player_health_bar: Node = null
@@ -52,6 +53,7 @@ var orc_counter_label: Node = null
 var minimap: Minimap = null
 var minimap_container: Control = null
 var minimap_zoomed: bool = false
+var minimap_mask: Control = null
 
 # ─── Tree Fade ───────────────────────────────────────────────────────────────
 const TREE_FADE_ALPHA: float = 0.25
@@ -597,12 +599,9 @@ func _create_hud() -> void:
 	hp_bar.min_value = 0.0
 	hp_bar.max_value = 100.0
 	hp_bar.value = 100.0
-	hp_bar.set_anchors_preset(Control.PRESET_FULL_RECT)
-	hp_bar.offset_left = 0.0
-	hp_bar.offset_top = 0.0
-	hp_bar.offset_right = 0.0
-	hp_bar.offset_bottom = 0.0
+	hp_bar.position = hp_fill_position
 	hp_bar.custom_minimum_size = hp_fill_size
+	hp_bar.size = hp_fill_size
 	hp_bar.fill_mode = TextureProgressBar.FILL_LEFT_TO_RIGHT
 	hp_bar.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	hp_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -613,7 +612,7 @@ func _create_hud() -> void:
 	hp_bar.texture_progress = _create_solid_texture(PLAYER_HUD_FILL_COLOR, Vector2i(int(hp_fill_size.x), int(hp_fill_size.y)))
 	hp_bar.texture_over = _create_solid_texture(Color(0.0, 0.0, 0.0, 0.0), Vector2i(int(hp_fill_size.x), int(hp_fill_size.y)))
 	hp_bar.visible = false
-	hp_mask.add_child(hp_bar)
+	hp_container.add_child(hp_bar)
 	player_health_bar = hp_bar
 	
 	var hp_text := Label.new()
@@ -670,7 +669,10 @@ func _create_hud() -> void:
 	# ─── Minimap HUD ───
 	minimap_container = Control.new()
 	minimap_container.name = "MinimapContainer"
-	minimap_container.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	minimap_container.anchor_left = 1.0
+	minimap_container.anchor_top = 0.0
+	minimap_container.anchor_right = 1.0
+	minimap_container.anchor_bottom = 0.0
 	minimap_container.offset_left = -MINIMAP_SCREEN_SIZE.x - 20.0
 	minimap_container.offset_top = 20.0
 	minimap_container.offset_right = -20.0
@@ -705,7 +707,7 @@ func _create_hud() -> void:
 		round(MINIMAP_INNER_SIZE.y * minimap_scale)
 	)
 
-	var minimap_mask := Control.new()
+	minimap_mask = Control.new()
 	minimap_mask.name = "MinimapMask"
 	minimap_mask.position = minimap_inner_position
 	minimap_mask.custom_minimum_size = minimap_inner_size
@@ -722,6 +724,7 @@ func _create_hud() -> void:
 	minimap_mask.add_child(minimap)
 	minimap.setup(minimap_inner_size)
 	minimap.position = Vector2.ZERO
+	_refresh_minimap_layout()
 
 func _update_ui_orc_counter() -> void:
 	var label := get_node_or_null("UI/OrcCounter/OrcCountLabel") as Label
@@ -742,14 +745,14 @@ func _on_player_health_changed(current: float, max_h: float) -> void:
 func _format_orc_counter_text() -> String:
 	return "Orc đã hạ: %d/%d" % [orcs_killed, orcs_to_kill_for_boss]
 
-func _show_boss_health_bar(boss: Node3D) -> void:
+func _show_boss_health_bar(boss: Node3D = null) -> void:
 	var ui := get_node_or_null("UI")
-	if ui == null:
+	if ui == null or boss == null:
 		return
 	_boss_health_bar = BossHealthBar.new()
 	_boss_health_bar.name = "BossHealthBar"
 	ui.add_child(_boss_health_bar)
-	_boss_health_bar.attach(boss, "Chằn Tinh")
+	_boss_health_bar.attach(boss, BOSS_DISPLAY_NAME)
 
 func _hide_boss_health_bar() -> void:
 	if _boss_health_bar and is_instance_valid(_boss_health_bar):
@@ -1034,21 +1037,28 @@ func _update_minimap() -> void:
 	var player := get_tree().get_first_node_in_group("player") as Node3D
 	if not player or not is_instance_valid(player):
 		return
-	var enemies: Array[Dictionary] = []
+	_refresh_minimap_layout()
+	var markers: Array[Dictionary] = []
 	var orcs := get_tree().get_nodes_in_group("orc_mobs")
 	for orc in orcs:
 		if _is_minimap_orc_marker(orc) and _is_orc_attacking(orc):
-			enemies.append({
+			markers.append({
 				"position": orc.global_position,
-				"is_boss": orc.is_in_group("boss")
+				"marker_type": (
+					Minimap.MARKER_BOSS
+					if orc.is_in_group("boss")
+					else Minimap.MARKER_ORC
+				)
 			})
 
-	var foods: Array[Vector3] = []
 	for food in get_tree().get_nodes_in_group("food_items"):
 		if food is Node3D and is_instance_valid(food) and food.visible:
-			foods.append((food as Node3D).global_position)
+			markers.append({
+				"position": (food as Node3D).global_position,
+				"marker_type": Minimap.MARKER_ITEM
+			})
 
-	minimap.update_positions(player.global_position, enemies, foods)
+	minimap.update_positions(player.global_position, markers)
 
 func _is_orc_attacking(orc: Variant) -> bool:
 	# CHASE = 2, ATTACK = 3 (OrcMob.State) — chỉ hiện trên map khi quái đang chủ động tấn công người chơi.
@@ -1061,3 +1071,26 @@ func _is_minimap_orc_marker(candidate: Variant) -> bool:
 	if candidate.is_in_group("animals") or candidate.is_in_group("cats"):
 		return false
 	return candidate is OrcMob
+
+
+func _refresh_minimap_layout() -> void:
+	if minimap_container == null or not is_instance_valid(minimap_container):
+		return
+	minimap_container.size = MINIMAP_SCREEN_SIZE
+	minimap_container.custom_minimum_size = MINIMAP_SCREEN_SIZE
+	minimap_container.pivot_offset = Vector2(MINIMAP_SCREEN_SIZE.x, 0.0)
+	var minimap_scale := MINIMAP_SCREEN_SIZE.x / MINIMAP_FRAME_TEXTURE_SIZE.x
+	var inner_position := Vector2(
+		round(MINIMAP_INNER_POSITION.x * minimap_scale),
+		round(MINIMAP_INNER_POSITION.y * minimap_scale)
+	)
+	var inner_size := Vector2(
+		round(MINIMAP_INNER_SIZE.x * minimap_scale),
+		round(MINIMAP_INNER_SIZE.y * minimap_scale)
+	)
+	if minimap_mask and is_instance_valid(minimap_mask):
+		minimap_mask.position = inner_position
+		minimap_mask.size = inner_size
+		minimap_mask.custom_minimum_size = inner_size
+	if minimap and is_instance_valid(minimap):
+		minimap.setup(inner_size)

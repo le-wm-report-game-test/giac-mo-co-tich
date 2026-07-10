@@ -173,7 +173,13 @@ func _refresh_continue_state() -> void:
 		return
 	var has_save := SaveManager.has_save()
 	_continue_button.disabled = not has_save
-	_continue_hint.text = "Tiếp tục từ lần lưu gần nhất." if has_save else "Chưa có dữ liệu lưu."
+	_continue_hint.text = (
+		"Tiếp tục từ lần lưu gần nhất."
+		if has_save
+		else "Chưa có dữ liệu lưu để tiếp tục hành trình."
+	)
+	_continue_button.tooltip_text = "" if has_save else "Hãy bắt đầu trò chơi mới để tạo dữ liệu lưu."
+	_continue_button.modulate = Color.WHITE if has_save else Color(0.72, 0.68, 0.62, 0.92)
 	_continue_hint.add_theme_color_override(
 		"font_color",
 		UITheme.BODY_MUTED_COLOR if has_save else Color(0.86, 0.68, 0.48)

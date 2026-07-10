@@ -10,8 +10,6 @@
 
 ## Uu tien 2
 
-- Ra soat va sua boss HUD asset path dang tham chieu `res://Assets/boss_hud.png`.
-- Hien lai thong tin HP nguoi choi theo dang ngan gon (`82 / 100` hoac `82%`).
 - Them ten boss tren boss HUD (`Chan Tinh`).
 - Chinh orc counter thanh cach viet ro nghia hon, vi du `Orc da ha: 3/5`.
 - Sua minimap de anchor theo viewport that, khong hardcode theo moc `1920`.
