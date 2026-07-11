@@ -46,6 +46,7 @@ func _build_dialog() -> void:
 	_overlay.add_child(panel)
 
 	var vbox := VBoxContainer.new()
+	vbox.name = "VBoxContainer"
 	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
 	vbox.add_theme_constant_override("separation", 16)
 	panel.add_child(vbox)
@@ -68,6 +69,7 @@ func _build_dialog() -> void:
 	vbox.add_child(sub)
 
 	var btn_row := HBoxContainer.new()
+	btn_row.name = "HBoxContainer"
 	btn_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	btn_row.add_theme_constant_override("separation", 16)
 	vbox.add_child(btn_row)

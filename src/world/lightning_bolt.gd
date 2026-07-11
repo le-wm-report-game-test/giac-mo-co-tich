@@ -133,7 +133,7 @@ func _spawn_fire_hazard() -> void:
 	fire_hazard.global_position = global_position
 
 func _play_thunder_sound() -> void:
-	var audio := get_node_or_null("/root/World/AudioManager")
+	var audio := get_tree().get_first_node_in_group("audio_manager") as AudioManager
 	if audio and audio.has_method("play_sfx"):
 		audio.play_sfx("thunder", global_position, 0.2)
 

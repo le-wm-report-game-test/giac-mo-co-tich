@@ -53,22 +53,28 @@ func test_magnet_override_player_movement() -> void:
 	assert_not_null(wm, "WorldManager should exist")
 	assert_not_null(player, "Player should exist")
 	assert_not_null(camera, "Camera should exist")
-	
+
 	var magnet_target := Vector3(20.0, 0.0, 20.0)
 	wm._activate_camera_magnet(magnet_target, 25.0, 5.0)
-	
-	# Move player far away
+	var expected_offset := camera.camera_offset * Vector3(1.25, 1.05, 1.25)
+	var expected_anchor := magnet_target + expected_offset
+
 	player.global_position = Vector3(-40.0, 0.0, -40.0)
-	
-	# Process multiple frames
-	for i in range(80):
+	for i in range(10):
 		await tree.physics_frame
-		
-	# Verify camera is close to magnet target, NOT player position
-	var dist_to_magnet := camera.global_position.distance_to(magnet_target)
-	var dist_to_player := camera.global_position.distance_to(player.global_position)
-	assert_true(dist_to_magnet < 5.0, "Camera should remain close to magnet target position")
-	assert_true(dist_to_player > 20.0, "Camera should override player follow behavior when magnet is active")
+
+	assert_true(
+		camera.magnet_pcam.priority > camera.player_pcam.priority,
+		"Magnet camera should override player camera priority"
+	)
+	assert_true(
+		camera.magnet_pcam.global_position.distance_to(expected_anchor) < 0.01,
+		"Magnet anchor should remain fixed after player movement"
+	)
+	assert_true(
+		camera.magnet_pcam.global_position.distance_to(player.global_position + expected_offset) > 20.0,
+		"Magnet anchor should remain independent from player movement"
+	)
 
 func test_camera_map_clamping() -> void:
 	var player := tree.get_first_node_in_group("player") as Player

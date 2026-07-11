@@ -3,6 +3,7 @@ class_name OrcMob
 extends CharacterBody3D
 
 const EnemyCombatV2 = preload("res://src/world/enemy_combat_v2.gd")
+const OrcSpatialIndex := preload("res://src/world/components/orc_spatial_index.gd")
 
 enum State { IDLE, WANDER, CHASE, ATTACK, HURT, DEATH }
 
@@ -98,6 +99,18 @@ var health_bar_sprite: Sprite3D
 var health_bar_fill: ColorRect
 var health_bar_fill_max_width: float = 0.0
 var combat_v2: Node = null
+var _death_cleanup_scheduled: bool = false
+const DEATH_CLEANUP_SECONDS: float = 2.2
+
+# Cache for raycast results (throttle every 2 frames)
+var _danger_cache: Array[float] = []
+var _interest_scores: Array[float] = []
+var _danger_scores: Array[float] = []
+var _nearby_orcs: Array[Node] = []
+var _ray_queries: Array[PhysicsRayQueryParameters3D] = []
+var _raycast_exclude: Array[RID] = []
+var _raycast_cache_age: int = 0
+const RAYCAST_THROTTLE_FRAMES: int = 2
 
 func _ready() -> void:
 	# Mount Combat V2 child component (3-phase attack + telegraph)
@@ -118,6 +131,17 @@ func _ready() -> void:
 	for i in range(8):
 		var angle := i * (TAU / 8.0)
 		candidate_directions.append(Vector3(cos(angle), 0.0, sin(angle)))
+	_danger_cache.resize(8)
+	_interest_scores.resize(8)
+	_danger_scores.resize(8)
+	_danger_cache.fill(0.0)
+	_interest_scores.fill(0.0)
+	_danger_scores.fill(0.0)
+	_raycast_exclude.append(get_rid())
+	for _index in range(8):
+		var query := PhysicsRayQueryParameters3D.create(Vector3.ZERO, Vector3.ZERO, 1)
+		query.exclude = _raycast_exclude
+		_ray_queries.append(query)
 	_setup_nodes()
 	state_timer = randf_range(1.0, 3.0)
 
@@ -337,27 +361,20 @@ func _physics_process(delta: float) -> void:
 		_process_death_state(delta)
 		return
 	velocity.y = 0.0 if is_on_floor() else velocity.y - gravity * delta
+
+	OrcSpatialIndex.fill_neighbors(get_tree(), global_position, _nearby_orcs)
 	_update_ai_state(delta)
-	_apply_movement(delta)
+	_apply_movement(delta, _nearby_orcs)
 	_update_animation(delta)
 	if attack_cooldown_timer > 0.0:
 		attack_cooldown_timer -= delta
 	_update_sprite_height()
 
 func _update_sprite_height() -> void:
-	if sprite == null and model == null:
-		return
-	var offset_y = 0.0
-	var forest = get_parent().get_node_or_null("Forest")
-	if forest and forest.has_method("_get_zone"):
-		var zone = forest._get_zone(global_position.x, global_position.z)
-		var is_path = (zone == 2) # Zone.PATH is 2
-		if not is_path:
-			offset_y = 0.2
 	if sprite:
-		sprite.position.y = _get_grounded_sprite_y() + offset_y
+		sprite.position.y = _get_grounded_sprite_y()
 	elif model:
-		model.position.y = _model_ground_offset + offset_y
+		model.position.y = _model_ground_offset
 
 func _update_ai_state(delta: float) -> void:
 	var player := get_tree().get_first_node_in_group("player") as Node3D
@@ -436,7 +453,7 @@ func _get_chase_target_direction(player: Node3D) -> Vector3:
 		return (dir * (1.0 - blend) + perp * blend).normalized()
 	return dir
 
-func _apply_movement(delta: float) -> void:
+func _apply_movement(delta: float, orc_neighbors: Array[Node]) -> void:
 	if current_state == State.ATTACK or current_state == State.HURT:
 		if current_state == State.HURT:
 			# Decelerate the knockback velocity smoothly during the 0.5s hurt state
@@ -453,8 +470,8 @@ func _apply_movement(delta: float) -> void:
 	elif current_state == State.WANDER:
 		target_dir = wander_direction
 
-	var steer := _get_context_steering_direction(target_dir)
-	var sep := Vector3.ZERO if hold_attack_position else _get_diagonal_separation_force()
+	var steer := _get_context_steering_direction(target_dir, orc_neighbors)
+	var sep := Vector3.ZERO if hold_attack_position else _get_diagonal_separation_force(orc_neighbors)
 	var move_dir := (steer + sep * 1.5).normalized()
 	if move_dir != Vector3.ZERO:
 		velocity.x = move_toward(velocity.x, move_dir.x * speed, speed * 10.0 * delta)
@@ -469,11 +486,10 @@ func _apply_movement(delta: float) -> void:
 		velocity.z = move_toward(velocity.z, 0.0, speed * 10.0 * delta)
 	move_and_slide()
 
-func _get_diagonal_separation_force() -> Vector3:
+func _get_diagonal_separation_force(orc_neighbors: Array[Node]) -> Vector3:
 	var force := Vector3.ZERO
-	var neighbors := get_tree().get_nodes_in_group("orc_mobs")
 	var count := 0
-	for n in neighbors:
+	for n in orc_neighbors:
 		if n == self or not is_instance_valid(n): continue
 		var orc := n as OrcMob
 		if orc == null or orc.current_state == State.DEATH: continue
@@ -486,25 +502,38 @@ func _get_diagonal_separation_force() -> Vector3:
 			count += 1
 	return force / count if count > 0 else Vector3.ZERO
 
-func _get_context_steering_direction(target_dir: Vector3) -> Vector3:
-	if target_dir == Vector3.ZERO: return Vector3.ZERO
-	var interest: Array[float] = []; var danger: Array[float] = []
-	interest.resize(8); danger.resize(8); interest.fill(0.0); danger.fill(0.0)
+func _get_context_steering_direction(target_dir: Vector3, orc_neighbors: Array[Node]) -> Vector3:
+	if target_dir == Vector3.ZERO:
+		return Vector3.ZERO
+	var interest := _interest_scores
+	var danger := _danger_scores
+	interest.fill(0.0)
+	danger.fill(0.0)
 	for i in range(8):
 		interest[i] = maxf(0.0, candidate_directions[i].dot(target_dir))
-	
-	var space := get_world_3d().direct_space_state
-	if space:
-		var start := global_position + Vector3(0, 0.5, 0)
-		for i in range(8):
-			var query := PhysicsRayQueryParameters3D.create(start, start + candidate_directions[i] * 2.0, 1)
-			query.exclude = [get_rid()]
-			var res := space.intersect_ray(query)
-			if not res.is_empty():
-				danger[i] = maxf(danger[i], ((2.0 - global_position.distance_to(res.position)) / 2.0) * 1.5)
-				
-	var neighbors := get_tree().get_nodes_in_group("orc_mobs")
-	for n in neighbors:
+
+	# Throttle raycasts: only every RAYCAST_THROTTLE_FRAMES
+	_raycast_cache_age += 1
+	if _raycast_cache_age >= RAYCAST_THROTTLE_FRAMES:
+		_raycast_cache_age = 0
+		_danger_cache.fill(0.0)
+		var space := get_world_3d().direct_space_state
+		if space:
+			var start := global_position + Vector3(0, 0.5, 0)
+			for i in range(8):
+				var query := _ray_queries[i]
+				query.from = start
+				query.to = start + candidate_directions[i] * 2.0
+				var res := space.intersect_ray(query)
+				if not res.is_empty():
+					_danger_cache[i] = maxf(_danger_cache[i], ((2.0 - global_position.distance_to(res.position)) / 2.0) * 1.5)
+
+	# Copy cached raycast results
+	for i in range(8):
+		danger[i] = maxf(danger[i], _danger_cache[i])
+
+	# Neighbor separation (still computed every frame as it affects group behavior)
+	for n in orc_neighbors:
 		if n == self or not is_instance_valid(n): continue
 		var orc := n as OrcMob
 		if orc == null or orc.current_state == State.DEATH: continue
@@ -518,7 +547,7 @@ func _get_context_steering_direction(target_dir: Vector3) -> Vector3:
 				var d := candidate_directions[i].dot(dir)
 				if d > 0.0:
 					danger[i] = maxf(danger[i], d * val * 1.8)
-					
+
 	var chosen := Vector3.ZERO
 	for i in range(8):
 		chosen += candidate_directions[i] * (interest[i] - danger[i])
@@ -621,7 +650,7 @@ func _get_camera_yaw_deg() -> float:
 	if _cached_game_camera == null:
 		_cached_game_camera = get_tree().get_first_node_in_group("camera") as Node3D
 	if _cached_game_camera:
-		var rot = _cached_game_camera.get("camera_rotate")
+		var rot: Variant = _cached_game_camera.get("camera_rotate")
 		if rot is Vector3:
 			return (rot as Vector3).y
 	return DEFAULT_CAMERA_YAW_DEG
@@ -783,14 +812,15 @@ func _on_damaged(amount: float, source: Node3D, is_critical: bool = false) -> vo
 		])
 		particles.color_ramp = gradient
 		
-		var world_root := get_tree().root
-		world_root.add_child(particles)
-		particles.global_position = global_position + Vector3(0.0, 0.6, 0.0)
+		# Add particles as sibling to this orc (use local position relative to parent)
+		get_parent().add_child(particles)
+		particles.position = position + Vector3(0.0, 0.6, 0.0)
 		particles.emitting = true
 		
 		# Auto delete particles after emission completes
-		get_tree().create_timer(0.6).timeout.connect(particles.queue_free)
-	
+		var particle_timer := get_tree().create_timer(0.6)
+		particle_timer.timeout.connect(particles.queue_free)
+
 	# Emit damage event for floating numbers
 	var event_bus := get_node_or_null("/root/EventBus")
 	if event_bus:
@@ -799,6 +829,7 @@ func _on_damaged(amount: float, source: Node3D, is_critical: bool = false) -> vo
 func _on_died() -> void:
 	current_state = State.DEATH
 	current_frame = 0
+	_schedule_death_cleanup()
 	frame_timer = 0.0
 	velocity = Vector3.ZERO
 	collision_layer = 0
@@ -828,10 +859,20 @@ func _process_death_state(delta: float) -> void:
 				var tween := create_tween()
 				tween.tween_property(sprite, "modulate:a", 0.0, 1.5)
 				tween.tween_callback(queue_free)
-			else:
-				get_tree().create_timer(1.5).timeout.connect(queue_free)
-			return
 	if use_3d_model:
 		_update_model_visual()
 	else:
 		_update_sprite()
+
+
+func _schedule_death_cleanup() -> void:
+	if _death_cleanup_scheduled or get_tree() == null:
+		return
+	_death_cleanup_scheduled = true
+	var death_timer := get_tree().create_timer(DEATH_CLEANUP_SECONDS)
+	death_timer.timeout.connect(_on_death_timer_expired)
+
+
+func _on_death_timer_expired() -> void:
+	if is_instance_valid(self):
+		queue_free()

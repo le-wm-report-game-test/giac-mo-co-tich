@@ -5,6 +5,11 @@
 class_name ForestBuilder
 extends Node3D
 
+const FloraScattererScript := preload("res://src/world/components/forest_flora_scatterer.gd")
+const EntitySpawnerScript := preload("res://src/world/components/forest_entity_spawner.gd")
+const TerrainBuilderScript := preload("res://src/world/components/forest_terrain_builder.gd")
+const BoundaryBuilderScript := preload("res://src/world/components/forest_boundary_builder.gd")
+
 # ─── Terrain Tile Meshes ───────────────────────────────────────────────────
 @export_group("Terrain Tiles")
 @export var grass_floor_mesh: Mesh = preload("res://Assets/modular_terrain_collection/Hilly_Terrain_Grass_Floor.obj")
@@ -125,10 +130,6 @@ const HILL_ZONES: Array = [
 	{"center": Vector2(-20.0, 5.0), "radius": 3.5, "height": 1.3},
 ]
 
-# ─── Materials ─────────────────────────────────────────────────────────────
-var _mat_grass: ShaderMaterial
-var _mat_dirt: ShaderMaterial
-var _mat_tree: StandardMaterial3D
 
 var _rng: RandomNumberGenerator
 
@@ -139,22 +140,38 @@ var _tree_scales: Array[float] = []
 # ─── Ready ─────────────────────────────────────────────────────────────────
 var _terrain_heightmap: TerrainHeightmap = null
 var _terrain_data: Dictionary = {}
+var _flora_scatterer: Node = null
+var _entity_spawner: Node = null
+var _terrain_builder: Node = null
+var _boundary_builder: Node = null
+
+
+func _setup_components() -> void:
+	_flora_scatterer = FloraScattererScript.new() as Node
+	_flora_scatterer.name = "FloraScatterer"
+	add_child(_flora_scatterer)
+	_flora_scatterer.setup(self, _rng)
+	_entity_spawner = EntitySpawnerScript.new() as Node
+	_entity_spawner.name = "EntitySpawner"
+	add_child(_entity_spawner)
+	_entity_spawner.setup(self, _rng)
+	_terrain_builder = TerrainBuilderScript.new() as Node
+	_terrain_builder.name = "TerrainBuilder"
+	add_child(_terrain_builder)
+	_terrain_builder.setup(self)
+	_boundary_builder = BoundaryBuilderScript.new() as Node
+	_boundary_builder.name = "BoundaryBuilder"
+	add_child(_boundary_builder)
+	_boundary_builder.setup(self)
+
 
 func _ready() -> void:
 	_rng = RandomNumberGenerator.new()
 	_rng.seed = random_seed
+	_setup_components()
 
 	add_to_group("forest")
-	_setup_materials()
-	# Build the heightmap once and share its mesh + collision shape across
-	# the visual ground, the physics body and downstream spawners.
-	_terrain_heightmap = TerrainHeightmap.new()
-	_terrain_heightmap.name = "TerrainHeightmap"
-	add_child(_terrain_heightmap)
-	_terrain_data = _terrain_heightmap.build(HILL_ZONES, Callable(self, "_get_zone"))
-	_build_ground_collision()
-	_build_visual_ground()
-	_build_lake()
+	_terrain_data = _terrain_builder.build(HILL_ZONES, Callable(self, "_get_zone"))
 	_build_map_walls()
 	_build_boss_arena_enclosure()
 	_scatter_trees()
@@ -163,140 +180,6 @@ func _ready() -> void:
 	_scatter_boulders()
 	_spawn_animals()
 	_spawn_orcs()
-
-
-# ─── Materials Setup ────────────────────────────────────────────────────────
-func _setup_materials() -> void:
-	_mat_grass = _create_ground_material(Color("#385637"), Color("#668455"), 0.92, 0.2)
-	_mat_dirt = _create_ground_material(Color("#6E543A"), Color("#A0774D"), 0.88, 0.18)
-
-	_mat_tree = StandardMaterial3D.new()
-	_mat_tree.albedo_color = Color("#294A28")
-	_mat_tree.roughness = 0.85
-
-func _create_ground_material(
-	base_color: Color,
-	variation_color: Color,
-	roughness: float,
-	variation_strength: float
-) -> ShaderMaterial:
-	var material := ShaderMaterial.new()
-	material.shader = preload("res://src/world/ground_surface.gdshader")
-	material.set_shader_parameter("base_color", base_color)
-	material.set_shader_parameter("variation_color", variation_color)
-	material.set_shader_parameter("surface_roughness", roughness)
-	material.set_shader_parameter("variation_strength", variation_strength)
-	return material
-
-
-# ─── Ground Floor (MultiMesh cỏ phẳng + đường mòn) ─────────────────────────
-func _build_ground_floor() -> void:
-	pass
-
-func _build_under_floor() -> void:
-	pass
-
-
-# ─── Collision cho mặt đất ─────────────────────────────────────────────────
-# Two-layer architecture (see _build_ground_floor):
-#   1. VISUAL: 10,000 grass / path tiles at their heightmap-sampled Y.
-#   2. COLLISION: a single heightmap-based StaticBody. The tiles are pure
-#      decoration — they do NOT add their own CollisionShape3D. The previous
-#      implementation stacked 1m × 1m BoxShape3Ds on top of every tile with
-#      height_offset > 0.05, creating vertical step walls the player capsule
-#      (radius 0.4m) could not climb. That "bậc thang" bug is fixed here by
-#      using one smooth BoxShape3D for the flat ground plus one lightweight
-#      ConcavePolygonShape3D per hill (built from a small fan mesh).
-func _build_ground_collision() -> void:
-	if _terrain_heightmap == null or _terrain_data.is_empty():
-		push_error("ForestBuilder: TerrainHeightmap instance missing")
-		return
-
-	var ground_body := StaticBody3D.new()
-	ground_body.name = "GroundBody"
-	add_child(ground_body)
-
-	# Flat base box covering the whole map. The box top sits exactly at Y=0
-	# so flat terrain (where sample_height returns 0) matches the player
-	# capsule resting Y=0 too.
-	var flat_col := CollisionShape3D.new()
-	flat_col.shape = _terrain_data["flat_collision_shape"]
-	flat_col.position = Vector3(0.0, -0.5, 0.0)
-	ground_body.add_child(flat_col)
-
-	# One ConcavePolygonShape3D per hill. Each hill mesh is small
-	# (~30 triangles) so Jolt compiles it in microseconds.
-	var hill_meshes: Array = _terrain_data["hill_collision_meshes"]
-	for i in range(hill_meshes.size()):
-		var hill_mesh: ArrayMesh = hill_meshes[i]
-		var hill_shape: Shape3D = hill_mesh.create_trimesh_shape()
-		if hill_shape == null:
-			push_warning("ForestBuilder: failed to build hill collision mesh %d; skipping" % i)
-			continue
-		var hill_col := CollisionShape3D.new()
-		hill_col.shape = hill_shape
-		# Mesh vertices are already in world coordinates (center.x, height, center.z).
-		# No additional offset on the CollisionShape3D node or the shape would be
-		# double-translated away from where the player can step.
-		hill_col.position = Vector3.ZERO
-		ground_body.add_child(hill_col)
-
-
-# ─── Visual Ground Mesh Instance ───────────────────────────────────────────
-func _build_visual_ground() -> void:
-	var mi := MeshInstance3D.new()
-	mi.name = "VisualGround"
-	mi.mesh = _terrain_data["mesh"]
-	
-	# Tạo ShaderMaterial cho địa hình lượn sóng mượt mà
-	var mat := ShaderMaterial.new()
-	mat.shader = preload("res://src/world/ground_surface.gdshader")
-	
-	# Nạp các texture PBR chất lượng cao từ MegaKit
-	var grass_tex := preload("res://Assets/Stylized Nature MegaKit[Standard]/glTF/Grass.png")
-	var path_tex := preload("res://Assets/Stylized Nature MegaKit[Standard]/glTF/PathRocks_Diffuse.png")
-	var rock_tex := preload("res://Assets/Stylized Nature MegaKit[Standard]/glTF/Rocks_Diffuse.png")
-	
-	mat.set_shader_parameter("grass_texture", grass_tex)
-	mat.set_shader_parameter("path_texture", path_tex)
-	mat.set_shader_parameter("rock_texture", rock_tex)
-	
-	mi.material_override = mat
-	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(mi)
-
-# ─── Hồ nước 3D ────────────────────────────────────────────────────────────
-func _build_lake() -> void:
-	var mi := MeshInstance3D.new()
-	mi.name = "LakeWater"
-	
-	var plane := PlaneMesh.new()
-	plane.size = Vector2(24.0, 24.0) # Phủ kín rìa hồ uốn lượn uốn khúc tự nhiên
-	plane.subdivide_width = 48
-	plane.subdivide_depth = 48
-	mi.mesh = plane
-	
-	# Cấu hình Shader nước lóng lánh
-	var mat := ShaderMaterial.new()
-	mat.shader = preload("res://src/world/water.gdshader")
-	
-	mi.material_override = mat
-	# Đặt mặt nước ở độ cao Y = -0.4 (phù hợp với độ dốc của lòng hồ)
-	mi.position = Vector3(24.0, -0.4, -24.0)
-	add_child(mi)
-
-	# Tạo StaticBody3D làm rào cản vật lý ngăn người chơi đi vào hồ nước
-	var barrier := StaticBody3D.new()
-	barrier.name = "LakeCollisionBarrier"
-	barrier.position = Vector3(24.0, 0.0, -24.0)
-	
-	var col_shape := CollisionShape3D.new()
-	var cylinder := CylinderShape3D.new()
-	cylinder.radius = 8.0  # Bán kính 8m chặn quanh mép hồ nước uốn lượn
-	cylinder.height = 10.0 # Chiều cao đủ lớn để chặn player nhảy/rơi vào hồ
-	col_shape.shape = cylinder
-	barrier.add_child(col_shape)
-	add_child(barrier)
 
 
 # Preload Wind Sway Shader
@@ -525,89 +408,7 @@ func _scatter_bushes() -> void:
 
 # ─── Scatter Decorations (cỏ clump, hoa, nấm, đá nhỏ) ─────────────────────
 func _scatter_decorations() -> void:
-	# Cỏ clump đung đưa nhẹ trong gió, các loại hoa/nấm/đá khác giữ tĩnh lặng
-	var grass_clump_count: int = int(round(num_grass_clumps * grass_clump_density_multiplier))
-	_scatter_mesh_group(grass_clump_meshes, grass_clump_count, false, null, 0.6, 1.1, true)
-	_scatter_mesh_group(flower_meshes, num_flowers, false, null, 0.8, 1.2, false)
-	_scatter_mesh_group(mushroom_meshes, num_mushrooms, false, null, 0.7, 1.1, false)
-	_scatter_mesh_group(rock_meshes, num_rocks, false, null, 0.8, 1.5, false, 0.6, 0.3, "Rock")
-
-
-func _scatter_mesh_group(
-	items: Array,
-	count: int,
-	avoid_clearing: bool,
-	mat_override: StandardMaterial3D,
-	scale_min: float,
-	scale_max: float,
-	apply_wind: bool = false,
-	collision_radius_scale: float = 0.0,
-	collision_height_offset_scale: float = 0.0,
-	name_prefix: String = "Decoration"
-) -> void:
-	if items.is_empty():
-		return
-
-	var placed: int = 0
-	var attempts: int = 0
-	var max_attempts: int = count * 10
-
-	while placed < count and attempts < max_attempts:
-		attempts += 1
-		var x: float = _rng.randf_range(-MAP_HALF + 0.5, MAP_HALF - 0.5)
-		var z: float = _rng.randf_range(-MAP_HALF + 0.5, MAP_HALF - 0.5)
-
-		var zone := _get_zone(x, z)
-		if zone == Zone.PATH or zone == Zone.LAKE:
-			continue
-		if avoid_clearing and zone == Zone.CLEARING:
-			continue
-
-		var height: float = _get_hill_height(x, z)
-		var item_idx: int = _rng.randi() % items.size()
-		var item = items[item_idx]
-		if item == null:
-			continue
-
-		var scale_val: float = _rng.randf_range(scale_min, scale_max)
-		var instance: Node3D
-		if item is PackedScene:
-			instance = item.instantiate() as Node3D
-		elif item is Mesh:
-			instance = MeshInstance3D.new()
-			instance.mesh = item
-		else:
-			continue
-
-		if mat_override != null and instance is MeshInstance3D:
-			instance.material_override = mat_override
-		instance.position = Vector3(x, height, z)
-		instance.rotation.y = _rng.randf_range(0.0, TAU)
-		instance.scale = Vector3(scale_val, scale_val, scale_val)
-		instance.name = "%sMesh_%d" % [name_prefix, placed]
-		
-		if apply_wind:
-			_apply_wind_shader(instance)
-		else:
-			_configure_geometry_for_rendering(instance, 1.5)
-		add_child(instance)
-
-		if collision_radius_scale > 0.0:
-			var body := StaticBody3D.new()
-			body.name = "%sBody_%d" % [name_prefix, placed]
-			body.position = instance.position
-			body.rotation.y = instance.rotation.y
-			body.add_to_group("rock_obstacles")
-			var col := CollisionShape3D.new()
-			var sphere := SphereShape3D.new()
-			sphere.radius = collision_radius_scale * scale_val
-			col.shape = sphere
-			col.position.y = collision_height_offset_scale * scale_val
-			body.add_child(col)
-			add_child(body)
-
-		placed += 1
-
+	_flora_scatterer.scatter_all()
 
 # ─── Scatter Boulders (combat cover) ───────────────────────────────────────
 func _scatter_boulders() -> void:
@@ -635,21 +436,15 @@ func _scatter_boulders() -> void:
 		if boulder_meshes.is_empty():
 			continue
 		var item_idx: int = _rng.randi() % boulder_meshes.size()
-		var item = boulder_meshes[item_idx]
+		var item: Mesh = boulder_meshes[item_idx]
 		if item == null:
 			continue
 
 		var height: float = _get_hill_height(bp.x, bp.y)
 		var scale_val: float = _rng.randf_range(1.5, 2.5) # Phóng to đá PBR thành đá tảng lớn
 
-		var instance: Node3D
-		if item is PackedScene:
-			instance = item.instantiate() as Node3D
-		elif item is Mesh:
-			instance = MeshInstance3D.new()
-			instance.mesh = item
-		else:
-			continue
+		var instance := MeshInstance3D.new()
+		instance.mesh = item
 
 		instance.position = Vector3(bp.x, height, bp.y)
 		instance.rotation.y = _rng.randf_range(0.0, TAU)
@@ -752,98 +547,13 @@ func _get_hill_height(x: float, z: float) -> float:
 
 
 # ─── Helper: Spawn MultiMesh ─────────────────────────────────────────────────
-func _spawn_multimesh(
-	mesh: Mesh,
-	transforms: Array[Transform3D],
-	mat: Material,
-	node_name: String
-) -> void:
-	var multimesh := MultiMesh.new()
-	multimesh.transform_format = MultiMesh.TRANSFORM_3D
-	multimesh.mesh = mesh
-	multimesh.instance_count = transforms.size()
-
-	for i in range(transforms.size()):
-		multimesh.set_instance_transform(i, transforms[i])
-
-	var mmi := MultiMeshInstance3D.new()
-	mmi.name = node_name
-	mmi.multimesh = multimesh
-	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	if mat != null:
-		mmi.material_override = mat
-	add_child(mmi)
-
-
 # ─── Spawning Animal Bots ──────────────────────────────────────────────────
 func _spawn_animals() -> void:
-	var bot_script := preload("res://src/world/animal_bot.gd")
-	
-	# Spawn 4 bots per species (Dog removed as requested)
-	var species_list := [
-		{"type": 1, "count": 4, "name": "Cat"},
-		{"type": 2, "count": 4, "name": "Rabbit"},
-		{"type": 3, "count": 4, "name": "Parrot"}
-	]
-	
-	for sp in species_list:
-		for i in range(sp["count"]):
-			var placed := false
-			var attempts := 0
-			while not placed and attempts < 100:
-				attempts += 1
-				var x := _rng.randf_range(-MAP_HALF + 5.0, MAP_HALF - 5.0)
-				var z := _rng.randf_range(-MAP_HALF + 5.0, MAP_HALF - 5.0)
-				
-				# Avoid spawning right next to the player's spawn point
-				var pos_2d := Vector2(x, z)
-				if pos_2d.distance_to(SPAWN_CENTER) < 6.0:
-					continue
-					
-				var zone := _get_zone(x, z)
-				if zone == Zone.HILL:
-					continue
-					
-				var bot := CharacterBody3D.new()
-				bot.set_script(bot_script)
-				bot.animal_type = sp["type"] as AnimalBot.AnimalType
-				bot.speed = _rng.randf_range(1.0, 1.8)
-				bot.position = Vector3(x, 0.2, z)
-				bot.name = "%sBot_%d" % [sp["name"], i]
-				
-				# Ensure correct collision layer/mask so they collide with trees and environment
-				bot.collision_layer = 16
-				bot.collision_mask = 1
-				
-				add_child(bot)
-				placed = true
+	_entity_spawner.spawn_animals()
 
 
-# ─── Spawning Orc Mobs ──────────────────────────────────────────────────────
 func _spawn_orcs() -> void:
-	var orc_script := preload("res://src/world/orc_mob.gd")
-	for i in range(num_orcs):
-		var placed := false
-		var attempts := 0
-		while not placed and attempts < 100:
-			attempts += 1
-			var x := _rng.randf_range(-MAP_HALF + 5.0, MAP_HALF - 5.0)
-			var z := _rng.randf_range(-MAP_HALF + 5.0, MAP_HALF - 5.0)
-			var pos_2d := Vector2(x, z)
-			if pos_2d.distance_to(SPAWN_CENTER) < 8.0:
-				continue
-			var zone := _get_zone(x, z)
-			if zone == Zone.HILL:
-				continue
-			# Tránh spawn dưới tán cây lớn (Priority 2 - gameplay readability)
-			if _is_under_large_tree_canopy(x, z):
-				continue
-			var bot := CharacterBody3D.new()
-			bot.set_script(orc_script)
-			bot.position = Vector3(x, 0.2, z)
-			bot.name = "OrcMob_%d" % i
-			add_child(bot)
-			placed = true
+	_entity_spawner.spawn_orcs()
 
 # Kiểm tra xem vị trí có nằm dưới tán cây lớn không (che khuất gameplay)
 func _is_under_large_tree_canopy(x: float, z: float) -> bool:
@@ -858,73 +568,10 @@ func _is_under_large_tree_canopy(x: float, z: float) -> bool:
 			return true
 	return false
 
-# ─── Map Walls (C6) ────────────────────────────────────────────────────────
-# Invisible static bodies around the playable area at MAP_HALF = 50.
-# Players and enemies cannot walk off the map.
+# ─── World Boundaries ──────────────────────────────────────────────────────
 func _build_map_walls() -> void:
-	const WALL_HEIGHT: float = 6.0
-	const WALL_THICKNESS: float = 1.0
-	var wall_specs: Array = [
-		{"pos": Vector3(0.0, WALL_HEIGHT * 0.5, -MAP_HALF), "size": Vector3(MAP_HALF * 2.0 + WALL_THICKNESS * 2.0, WALL_HEIGHT, WALL_THICKNESS)},
-		{"pos": Vector3(0.0, WALL_HEIGHT * 0.5,  MAP_HALF), "size": Vector3(MAP_HALF * 2.0 + WALL_THICKNESS * 2.0, WALL_HEIGHT, WALL_THICKNESS)},
-		{"pos": Vector3(-MAP_HALF, WALL_HEIGHT * 0.5, 0.0), "size": Vector3(WALL_THICKNESS, WALL_HEIGHT, MAP_HALF * 2.0 + WALL_THICKNESS * 2.0)},
-		{"pos": Vector3( MAP_HALF, WALL_HEIGHT * 0.5, 0.0), "size": Vector3(WALL_THICKNESS, WALL_HEIGHT, MAP_HALF * 2.0 + WALL_THICKNESS * 2.0)},
-	]
-	var walls_root := Node3D.new()
-	walls_root.name = "MapWalls"
-	add_child(walls_root)
-	for spec in wall_specs:
-		var body := StaticBody3D.new()
-		body.position = spec["pos"]
-		body.collision_layer = 1
-		body.collision_mask = 0
-		var shape := CollisionShape3D.new()
-		var box := BoxShape3D.new()
-		box.size = spec["size"]
-		shape.shape = box
-		body.add_child(shape)
-		walls_root.add_child(body)
+	_boundary_builder.build_map_walls()
 
-# ─── Boss Arena Enclosure (C7) ─────────────────────────────────────────────
-# 8 large boulders arranged in a ring around the boss arena center.
-# Creates visual framing and a hard physical boundary.
+
 func _build_boss_arena_enclosure() -> void:
-	const BOSS_ARENA_CENTER := Vector3(-15.0, 0.0, -15.0)
-	const BOSS_ARENA_RADIUS: float = 9.0
-	const BOSS_ARENA_BOULDER_COUNT: int = 8
-	const BOSS_ARENA_BOULDER_SCALE: float = 2.8
-	var enclosure_root := Node3D.new()
-	enclosure_root.name = "BossArenaEnclosure"
-	add_child(enclosure_root)
-	for i in BOSS_ARENA_BOULDER_COUNT:
-		var angle: float = TAU * float(i) / float(BOSS_ARENA_BOULDER_COUNT)
-		var pos := BOSS_ARENA_CENTER + Vector3(cos(angle) * BOSS_ARENA_RADIUS, 0.0, sin(angle) * BOSS_ARENA_RADIUS)
-		var boulder := _spawn_boss_arena_boulder(pos, BOSS_ARENA_BOULDER_SCALE)
-		if boulder:
-			enclosure_root.add_child(boulder)
-
-func _spawn_boss_arena_boulder(pos: Vector3, scale_val: float) -> StaticBody3D:
-	# Use the same boulder mesh that _scatter_boulders uses. We don't need
-	# the full visual material setup; a single large rock is enough.
-	var body := StaticBody3D.new()
-	body.position = pos
-	body.scale = Vector3.ONE * scale_val
-	var shape := CollisionShape3D.new()
-	var sphere := SphereShape3D.new()
-	sphere.radius = 0.6
-	shape.shape = sphere
-	body.add_child(shape)
-	# Visual approximation: a small SphereMesh so the boulder is visible
-	var mesh := MeshInstance3D.new()
-	var sphere_mesh := SphereMesh.new()
-	sphere_mesh.radius = 0.5
-	sphere_mesh.height = 1.0
-	sphere_mesh.radial_segments = 8
-	sphere_mesh.rings = 6
-	mesh.mesh = sphere_mesh
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.45, 0.4, 0.35)
-	mat.roughness = 0.95
-	mesh.set_surface_override_material(0, mat)
-	body.add_child(mesh)
-	return body
+	_boundary_builder.build_boss_enclosure()

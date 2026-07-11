@@ -272,7 +272,7 @@ func _get_state_atlas_path(state_name: String) -> String:
 func _get_frames_for_state(state_name: String) -> Array:
 	if state_name == "walk":
 		var walk_state_frames: Dictionary = _frames_by_state.get("walk", {})
-		return walk_state_frames.get(_walk_direction_key, walk_state_frames.get(WALK_DIR_DOWN, []))
+		return walk_state_frames.get(_walk_direction_key, [])
 	var state_frames: Dictionary = _frames_by_state.get(state_name, {})
 	var facing_frames: Array = state_frames.get(_visual_facing, [])
 	if not facing_frames.is_empty():

@@ -27,7 +27,7 @@ var _flash_timer: float = 0.0
 # the decal stays visible (must be >= 0.8s per E2 rule).
 static func build_circle(center: Vector3, radius: float, duration: float, ground_y: float = 0.05) -> Node3D:
 	var telegraph: Node3D = (load("res://src/world/attack_telegraph.gd") as GDScript).new()
-	telegraph.global_position = Vector3(center.x, ground_y, center.z)
+	telegraph.position = Vector3(center.x, ground_y, center.z)
 	telegraph._build_circle_visuals(radius)
 	telegraph._duration = maxf(duration, 0.8)
 	return telegraph
@@ -36,9 +36,9 @@ static func build_circle(center: Vector3, radius: float, duration: float, ground
 # forward, `width` is the perpendicular spread.
 static func build_line(origin: Vector3, forward: Vector3, length: float, width: float, duration: float, ground_y: float = 0.05) -> Node3D:
 	var telegraph: Node3D = (load("res://src/world/attack_telegraph.gd") as GDScript).new()
-	telegraph.global_position = Vector3(origin.x, ground_y, origin.z)
+	telegraph.position = Vector3(origin.x, ground_y, origin.z)
 	if forward.length_squared() > 0.0:
-		telegraph.look_at(telegraph.global_position + forward.normalized(), Vector3.UP)
+		telegraph.basis = Basis.looking_at(forward.normalized(), Vector3.UP)
 	telegraph._build_line_visuals(length, width)
 	telegraph._duration = maxf(duration, 0.8)
 	return telegraph
@@ -48,9 +48,11 @@ func cancel() -> void:
 	if not _active:
 		return
 	_active = false
-	var tween := create_tween()
-	tween.tween_property(self, "modulate:a", 0.0, 0.18)
-	tween.tween_callback(queue_free)
+	var tween := create_tween().set_parallel(true)
+	for visual in [_disc_mesh, _ring_mesh]:
+		if is_instance_valid(visual):
+			tween.tween_property(visual, "transparency", 1.0, 0.18)
+	tween.chain().tween_callback(queue_free)
 
 func _process(delta: float) -> void:
 	if not _active:

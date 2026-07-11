@@ -18,9 +18,11 @@ func _initialize() -> void:
 	await process_frame
 
 	# Lay LightingDirector
-	var ld := root.get_node_or_null("/root/World/LightingDirector") as Node
+	var ld := inst.get_node_or_null("LightingDirector") as Node
 	if ld == null:
 		push_error("[Diag] LightingDirector not found!")
+		inst.free()
+		await process_frame
 		quit(1)
 		return
 
@@ -52,7 +54,7 @@ func _initialize() -> void:
 		print("_player_accent_light = null")
 
 	# Doc environment
-	var env_node := root.get_node_or_null("/root/World/WorldEnvironment") as WorldEnvironment
+	var env_node := inst.get_node_or_null("WorldEnvironment") as WorldEnvironment
 	if env_node != null and env_node.environment != null:
 		var env := env_node.environment
 		print("_environment.ambient_light_energy = ", env.ambient_light_energy)
@@ -63,6 +65,10 @@ func _initialize() -> void:
 		print("_environment = null")
 
 	print("=== END ===")
+	inst.free()
+	packed = null
+	await process_frame
+	await process_frame
 	quit(0)
 
 

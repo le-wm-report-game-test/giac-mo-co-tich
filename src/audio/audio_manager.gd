@@ -23,6 +23,7 @@ var _footstep_timeout: float = 0.0
 var _sounds: Dictionary = {}
 
 func _ready() -> void:
+	add_to_group("audio_manager")
 	_load_initial_volumes()
 	_setup_audio_buses()
 	_create_players()
@@ -37,7 +38,7 @@ func _process(delta: float) -> void:
 			_footstep_player.stop()
 
 func _load_initial_volumes() -> void:
-	var settings = get_node_or_null("/root/World/WorldManager/SettingsMenu")
+	var settings := get_tree().get_first_node_in_group("settings_menu") as SettingsMenu
 	if settings:
 		music_volume = settings.music_volume
 		sfx_volume = settings.sfx_volume
@@ -108,10 +109,10 @@ func _load_assets() -> void:
 		"intro_music": "res://Assets/audio/intro.mp3"
 	}
 	for s_name in assets:
-		var _ok = load_external_sound(s_name, assets[s_name])
+		var _ok: bool = load_external_sound(s_name, str(assets[s_name]))
 	
 	for key in ["intro_music", "footstep"]:
-		var stream = _sounds.get(key)
+		var stream := _sounds.get(key) as AudioStream
 		if stream and "loop" in stream:
 			stream.loop = true
 
@@ -128,9 +129,9 @@ func _connect_event_bus() -> void:
 	eb.weather_changed.connect(_on_weather_changed)
 
 func _on_player_spawned(_player: CharacterBody3D) -> void:
-	var music_stream = _sounds.get("intro_music")
+	var music_stream := _sounds.get("intro_music") as AudioStream
 	if music_stream: play_music(music_stream)
-	var wm := get_node_or_null("/root/World/WorldManager")
+	var wm := get_tree().get_first_node_in_group("world_manager") as WorldManager
 	if wm and wm.get("is_raining"): play_ambience("rain_ambience")
 
 func _on_player_died() -> void:

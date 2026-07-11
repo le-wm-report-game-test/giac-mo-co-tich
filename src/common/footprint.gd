@@ -24,7 +24,7 @@ func _process(delta: float) -> void:
 		queue_free()
 		return
 		
-	var player = get_tree().get_first_node_in_group("player")
+	var player := get_tree().get_first_node_in_group("player") as Node3D
 	var dist_fade: float = 1.0
 	if player:
 		var dist: float = global_position.distance_to(player.global_position)

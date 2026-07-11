@@ -5,27 +5,47 @@ class_name BaseTestCase
 # Base class for E2E test cases managing scene isolation and assertions
 # Technical comments in English, Vietnamese for game logic explanations.
 
+const WORLD_SCENE_PATH: String = "res://src/world/world.tscn"
+
 var tree: SceneTree = null
 var failed: bool = false
 var fail_reason: String = ""
 var world_instance: Node3D = null
 
 func setup() -> void:
-	# Tự động nạp và tạo mới môi trường thế giới game cho mỗi test case
-	var world_scene := load("res://src/world/world.tscn") as PackedScene
+	_reset_global_test_state()
+	_free_stale_worlds()
+	var world_scene := load(WORLD_SCENE_PATH) as PackedScene
 	if not world_scene:
 		fail("Cannot load world.tscn")
 		return
 	world_instance = world_scene.instantiate() as Node3D
+	world_instance.add_to_group("e2e_test_world")
 	tree.root.add_child(world_instance)
 	await wait_physics_frames(2)
 
 func teardown() -> void:
-	# Dọn dẹp môi trường game sau khi test xong để đảm bảo tính cô lập
+	# Synchronous removal prevents stale group lookups in the next test.
 	if is_instance_valid(world_instance):
-		world_instance.queue_free()
-		world_instance = null
+		world_instance.free()
+	world_instance = null
+	_free_stale_worlds()
+	_reset_global_test_state()
 	await wait_physics_frames(2)
+
+func _free_stale_worlds() -> void:
+	if tree == null:
+		return
+	for child: Node in tree.root.get_children():
+		if not is_instance_valid(child):
+			continue
+		if child.is_in_group("e2e_test_world") or child.scene_file_path == WORLD_SCENE_PATH:
+			child.free()
+
+func _reset_global_test_state() -> void:
+	if tree != null:
+		tree.paused = false
+	Engine.time_scale = 1.0
 
 func fail(reason: String) -> void:
 	if failed: return

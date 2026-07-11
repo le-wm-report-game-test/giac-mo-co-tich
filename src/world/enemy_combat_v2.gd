@@ -103,11 +103,23 @@ func _set_hitbox_monitoring(on: bool) -> void:
 		_hitbox_component.monitoring = on
 
 func _spawn_telegraph() -> void:
+	if not is_instance_valid(_enemy_owner) or not _enemy_owner.is_inside_tree():
+		return
+	var scene_tree := get_tree()
+	if scene_tree == null:
+		return
+	var telegraph_parent: Node = scene_tree.current_scene
+	if telegraph_parent == null:
+		telegraph_parent = _enemy_owner.get_parent()
+	if telegraph_parent == null:
+		return
 	var dur: float = telegraph_duration_override
 	if dur <= 0.0:
 		dur = maxf(anticipation_dur, telegraph_min_duration)
 	var telegraph: Node3D = AttackTelegraph.build_circle(_enemy_owner.global_position, telegraph_radius, dur)
-	get_tree().current_scene.add_child(telegraph)
+	var world_position := telegraph.position
+	telegraph_parent.add_child(telegraph)
+	telegraph.global_position = world_position
 	_telegraph_node = telegraph
 
 func _remove_telegraph() -> void:

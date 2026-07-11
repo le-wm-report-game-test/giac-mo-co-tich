@@ -2,8 +2,8 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cniiu1di7546c"
-path.s3tc="res://.godot/imported/Bark_DeadTree_Normal.png-0e291ce17a0a5316ee04d7803109cf48.s3tc.ctex"
+uid="uid://d0xnhehwaf2xq"
+path.s3tc="res://.godot/imported/Bark_TwistedTree_Normal.png-ad0cd0f44b96cbc2e326a24328b21639.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
@@ -11,8 +11,8 @@ metadata={
 
 [deps]
 
-source_file="res://Assets/Stylized Nature MegaKit[Standard]/Textures/Bark_DeadTree_Normal.png"
-dest_files=["res://.godot/imported/Bark_DeadTree_Normal.png-0e291ce17a0a5316ee04d7803109cf48.s3tc.ctex"]
+source_file="res://Assets/Stylized Nature MegaKit[Standard]/textures/Bark_TwistedTree_Normal.png"
+dest_files=["res://.godot/imported/Bark_TwistedTree_Normal.png-ad0cd0f44b96cbc2e326a24328b21639.s3tc.ctex"]
 
 [params]
 
@@ -27,7 +27,7 @@ compress/channel_pack=0
 mipmaps/generate=true
 mipmaps/limit=-1
 roughness/mode=1
-roughness/src_normal="res://Assets/Stylized Nature MegaKit[Standard]/textures/Bark_DeadTree_Normal.png"
+roughness/src_normal="res://Assets/Stylized Nature MegaKit[Standard]/textures/Bark_TwistedTree_Normal.png"
 process/channel_remap/red=0
 process/channel_remap/green=1
 process/channel_remap/blue=2

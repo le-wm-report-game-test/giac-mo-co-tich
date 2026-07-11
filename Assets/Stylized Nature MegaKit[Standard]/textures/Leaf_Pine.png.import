@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cql04aexq23gq"
-path="res://.godot/imported/Leaves_TwistedTree.png-c66207e272e2ffe8303b4b31819407d9.ctex"
+uid="uid://dynp6kyoq0lo8"
+path="res://.godot/imported/Leaf_Pine.png-16bd1903afea2ab1098ce9d9e45f0301.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Stylized Nature MegaKit[Standard]/Textures/Leaves_TwistedTree.png"
-dest_files=["res://.godot/imported/Leaves_TwistedTree.png-c66207e272e2ffe8303b4b31819407d9.ctex"]
+source_file="res://Assets/Stylized Nature MegaKit[Standard]/textures/Leaf_Pine.png"
+dest_files=["res://.godot/imported/Leaf_Pine.png-16bd1903afea2ab1098ce9d9e45f0301.ctex"]
 
 [params]
 

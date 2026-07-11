@@ -31,9 +31,9 @@ func _on_enemy_died(enemy: Node3D) -> void:
 	get_tree().paused = true
 	
 	# Ẩn DeathDialog nếu đang hiển thị để tránh chồng đè UI
-	var death_dialog = get_parent().get_node_or_null("DeathDialog")
+	var death_dialog := get_parent().get_node_or_null("DeathDialog") as DeathDialog
 	if death_dialog:
-		var death_overlay = death_dialog.get_node_or_null("DeathOverlay")
+		var death_overlay := death_dialog.get_node_or_null("DeathOverlay") as Control
 		if death_overlay:
 			death_overlay.visible = false
 			
@@ -123,6 +123,8 @@ func _build_dialog() -> void:
 	return_btn.custom_minimum_size = Vector2(210.0, 46.0)
 	UITheme.apply_button(return_btn)
 	return_btn.pivot_offset = Vector2(105.0, 23.0)
+	return_btn.offset_transform_enabled = true
+	return_btn.offset_transform_scale = Vector2.ONE
 	return_btn.pressed.connect(_on_return_to_menu_pressed)
 	return_btn.mouse_entered.connect(func(): _tween_button_scale(return_btn, Vector2(1.05, 1.05)))
 	return_btn.mouse_exited.connect(func(): _tween_button_scale(return_btn, Vector2.ONE))
@@ -152,7 +154,7 @@ func _build_dialog() -> void:
 
 func _tween_button_scale(btn: Button, target_scale: Vector2) -> void:
 	var tw := create_tween()
-	tw.tween_property(btn, "scale", target_scale, 0.15).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	tw.tween_property(btn, "offset_transform_scale", target_scale, 0.15).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 
 func _play_victory_chime() -> void:
 	if _chime_player == null:

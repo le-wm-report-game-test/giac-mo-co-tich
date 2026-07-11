@@ -2,8 +2,8 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dffem8488nv15"
-path.s3tc="res://.godot/imported/Grass.png-5d2da1d90a600a39e59830fa0fbda459.s3tc.ctex"
+uid="uid://l1i51q3xolc1"
+path.s3tc="res://.godot/imported/Bark_DeadTree.png-acc6a2f400242ff0de5b6c4ce6f52ac7.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
@@ -11,8 +11,8 @@ metadata={
 
 [deps]
 
-source_file="res://Assets/Stylized Nature MegaKit[Standard]/Textures/Grass.png"
-dest_files=["res://.godot/imported/Grass.png-5d2da1d90a600a39e59830fa0fbda459.s3tc.ctex"]
+source_file="res://Assets/Stylized Nature MegaKit[Standard]/textures/Bark_DeadTree.png"
+dest_files=["res://.godot/imported/Bark_DeadTree.png-acc6a2f400242ff0de5b6c4ce6f52ac7.s3tc.ctex"]
 
 [params]
 

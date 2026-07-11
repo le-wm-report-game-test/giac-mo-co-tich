@@ -158,19 +158,20 @@ func _ready() -> void:
 	_update_sprite()
 
 func prewarm_visual_assets() -> void:
-	if sprite_animator != null:
-		sprite_animator.prewarm()
+	if sprite_animator != null and sprite_animator.prewarm():
+		return
 
+	# Legacy frames remain a fallback for projects that omit the V2 animator.
 	for dir_name: String in PLAYER_VISUAL_DIRECTIONS:
 		for anim_name: String in ANIMATION_FRAME_COUNTS:
-			var folder := anim_name
-			var suffix := anim_name
-			if anim_name == "death":
-				folder = "hurt"
-				suffix = "hurt"
+			var folder := "hurt" if anim_name == "death" else anim_name
+			var suffix := "hurt" if anim_name == "death" else anim_name
 			var frame_count: int = ANIMATION_FRAME_COUNTS[anim_name]
 			for frame_index in range(frame_count):
-				_cache_texture("%s/%s/%s_%s_%d.png" % [MOVEMENT_FRAME_DIR, folder, dir_name, suffix, frame_index])
+				var path := "%s/%s/%s_%s_%d.png" % [
+					MOVEMENT_FRAME_DIR, folder, dir_name, suffix, frame_index,
+				]
+				_cache_texture(path)
 
 func _cache_texture(tex_path: String) -> Texture2D:
 	if _texture_cache.has(tex_path):
@@ -288,48 +289,40 @@ func _update_facing_side_from_camera(dir: Vector3) -> void:
 		facing_right = side_dot >= 0.0
 
 func _setup_input_actions() -> void:
-	var actions: Dictionary = {
-		"move_left":  KEY_A,
-		"move_right": KEY_D,
-		"move_up":    KEY_W,
-		"move_down":  KEY_S
-	}
-	
-	for action: String in actions:
-		var action_name := StringName(action)
-		if not InputMap.has_action(action_name):
-			InputMap.add_action(action_name)
-		else:
-			InputMap.action_erase_events(action_name)
-			
-		var event := InputEventKey.new()
-		event.physical_keycode = actions[action]
-		event.keycode = actions[action]
-		InputMap.action_add_event(action_name, event)
-
-	# Đăng ký action tấn công với phím Space
+	_ensure_key_action(&"move_left", KEY_A)
+	_ensure_key_action(&"move_right", KEY_D)
+	_ensure_key_action(&"move_up", KEY_W)
+	_ensure_key_action(&"move_down", KEY_S)
 	if not InputMap.has_action(&"attack"):
 		InputMap.add_action(&"attack")
-	else:
-		InputMap.action_erase_events(&"attack")
-	var space_event := InputEventKey.new()
-	space_event.physical_keycode = KEY_SPACE
-	space_event.keycode          = KEY_SPACE
-	InputMap.action_add_event(&"attack", space_event)
+	if InputMap.action_get_events(&"attack").is_empty():
+		_add_key_event(&"attack", KEY_SPACE)
+		var mouse_event := InputEventMouseButton.new()
+		mouse_event.button_index = MOUSE_BUTTON_LEFT
+		InputMap.action_add_event(&"attack", mouse_event)
 
-func _input(event: InputEvent) -> void:
+
+func _ensure_key_action(action: StringName, keycode: int) -> void:
+	if not InputMap.has_action(action):
+		InputMap.add_action(action)
+	if InputMap.action_get_events(action).is_empty():
+		_add_key_event(action, keycode)
+
+
+func _add_key_event(action: StringName, keycode: int) -> void:
+	var event := InputEventKey.new()
+	event.physical_keycode = keycode
+	event.keycode = keycode
+	InputMap.action_add_event(action, event)
+
+
+func _unhandled_input(event: InputEvent) -> void:
 	if input_locked:
 		return
 	if anim_state == AnimState.DEATH:
 		return
-	# Chuột trái hoặc phím Space đều kích hoạt tấn công
-	var mouse_attack: bool = event is InputEventMouseButton \
-		and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT \
-		and event.pressed
-	var key_attack: bool = event.is_action_pressed(&"attack")
-	if not (mouse_attack or key_attack):
+	if not event.is_action_pressed(&"attack"):
 		return
-
 	# Combat V2: chain attack if buffer was set during previous recovery
 	if combat_v2 and combat_v2.enabled and combat_v2.consume_recovery_buffer():
 		_start_attack()
@@ -504,7 +497,7 @@ func _start_attack() -> void:
 	velocity = Vector3.ZERO
 
 	# Play attack sound
-	var audio := get_node_or_null("/root/World/AudioManager") as AudioManager
+	var audio := get_tree().get_first_node_in_group("audio_manager") as AudioManager
 	if audio:
 		audio.play_sfx("sword_swing", global_position, 0.15)
 

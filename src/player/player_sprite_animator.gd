@@ -14,9 +14,16 @@ var _texture_cache: Dictionary = {}
 var _metrics_cache: Dictionary = {}
 
 
-func prewarm() -> void:
+func prewarm() -> bool:
+	var all_loaded := true
 	for state_name: String in SHEET_PATHS:
-		_get_texture(state_name)
+		if _get_texture(state_name) == null:
+			all_loaded = false
+	return all_loaded
+
+
+func get_cached_texture(state_name: String) -> Texture2D:
+	return _texture_cache.get(_normalize_state_name(state_name)) as Texture2D
 
 
 func has_animation(state_name: String) -> bool:

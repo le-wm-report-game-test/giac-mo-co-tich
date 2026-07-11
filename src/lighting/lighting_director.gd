@@ -272,7 +272,7 @@ func _apply_quality_settings() -> void:
 	_environment.ssao_horizon = 0.4
 	# SSIL is expensive — enable only for Cinematic.
 	# SSAO + volumetric fog carry the depth stack in Performance mode.
-	_environment.ssil_enabled = cinematic
+	_environment.ssil_enabled = false
 	_environment.ssil_radius = 2.2
 	_environment.ssil_intensity = 0.52
 	_environment.volumetric_fog_enabled = cinematic

@@ -52,20 +52,23 @@ func _get_plugin_icon():
 
 
 func _main_screen_changed(screen_name: String):
+	var main_screen := get_editor_interface().get_editor_main_screen()
 	if screen_name == _get_plugin_name():
-		if _instance == null:
+		if not is_instance_valid(_instance):
 			_on_scene_change_requested("res://addons/PolyHavenImport/browse.tscn")
-		else:
-			get_editor_interface().get_editor_main_screen().add_child(_instance)
-	else:
-		get_editor_interface().get_editor_main_screen().remove_child(_instance)
+		elif _instance.get_parent() == null:
+			main_screen.add_child(_instance)
+	elif is_instance_valid(_instance) and _instance.get_parent() == main_screen:
+		main_screen.remove_child(_instance)
 
 
 func _on_scene_change_requested(scene: String):
-	if _instance:
-		get_editor_interface().get_editor_main_screen().remove_child(_instance)
+	if is_instance_valid(_instance):
+		var parent := _instance.get_parent() as Node
+		if parent:
+			parent.remove_child(_instance)
 		_instance.queue_free()
-	
+
 	_instance = load(scene).instantiate()
 	_instance.connect("scene_change_requested", Callable(self, "_on_scene_change_requested"))
 	get_editor_interface().get_editor_main_screen().add_child(_instance)

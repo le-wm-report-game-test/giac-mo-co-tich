@@ -140,7 +140,7 @@ func _emit_vert(
 	
 	# Thiết lập màu đỉnh (Vertex Color) để trộn chất liệu
 	var color := Color(0.0, 0.0, 0.0, 1.0)
-	var zone = zone_sampler.call(x, z)
+	var zone: int = int(zone_sampler.call(x, z))
 	
 	# PATH = 2 (Đỏ)
 	if zone == 2:

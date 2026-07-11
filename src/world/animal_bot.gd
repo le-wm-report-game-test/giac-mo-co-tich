@@ -163,7 +163,7 @@ func _update_sprite_texture() -> void:
 			path = "res://Assets/Animals_DesireFantasy/cropped/rabbit_d%d_f%d.png" % [current_dir, anim_frame]
 		AnimalType.PARROT:
 			# Vẹt có 8 hàng hành động khác nhau, dùng r0 đến r7. Cho ngẫu nhiên row theo subtype hoặc hướng di chuyển
-			var parrot_row = current_dir
+			var parrot_row: int = current_dir
 			if subtype_idx >= 4:
 				parrot_row += 4 # Dùng các hàng hành động phụ để đa dạng hơn
 			path = "res://Assets/Animals_DesireFantasy/cropped/parrot_r%d_f%d.png" % [parrot_row, anim_frame]
@@ -188,14 +188,5 @@ func _get_base_sprite_y() -> float:
 	return 0.0
 
 func _update_sprite_height() -> void:
-	if sprite == null:
-		return
-	var base_y = _get_base_sprite_y()
-	var offset_y = 0.0
-	var forest = get_parent().get_node_or_null("Forest")
-	if forest and forest.has_method("_get_zone"):
-		var zone = forest._get_zone(global_position.x, global_position.z)
-		var is_path = (zone == 2) # Zone.PATH is 2
-		if not is_path:
-			offset_y = 0.2
-	sprite.position.y = base_y + offset_y
+	if sprite:
+		sprite.position.y = _get_base_sprite_y()

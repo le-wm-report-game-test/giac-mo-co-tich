@@ -169,6 +169,11 @@ func test_grass_clump_density_multiplier_reduces_cluster_count() -> void:
 			var mesh := (child as MeshInstance3D).mesh
 			if mesh != null and "Hilly_Prop_Grass_Clump_" in mesh.resource_path:
 				grass_clump_count += 1
+		elif child is MultiMeshInstance3D:
+			var multimesh := (child as MultiMeshInstance3D).multimesh
+			var mesh := multimesh.mesh if multimesh else null
+			if mesh != null and "Hilly_Prop_Grass_Clump_" in mesh.resource_path:
+				grass_clump_count += multimesh.instance_count
 
 	assert_eq(grass_clump_count, 18, "Grass clump density multiplier should reduce spawned clumps by 10 percent")
 

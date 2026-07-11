@@ -37,6 +37,7 @@ var _ambience_label: Label
 var _suppress_save: bool = true
 
 func _ready() -> void:
+	add_to_group("settings_menu")
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	visible = false
 	_load_settings()
@@ -350,7 +351,7 @@ func _on_fps_selected(index: int) -> void:
 func _on_music_volume_changed(value: float) -> void:
 	music_volume = clampf(value, 0.0, 1.0)
 	_update_audio_labels()
-	var audio := get_node_or_null("/root/World/AudioManager") as AudioManager
+	var audio := get_tree().get_first_node_in_group("audio_manager") as AudioManager
 	if audio:
 		audio.set_music_volume(music_volume)
 	_save_settings()
@@ -358,7 +359,7 @@ func _on_music_volume_changed(value: float) -> void:
 func _on_sfx_volume_changed(value: float) -> void:
 	sfx_volume = clampf(value, 0.0, 1.0)
 	_update_audio_labels()
-	var audio := get_node_or_null("/root/World/AudioManager") as AudioManager
+	var audio := get_tree().get_first_node_in_group("audio_manager") as AudioManager
 	if audio:
 		audio.set_sfx_volume(sfx_volume)
 	_save_settings()
@@ -366,7 +367,7 @@ func _on_sfx_volume_changed(value: float) -> void:
 func _on_ambience_volume_changed(value: float) -> void:
 	ambience_volume = clampf(value, 0.0, 1.0)
 	_update_audio_labels()
-	var audio := get_node_or_null("/root/World/AudioManager") as AudioManager
+	var audio := get_tree().get_first_node_in_group("audio_manager") as AudioManager
 	if audio:
 		audio.set_ambience_volume(ambience_volume)
 	_save_settings()
@@ -376,7 +377,7 @@ func _apply_settings() -> void:
 	_on_lighting_quality_selected(1 if lighting_quality == "Performance" else 0)
 	_on_window_mode_selected(window_mode_index)
 	_on_fps_selected(fps_index)
-	var audio := get_node_or_null("/root/World/AudioManager") as AudioManager
+	var audio := get_tree().get_first_node_in_group("audio_manager") as AudioManager
 	if audio:
 		audio.set_music_volume(music_volume)
 		audio.set_sfx_volume(sfx_volume)
@@ -387,7 +388,7 @@ func _apply_brightness() -> void:
 	if director != null:
 		director.set_user_brightness(brightness)
 		return
-	var world_env := get_node_or_null("/root/World/WorldEnvironment") as WorldEnvironment
+	var world_env := get_tree().get_first_node_in_group("world_environment") as WorldEnvironment
 	if world_env and world_env.environment:
 		if not world_env.environment.is_local_to_scene():
 			world_env.environment = world_env.environment.duplicate()

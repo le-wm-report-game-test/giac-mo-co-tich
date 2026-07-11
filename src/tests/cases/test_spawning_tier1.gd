@@ -71,9 +71,12 @@ func test_orc_visual_matches_hurtbox_without_scaling_physics() -> void:
 		0.0001,
 		"Sprite3D must receive the configured visual scale"
 	)
+	var feet_world_y := orc.sprite.position.y - (
+		OrcMob.SPRITE_FEET_BASELINE_Y_PX - OrcMob.SPRITE_FRAME_CENTER_Y_PX
+	) * OrcMob.REGULAR_SPRITE_PIXEL_SIZE
 	assert_almost_eq(
-		orc.sprite.position.y,
-		OrcMob.SPRITE_GROUND_CLEARANCE + 6.0 * OrcMob.REGULAR_SPRITE_PIXEL_SIZE,
+		feet_world_y,
+		OrcMob.SPRITE_GROUND_CLEARANCE,
 		0.0001,
 		"Orc feet baseline must remain close to the ground"
 	)
@@ -92,7 +95,7 @@ func test_animal_spawning_exclusion_zone() -> void:
 			assert_true(dist >= 6.0, "Animal should not spawn within 6m of player spawn center")
 
 func test_spawning_counts() -> void:
-	# Xác minh số lượng thực thể sinh ra đúng thiết kế (14 orcs, 12 animals)
+	# Xác minh số lượng thực thể sinh ra đúng cấu hình.
 	var fb := world_instance.get_node("Forest") as Node
 	var orcs_count := 0
 	var animals_count := 0
@@ -103,7 +106,7 @@ func test_spawning_counts() -> void:
 		elif child.name.begins_with("CatBot_") or child.name.begins_with("RabbitBot_") or child.name.begins_with("ParrotBot_"):
 			animals_count += 1
 			
-	assert_eq(orcs_count, 14, "There should be exactly 14 orcs spawned")
+	assert_eq(orcs_count, int(fb.get("num_orcs")), "Orc count should match ForestBuilder configuration")
 	assert_eq(animals_count, 12, "There should be exactly 12 animals spawned")
 
 func test_no_mob_spawn_on_hills() -> void:

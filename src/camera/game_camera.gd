@@ -45,7 +45,7 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	var world_manager := get_node_or_null("/root/World/WorldManager")
+	var world_manager := get_tree().get_first_node_in_group("world_manager") as WorldManager
 	if world_manager and world_manager.get("camera_magnet_active"):
 		return
 

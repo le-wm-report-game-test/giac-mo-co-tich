@@ -25,6 +25,21 @@ func get_tree_alpha(node: Node) -> float:
 			return alpha
 	return -1.0
 
+func assert_v2_sprite_frame(
+		player: Player,
+		state_name: String,
+		expected_row: int,
+		message: String
+) -> void:
+	var expected_suffix := "spr_thach_sanh_%s_6x4_alpha.png" % state_name
+	assert_true(player.sprite.region_enabled, "%s should use a sheet region" % message)
+	assert_true(
+		player.sprite.texture.resource_path.ends_with(expected_suffix),
+		"%s should use the V2 %s sheet" % [message, state_name]
+	)
+	assert_eq(player.sprite.region_rect.size, Vector2(64.0, 64.0), "%s should use a 64px frame" % message)
+	assert_eq(int(player.sprite.region_rect.position.y), expected_row * 64, "%s should use the expected direction row" % message)
+
 func test_orc_spawning_and_orc_counter() -> void:
 	# Interaction 1: Diệt quái sinh ra bằng thuật toán làm tăng số đếm trên HUD
 	var world_manager := world_instance.get_node_or_null("WorldManager") as WorldManager
@@ -48,7 +63,7 @@ func test_orc_spawning_and_orc_counter() -> void:
 	
 	var label := world_manager.get_node_or_null("UI/OrcCounter/OrcCountLabel") as Label
 	assert_not_null(label, "Orc counter label must exist")
-	assert_true(label.text.begins_with(str(new_killed)), "HUD label should reflect new killed count")
+	assert_eq(label.text, "Orc da ha: %d/%d" % [new_killed, world_manager.orcs_to_kill_for_boss], "HUD label should reflect new killed count")
 
 func test_boss_spawning_and_camera_magnet() -> void:
 	# Interaction 2: Spawn Boss làm kích hoạt cơ chế kéo camera (Camera Magnet)
@@ -216,16 +231,18 @@ func test_player_visual_assets_are_prewarmed_for_startup() -> void:
 	if player == null:
 		return
 
-	var required_paths := [
-		"res://Assets/_ThachSanh/idle/down_idle_0.png",
-		"res://Assets/_ThachSanh/run/up_run_0.png",
-		"res://Assets/_ThachSanh/attack/right_attack_0.png",
-		"res://Assets/_ThachSanh/hurt/left_hurt_0.png",
-	]
-
-	for tex_path: String in required_paths:
-		assert_true(player._texture_cache.has(tex_path), "Startup should prewarm %s" % tex_path)
-		assert_not_null(player._texture_cache[tex_path], "Prewarmed texture should be loaded")
+	assert_not_null(player.sprite_animator, "Player sprite animator must exist")
+	var required_states: Array[String] = ["idle", "run", "attack", "hurt"]
+	for state_name: String in required_states:
+		var tex := player.sprite_animator.get_cached_texture(state_name)
+		assert_not_null(tex, "V2 %s sheet should be prewarmed" % state_name)
+		if tex != null:
+			assert_eq(
+				tex.resource_path,
+				PlayerSpriteAnimator.SHEET_PATHS[state_name],
+				"Prewarmed sheet should match the configured V2 asset"
+			)
+	assert_true(player._texture_cache.is_empty(), "V1 fallback frames should not be loaded when V2 is available")
 
 func test_player_attack_keeps_left_movement_facing() -> void:
 	var player := tree.get_first_node_in_group("player") as Player
@@ -241,7 +258,7 @@ func test_player_attack_keeps_left_movement_facing() -> void:
 
 	assert_eq(player.move_direction, Player.MoveDir.LEFT, "Attack should keep the last left movement direction")
 	assert_true(Vector3(player.hitbox_shape.position.x, 0.0, player.hitbox_shape.position.z).dot(left_dir) > 0.1, "Left attack should place hitbox in the left movement direction")
-	assert_true(player.sprite.texture.resource_path.ends_with("left_attack_0.png"), "Left attack should use left attack asset")
+	assert_v2_sprite_frame(player, "attack", 2, "Left attack")
 
 func test_player_attack_keeps_right_movement_facing() -> void:
 	var player := tree.get_first_node_in_group("player") as Player
@@ -256,7 +273,7 @@ func test_player_attack_keeps_right_movement_facing() -> void:
 
 	assert_eq(player.move_direction, Player.MoveDir.RIGHT, "Attack should keep the last right movement direction")
 	assert_true(Vector3(player.hitbox_shape.position.x, 0.0, player.hitbox_shape.position.z).dot(right_dir) > 0.1, "Right attack should place hitbox in the right movement direction")
-	assert_true(player.sprite.texture.resource_path.ends_with("right_attack_0.png"), "Right attack should use right attack asset")
+	assert_v2_sprite_frame(player, "attack", 3, "Right attack")
 
 func test_player_attack_keeps_up_movement_facing() -> void:
 	var player := tree.get_first_node_in_group("player") as Player
@@ -271,7 +288,7 @@ func test_player_attack_keeps_up_movement_facing() -> void:
 
 	assert_eq(player.move_direction, Player.MoveDir.UP, "Attack should keep the last up movement direction")
 	assert_true(Vector3(player.hitbox_shape.position.x, 0.0, player.hitbox_shape.position.z).dot(up_dir) > 0.1, "Up attack should place hitbox in the up movement direction")
-	assert_true(player.sprite.texture.resource_path.ends_with("up_attack_0.png"), "Up attack should use up attack asset")
+	assert_v2_sprite_frame(player, "attack", 1, "Up attack")
 
 func test_player_attack_keeps_diagonal_movement_facing() -> void:
 	var player := tree.get_first_node_in_group("player") as Player
@@ -286,7 +303,7 @@ func test_player_attack_keeps_diagonal_movement_facing() -> void:
 
 	assert_eq(player.move_direction, Player.MoveDir.DOWN_LEFT, "Attack should keep down-left movement direction")
 	assert_true(Vector3(player.hitbox_shape.position.x, 0.0, player.hitbox_shape.position.z).dot(down_left_dir) > 0.1, "Down-left attack should place hitbox in the down-left movement direction")
-	assert_true(player.sprite.texture.resource_path.ends_with("down_left_attack_0.png"), "Down-left attack should use down-left attack asset")
+	assert_v2_sprite_frame(player, "attack", 0, "Down-left attack")
 
 func test_player_walk_w_a_uses_up_left_direction_with_left_facing_asset() -> void:
 	var player := tree.get_first_node_in_group("player") as Player
@@ -302,7 +319,7 @@ func test_player_walk_w_a_uses_up_left_direction_with_left_facing_asset() -> voi
 
 	assert_eq(player.move_direction, Player.MoveDir.UP_LEFT, "W + A should keep the up-left movement direction")
 	assert_true(Vector3(player.hitbox_shape.position.x, 0.0, player.hitbox_shape.position.z).dot(up_left_dir) > 0.1, "W + A should keep hitbox aligned with up-left movement")
-	assert_true(player.sprite.texture.resource_path.ends_with("left_run_0.png"), "W + A should use a clearly left-facing walk asset")
+	assert_v2_sprite_frame(player, "run", 2, "W + A walk")
 
 func test_player_hitbox_supports_diagonal_facing() -> void:
 	# Interaction 9: HÆ°á»›ng di chuyá»ƒn chÃ©o pháº£i cáº­p nháº­t hitbox theo 8 hÆ°á»›ng
@@ -326,5 +343,9 @@ func test_player_walk_uses_eight_direction_movement_sheet() -> void:
 	player._set_facing_from_world_direction(Vector3(-1.0, 0.0, -1.0))
 	player._update_sprite()
 
-	assert_false(player.sprite.region_enabled, "Walk animation should use a tightly cropped frame instead of a sheet region")
-	assert_true(player.sprite.texture.get_width() < 200, "Walk animation should use a tightly cropped movement frame")
+	assert_true(player.sprite.region_enabled, "Walk animation should use a V2 sheet region")
+	assert_eq(player.sprite.region_rect.size, Vector2(64.0, 64.0), "Walk animation should crop one 64px frame")
+	assert_true(
+		player.sprite.texture.resource_path.ends_with("spr_thach_sanh_run_6x4_alpha.png"),
+		"Walk animation should use the V2 run sheet"
+	)
