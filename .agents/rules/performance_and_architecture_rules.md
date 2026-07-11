@@ -41,3 +41,24 @@ Quy chuẩn bắt buộc đối với mọi Agent khi viết code cho dự án g
 
 *   **Không gọi trực tiếp đường dẫn tuyệt đối:** Tránh viết `get_node("/root/World/...")`.
 *   **Sử dụng `@export`:** Hãy dùng `@export var target_node: NodePath` hoặc kết nối qua hệ thống Signal của `EventBus` để giao tiếp decoupled giữa các Manager độc lập.
+
+---
+
+## 6. Ownership HUD & Minimap
+
+*   **WorldManager chỉ là facade:** WorldManager chỉ được giữ state và forward lời gọi. Không xây UI, quét marker, hoặc chứa layout constants trực tiếp trong file này.
+*   **Component bắt buộc:**
+    *   WorldHudManager sở hữu lifecycle HUD, boss health bar và damage popup.
+    *   PlayerHudBuilder sở hữu việc dựng player HUD/orc counter.
+    *   WorldMinimapManager sở hữu layout, zoom, marker collection và update cadence.
+*   **Minimap tối đa 10 Hz:** Không quét group orc_mobs hoặc food_items mỗi frame. Dùng interval tối thiểu 0.1s, trừ lần force-update trong test/setup.
+*   **Marker payload có kiểu:** Dùng Array[Dictionary] với position: Vector3 và marker_type lấy từ Minimap.MARKER_ORC, MARKER_BOSS, hoặc MARKER_ITEM.
+*   **Animation Control trong Container:** Với Godot 4.7, dùng offset_transform_enabled và tween offset_transform_scale thay vì sửa trực tiếp layout position/scale do Container quản lý.
+
+---
+
+## 7. Tính Di Động Của Asset & Import Metadata
+
+*   **Đường dẫn phân biệt hoa/thường:** Mọi res:// path phải khớp chính xác casing trên đĩa và trong Git để Windows/Linux export cho kết quả giống nhau.
+*   **Không tạo hai thư mục chỉ khác casing:** Không đồng thời dùng các tên như Textures và textures.
+*   **Không stage reimport churn hàng loạt:** Chỉ commit .import khi source path hoặc import settings thực sự thay đổi. Không commit metadata được Godot tái sinh chỉ vì khác máy/editor cache.

@@ -1,5 +1,5 @@
 # minimap.gd
-# HUD Minimap — hiển thị dot xanh (player) + dot đỏ (orc) theo vị trí world trên map
+# HUD Minimap — hiển thị marker riêng cho player, orc, boss và vật phẩm.
 class_name Minimap
 extends Control
 
@@ -9,9 +9,13 @@ extends Control
 @export var show_panel_border: bool = true
 
 # Cache dữ liệu vị trí để _draw() sử dụng
+const MARKER_PLAYER := &"player"
+const MARKER_ORC := &"orc"
+const MARKER_BOSS := &"boss"
+const MARKER_ITEM := &"item"
+
 var _player_pos: Vector3 = Vector3.ZERO
-var _enemies: Array[Dictionary] = []  # [{position: Vector3, is_boss: bool}] — chỉ quái đang tấn công
-var _foods: Array[Vector3] = []
+var _markers: Array[Dictionary] = []  # [{position: Vector3, marker_type: StringName}]
 var _player_valid: bool = false
 
 # ─── Constants ───────────────────────────────────────────────────────────────
@@ -23,10 +27,10 @@ const PLAYER_COLOR := Color(0.25, 0.72, 1.0)
 const ENEMY_COLOR := Color(0.9, 0.18, 0.16)
 const BOSS_COLOR := Color(0.96, 0.78, 0.22)
 const FOOD_COLOR := Color(0.3, 0.95, 0.45)
-const PLAYER_RADIUS: float = 3.0
+const PLAYER_RADIUS: float = 4.0
 const ENEMY_RADIUS: float = 3.0
 const BOSS_RADIUS: float = 6.0
-const FOOD_RADIUS: float = 1.0
+const FOOD_RADIUS: float = 2.0
 
 
 func setup(size_pixels: Vector2) -> void:
@@ -35,10 +39,9 @@ func setup(size_pixels: Vector2) -> void:
 	queue_redraw()
 
 
-func update_positions(player_pos: Vector3, enemies: Array[Dictionary], foods: Array[Vector3] = []) -> void:
+func update_positions(player_pos: Vector3, markers: Array[Dictionary]) -> void:
 	_player_pos = player_pos
-	_enemies = enemies
-	_foods = foods
+	_markers = markers
 	_player_valid = true
 	queue_redraw()
 
@@ -62,24 +65,13 @@ func _draw() -> void:
 	
 	# Vẽ dot player theo vị trí thật trên map
 	var player_canvas := _world_to_canvas(_player_pos)
-	draw_circle(player_canvas, PLAYER_RADIUS + 1.0, Color(0.04, 0.12, 0.16, 0.75))
-	draw_circle(player_canvas, PLAYER_RADIUS, PLAYER_COLOR)
+	_draw_player_marker(player_canvas)
 
-	# Vẽ dot food (xanh lá, nhỏ)
-	for food_pos: Vector3 in _foods:
-		draw_circle(_world_to_canvas(food_pos), FOOD_RADIUS, FOOD_COLOR)
-
-	# Vẽ dot orc đang tấn công
-	for enemy: Dictionary in _enemies:
-		var enemy_pos: Vector3 = enemy.get("position", Vector3.ZERO)
-		var is_boss: bool = enemy.get("is_boss", false)
-		
-		var canvas_pos := _world_to_canvas(enemy_pos)
-		
-		var radius: float = BOSS_RADIUS if is_boss else ENEMY_RADIUS
-		var color := BOSS_COLOR if is_boss else ENEMY_COLOR
-		draw_circle(canvas_pos, radius + 1.0, Color(0.12, 0.06, 0.06, 0.75))
-		draw_circle(canvas_pos, radius, color)
+	for marker: Dictionary in _markers:
+		_draw_marker(
+			_world_to_canvas(marker.get("position", Vector3.ZERO)),
+			marker.get("marker_type", MARKER_ORC)
+		)
 
 
 func _draw_background() -> void:
@@ -105,3 +97,76 @@ func _draw_grid() -> void:
 		draw_line(Vector2(offset, 0.0), Vector2(offset, size.y), GRID_COLOR, 0.5)
 		# Đường ngang
 		draw_line(Vector2(0.0, offset), Vector2(size.x, offset), GRID_COLOR, 0.5)
+
+
+func _draw_player_marker(center: Vector2) -> void:
+	draw_circle(center, PLAYER_RADIUS + 1.5, Color(0.03, 0.09, 0.14, 0.82))
+	draw_circle(center, PLAYER_RADIUS, PLAYER_COLOR)
+	draw_line(
+		center + Vector2(0.0, -PLAYER_RADIUS - 2.0),
+		center + Vector2(0.0, PLAYER_RADIUS + 2.0),
+		Color(0.88, 0.98, 1.0, 0.95),
+		1.4
+	)
+	draw_line(
+		center + Vector2(-PLAYER_RADIUS - 2.0, 0.0),
+		center + Vector2(PLAYER_RADIUS + 2.0, 0.0),
+		Color(0.88, 0.98, 1.0, 0.95),
+		1.4
+	)
+
+
+func _draw_marker(center: Vector2, marker_type: StringName) -> void:
+	match marker_type:
+		MARKER_BOSS:
+			_draw_boss_marker(center)
+		MARKER_ITEM:
+			_draw_item_marker(center)
+		_:
+			_draw_orc_marker(center)
+
+
+func _draw_orc_marker(center: Vector2) -> void:
+	var points := PackedVector2Array([
+		center + Vector2(0.0, -ENEMY_RADIUS - 1.5),
+		center + Vector2(ENEMY_RADIUS + 1.5, 0.0),
+		center + Vector2(0.0, ENEMY_RADIUS + 1.5),
+		center + Vector2(-ENEMY_RADIUS - 1.5, 0.0),
+	])
+	draw_colored_polygon(points, Color(0.12, 0.05, 0.05, 0.82))
+	var inner_points := PackedVector2Array([
+		center + Vector2(0.0, -ENEMY_RADIUS),
+		center + Vector2(ENEMY_RADIUS, 0.0),
+		center + Vector2(0.0, ENEMY_RADIUS),
+		center + Vector2(-ENEMY_RADIUS, 0.0),
+	])
+	draw_colored_polygon(inner_points, ENEMY_COLOR)
+
+
+func _draw_boss_marker(center: Vector2) -> void:
+	draw_circle(center, BOSS_RADIUS + 1.5, Color(0.18, 0.08, 0.02, 0.9))
+	draw_circle(center, BOSS_RADIUS, BOSS_COLOR)
+	var horn_color := Color(0.32, 0.16, 0.03, 0.95)
+	var left_horn := PackedVector2Array([
+		center + Vector2(-2.0, -BOSS_RADIUS + 0.5),
+		center + Vector2(-BOSS_RADIUS - 2.5, -BOSS_RADIUS - 3.0),
+		center + Vector2(-0.5, -BOSS_RADIUS - 1.5),
+	])
+	var right_horn := PackedVector2Array([
+		center + Vector2(2.0, -BOSS_RADIUS + 0.5),
+		center + Vector2(BOSS_RADIUS + 2.5, -BOSS_RADIUS - 3.0),
+		center + Vector2(0.5, -BOSS_RADIUS - 1.5),
+	])
+	draw_colored_polygon(left_horn, horn_color)
+	draw_colored_polygon(right_horn, horn_color)
+
+
+func _draw_item_marker(center: Vector2) -> void:
+	var points := PackedVector2Array([
+		center + Vector2(0.0, -FOOD_RADIUS - 1.0),
+		center + Vector2(FOOD_RADIUS + 1.0, 0.0),
+		center + Vector2(0.0, FOOD_RADIUS + 1.0),
+		center + Vector2(-FOOD_RADIUS - 1.0, 0.0),
+	])
+	draw_colored_polygon(points, FOOD_COLOR)
+	draw_circle(center, 0.9, Color(0.96, 1.0, 0.94, 0.95))

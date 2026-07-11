@@ -5,8 +5,8 @@ const FADE_OUT_DURATION: float = 0.6
 const BAR_WIDTH: float = 600.0
 const BAR_HEIGHT: float = 28.0
 const BAR_MARGIN_TOP: float = 40.0
-const NAME_FONT_SIZE: int = 22
-const NAME_OUTLINE: int = 4
+const NAME_FONT_SIZE: int = 24
+const NAME_OUTLINE: int = 5
 const NAME_COLOR := Color(0.96, 0.92, 0.82)
 const NAME_OUTLINE_COLOR := Color(0.0, 0.0, 0.0, 0.9)
 const BAR_BACK_COLOR := Color(0.08, 0.04, 0.04, 0.82)
@@ -38,6 +38,8 @@ func attach(boss: Node3D, display_name: String) -> void:
 		return
 	_boss_node = boss
 	_health_component = boss.get_node_or_null("HealthComponent") as HealthComponent
+	if _health_component == null and "health_component" in boss:
+		_health_component = boss.get("health_component") as HealthComponent
 	if _health_component == null:
 		push_warning("BossHealthBar.attach: boss has no HealthComponent")
 		return
@@ -123,8 +125,12 @@ func _build_name_label() -> void:
 	_name_label.offset_bottom = -4.0
 	_name_label.add_theme_font_size_override("font_size", NAME_FONT_SIZE)
 	_name_label.add_theme_color_override("font_color", NAME_COLOR)
+	_name_label.add_theme_font_override("font", preload("res://src/ui/ui_theme.gd").FONT_HEADING)
 	_name_label.add_theme_constant_override("outline_size", NAME_OUTLINE)
 	_name_label.add_theme_color_override("font_outline_color", NAME_OUTLINE_COLOR)
+	_name_label.add_theme_constant_override("shadow_offset_x", 0)
+	_name_label.add_theme_constant_override("shadow_offset_y", 2)
+	_name_label.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.42))
 	_name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_name_label)
 

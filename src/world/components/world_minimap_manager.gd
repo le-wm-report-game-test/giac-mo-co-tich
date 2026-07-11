@@ -37,6 +37,7 @@ func build(ui: CanvasLayer) -> void:
 	ui.add_child(_container)
 	_add_frame()
 	_add_map()
+	_refresh_layout()
 	_owner.set("minimap", _minimap)
 	_owner.set("minimap_container", _container)
 
@@ -63,18 +64,25 @@ func update(delta: float, force: bool = false) -> void:
 	var player := get_tree().get_first_node_in_group("player") as Node3D
 	if player == null:
 		return
-	var enemies: Array[Dictionary] = []
+	_refresh_layout()
+	var markers: Array[Dictionary] = []
 	for candidate in get_tree().get_nodes_in_group("orc_mobs"):
 		if is_orc_marker(candidate) and is_orc_attacking(candidate):
-			enemies.append({
+			markers.append({
 				"position": (candidate as Node3D).global_position,
-				"is_boss": candidate.is_in_group("boss"),
+				"marker_type": (
+					Minimap.MARKER_BOSS
+					if candidate.is_in_group("boss")
+					else Minimap.MARKER_ORC
+				),
 			})
-	var foods: Array[Vector3] = []
 	for candidate in get_tree().get_nodes_in_group("food_items"):
-		if candidate is Node3D and is_instance_valid(candidate) and candidate.visible:
-			foods.append((candidate as Node3D).global_position)
-	_minimap.update_positions(player.global_position, enemies, foods)
+		if candidate is Node3D and is_instance_valid(candidate) and (candidate as Node3D).visible:
+			markers.append({
+				"position": (candidate as Node3D).global_position,
+				"marker_type": Minimap.MARKER_ITEM,
+			})
+	_minimap.update_positions(player.global_position, markers)
 
 
 func is_orc_attacking(candidate: Variant) -> bool:
@@ -110,12 +118,31 @@ func _add_map() -> void:
 	mask.name = "MinimapMask"
 	mask.position = (INNER_POSITION * scale_ratio).round()
 	mask.size = (INNER_SIZE * scale_ratio).round()
+	mask.custom_minimum_size = mask.size
 	mask.clip_contents = true
 	mask.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_container.add_child(mask)
+	_owner.set("minimap_mask", mask)
 	_minimap = MinimapScript.new() as Minimap
 	_minimap.name = "Minimap"
 	_minimap.show_panel_background = false
 	_minimap.show_panel_border = false
 	mask.add_child(_minimap)
 	_minimap.setup(mask.size)
+	_minimap.position = Vector2.ZERO
+
+
+func _refresh_layout() -> void:
+	if not is_instance_valid(_container):
+		return
+	_container.size = SCREEN_SIZE
+	_container.custom_minimum_size = SCREEN_SIZE
+	_container.pivot_offset = Vector2(SCREEN_SIZE.x, 0.0)
+	var scale_ratio := SCREEN_SIZE.x / FRAME_TEXTURE_SIZE.x
+	var mask := _container.get_node_or_null("MinimapMask") as Control
+	if mask:
+		mask.position = (INNER_POSITION * scale_ratio).round()
+		mask.size = (INNER_SIZE * scale_ratio).round()
+		mask.custom_minimum_size = mask.size
+	if is_instance_valid(_minimap):
+		_minimap.setup(mask.size if mask else SCREEN_SIZE)

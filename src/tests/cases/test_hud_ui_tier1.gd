@@ -41,6 +41,29 @@ func test_boss_hud_is_removed() -> void:
 	var boss_container: Control = world_manager.get_node_or_null("UI/BossHUDContainer")
 	assert_null(boss_container, "Boss HUD container should not exist")
 
+func test_boss_health_bar_uses_chan_tinh_name() -> void:
+	var world_manager: Node = world_instance.get_node_or_null("WorldManager")
+	assert_not_null(world_manager, "WorldManager must exist")
+
+	var dummy_boss := Node3D.new()
+	dummy_boss.add_to_group("boss")
+	var health := HealthComponent.new()
+	health.max_health = 180.0
+	health.current_health = 180.0
+	health.name = "HealthComponent"
+	dummy_boss.add_child(health)
+	world_instance.add_child(dummy_boss)
+
+	world_manager.call("_show_boss_health_bar", dummy_boss)
+	await tree.process_frame
+
+	var boss_name := world_manager.get_node_or_null("UI/BossHealthBar/BossBarName") as Label
+	assert_not_null(boss_name, "Boss health bar should create a name label")
+	assert_eq(boss_name.text, "Chằn Tinh", "Boss HUD should show the approved display name")
+
+	dummy_boss.queue_free()
+	await tree.process_frame
+
 func test_minimap_player_dot_uses_world_position() -> void:
 	var minimap := Minimap.new()
 	minimap.setup(Vector2(100.0, 100.0))
@@ -64,6 +87,23 @@ func test_minimap_red_markers_only_include_orcs() -> void:
 	assert_true(world_manager.call("_is_minimap_orc_marker", orc), "Orcs must be markers")
 	animal.free()
 	orc.free()
+
+func test_minimap_marker_types_are_distinct() -> void:
+	var minimap := Minimap.new()
+	minimap.setup(Vector2(120.0, 120.0))
+	var markers: Array[Dictionary] = [
+		{"position": Vector3(4.0, 0.0, 0.0), "marker_type": Minimap.MARKER_ORC},
+		{"position": Vector3(8.0, 0.0, 0.0), "marker_type": Minimap.MARKER_BOSS},
+		{"position": Vector3(12.0, 0.0, 0.0), "marker_type": Minimap.MARKER_ITEM},
+	]
+
+	minimap.update_positions(Vector3.ZERO, markers)
+
+	assert_eq(minimap._markers.size(), 3, "Minimap should keep every marker payload")
+	assert_eq(minimap._markers[0].get("marker_type"), Minimap.MARKER_ORC, "Orc marker type should be preserved")
+	assert_eq(minimap._markers[1].get("marker_type"), Minimap.MARKER_BOSS, "Boss marker type should be preserved")
+	assert_eq(minimap._markers[2].get("marker_type"), Minimap.MARKER_ITEM, "Item marker type should be preserved")
+	minimap.free()
 
 func test_player_damage_number_spawn() -> void:
 	var world_manager: Node = world_instance.get_node_or_null("WorldManager")

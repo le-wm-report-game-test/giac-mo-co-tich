@@ -235,6 +235,7 @@ func _get_grounded_sprite_y() -> float:
 
 func _setup_health_component() -> void:
 	health_component = HealthComponent.new()
+	health_component.name = "HealthComponent"
 	health_component.max_health = max_health
 	health_component.current_health = max_health
 	add_child(health_component)

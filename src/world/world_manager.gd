@@ -245,12 +245,12 @@ func _on_player_health_changed(current: float, max_health: float) -> void:
 func _format_orc_counter_text() -> String:
 	return _hud_manager.format_orc_counter()
 
-func _show_boss_health_bar(_boss: Node3D = null) -> void:
-	# Boss health is rendered above the actor; no duplicate screen-space HUD.
-	pass
+func _show_boss_health_bar(boss: Node3D = null) -> void:
+	if boss:
+		_hud_manager.show_boss_health_bar(boss)
 
 func _hide_boss_health_bar() -> void:
-	pass
+	_hud_manager.hide_boss_health_bar()
 
 # ══════════════════════════════════════════════════════════════════════════════
 # DAMAGE NUMBERS

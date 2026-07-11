@@ -163,9 +163,10 @@ func get_or_load_sprite_frames(color: String, direction: int) -> SpriteFrames:
 		var placeholder := Image.create(1, 1, false, Image.FORMAT_RGBA8)
 		placeholder.fill(Color.MAGENTA)
 		frames = SpriteFrames.new()
-		frames.add_animation("default")
-		frames.set_animation_speed("default", 1.0)
-		frames.add_frame("default", ImageTexture.create_from_image(placeholder))
+		if not frames.has_animation("default"):
+			frames.add_animation("default")
+			frames.set_animation_speed("default", 1.0)
+			frames.add_frame("default", ImageTexture.create_from_image(placeholder))
 	color_dict[direction] = frames
 	_sprite_frames_cache[color] = color_dict
 	return frames
@@ -177,9 +178,10 @@ func build_hurt_sprite_frames(color: String) -> SpriteFrames:
 		return null
 	var tex: Texture2D = load(path)
 	var frames := SpriteFrames.new()
-	frames.add_animation("default")
-	frames.set_animation_speed("default", HURT_FRAME_RATE)
-	frames.add_frame("default", tex)
+	if not frames.has_animation("default"):
+		frames.add_animation("default")
+		frames.set_animation_speed("default", HURT_FRAME_RATE)
+		frames.add_frame("default", tex)
 	return frames
 
 
@@ -189,9 +191,10 @@ func _build_gif_sprite_frames(color: String, direction: int) -> SpriteFrames:
 	if not ResourceLoader.exists(path):
 		return null
 	var frames := SpriteFrames.new()
-	frames.add_animation("default")
-	frames.set_animation_speed("default", GIF_FPS)
-	frames.set_animation_loop("default", true)
+	if not frames.has_animation("default"):
+		frames.add_animation("default")
+		frames.set_animation_speed("default", GIF_FPS)
+		frames.set_animation_loop("default", true)
 	for tex in _extract_gif_frames(path):
 		frames.add_frame("default", tex)
 	return frames

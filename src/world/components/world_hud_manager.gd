@@ -2,9 +2,11 @@ extends Node
 
 const PlayerHudBuilder := preload("res://src/world/components/player_hud_builder.gd")
 const MinimapManagerScript := preload("res://src/world/components/world_minimap_manager.gd")
+const BOSS_DISPLAY_NAME: String = "Chằn Tinh"
 
 var _owner: Node = null
 var _minimap_manager: Node = null
+var _boss_health_bar: BossHealthBar = null
 
 
 func setup(owner: Node) -> void:
@@ -56,6 +58,24 @@ func format_orc_counter() -> String:
 		int(_owner.get("orcs_killed")),
 		int(_owner.get("orcs_to_kill_for_boss")),
 	]
+
+
+func show_boss_health_bar(boss: Node3D) -> void:
+	hide_boss_health_bar()
+	var ui := _owner.get_node_or_null("UI") as CanvasLayer
+	if ui == null or boss == null:
+		return
+	_boss_health_bar = BossHealthBar.new()
+	_boss_health_bar.name = "BossHealthBar"
+	ui.add_child(_boss_health_bar)
+	_boss_health_bar.attach(boss, BOSS_DISPLAY_NAME)
+
+
+func hide_boss_health_bar() -> void:
+	if is_instance_valid(_boss_health_bar):
+		_boss_health_bar.detach()
+		_boss_health_bar.queue_free()
+	_boss_health_bar = null
 
 
 func spawn_damage_number(

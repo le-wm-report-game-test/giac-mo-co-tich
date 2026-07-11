@@ -2,16 +2,19 @@
 class_name LoadingScreen
 extends Control
 
+const UITheme = preload("res://src/ui/ui_theme.gd")
 const DEFAULT_TARGET_SCENE: String = "res://src/world/world.tscn"
 const META_KEY: String = "loading_target_scene"
 
 const TIPS: Array[String] = [
-	"Rừng sâu thường giấu lối đi bên dưới những tán lá tĩnh lặng.",
-	"Lắng nghe bước chân và tiếng gầm xa, đó là cách người anh hùng sống sót.",
-	"Mỗi vật phẩm nhặt được đều có thể cứu bạn trong trận chiến kế tiếp.",
-	"Cổ tích chỉ mở đường cho người đủ dũng cảm tiến về phía trước.",
+	"Có những lối mòn chỉ hiện ra với người dám bước qua màn sương đầu rừng.",
+	"Tiếng lá xao và tiếng thú gầm thường báo trước một thử thách đang đợi kiếm sĩ.",
+	"Một quả táo giữa rừng sâu đôi khi quý hơn cả trăm lời hứa nơi kinh thành.",
+	"Đường vào cổ tích không mở cho kẻ chần chừ quá lâu trước bóng tối.",
 ]
 
+@onready var _title_label: Label = %TitleLabel
+@onready var _story_label: Label = %StoryLabel
 @onready var _progress_bar: ProgressBar = %ProgressBar
 @onready var _percent_label: Label = %PercentLabel
 @onready var _tip_label: Label = %TipLabel
@@ -28,9 +31,24 @@ func _ready() -> void:
 		_target_path = EventBus.get_meta(META_KEY)
 		EventBus.remove_meta(META_KEY)
 
+	_apply_visual_theme()
 	_start_tip_rotation()
 	_update_ui(0.0)
 	_start_load()
+
+func _apply_visual_theme() -> void:
+	UITheme.apply_heading(_title_label, 24)
+	UITheme.apply_body(_story_label, 13, Color(0.86, 0.82, 0.72, 0.92))
+	UITheme.apply_body(_tip_label, 14, UITheme.BODY_TEXT_COLOR)
+	UITheme.apply_body(_percent_label, 15, UITheme.GOLD_TEXT_COLOR)
+	_progress_bar.add_theme_stylebox_override(
+		"background",
+		UITheme.make_texture_stylebox(UITheme.TEX_BTN_NORMAL, 22, 20, 22, 20)
+	)
+	_progress_bar.add_theme_stylebox_override(
+		"fill",
+		UITheme.make_texture_stylebox(UITheme.TEX_BTN_HOVER, 22, 20, 22, 20)
+	)
 
 func _start_tip_rotation() -> void:
 	if TIPS.is_empty():
