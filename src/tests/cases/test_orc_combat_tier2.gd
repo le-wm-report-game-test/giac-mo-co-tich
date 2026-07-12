@@ -110,6 +110,24 @@ func test_boss_visual_scale_stays_close_to_regular_orc() -> void:
 	)
 	boss.queue_free()
 
+func test_boss_chases_player_beyond_regular_detection_range() -> void:
+	var boss := OrcBossMob.new()
+	boss.add_to_group("boss")
+	world_instance.add_child(boss)
+	boss.set_physics_process(false)
+	boss.global_position = Vector3(-15.0, 0.2, -15.0)
+	_player.global_position = Vector3(0.0, 1.0, 0.0)
+	boss.current_state = OrcMob.State.IDLE
+	boss.attack_cooldown_timer = 0.0
+
+	boss._update_ai_state(1.0 / 60.0)
+	assert_eq(boss.current_state, OrcMob.State.CHASE, "Boss should chase the player from its spawn distance")
+
+	var desired := boss._get_planar_offset_to(_player).normalized()
+	var actual := boss._get_chase_target_direction(_player)
+	assert_true(actual.dot(desired) > 0.99, "Boss chase direction should point directly toward the player")
+	boss.queue_free()
+
 func test_boss_diagonal_walk_falls_back_to_cardinal_frames() -> void:
 	var boss := OrcBossMob.new()
 	boss.add_to_group("boss")
