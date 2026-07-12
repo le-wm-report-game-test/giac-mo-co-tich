@@ -15,8 +15,8 @@ func test_boss_not_spawned_initially() -> void:
 	assert_false(_world_manager.boss_spawned, "Boss should not be spawned initially")
 	var bosses := tree.get_nodes_in_group("boss")
 	assert_eq(bosses.size(), 0, "No boss in group 'boss' initially")
-	var hud_bar: Control = _world_manager.get_node_or_null("UI/BossHUDContainer") as Control
-	assert_null(hud_bar, "Boss health HUD should not exist anymore")
+	var hud_bar := _world_manager.get_node_or_null("UI/BossHealthBar") as BossHealthBar
+	assert_null(hud_bar, "Boss health HUD should not exist before the boss spawns")
 
 func test_boss_spawn_trigger() -> void:
 	_world_manager.orcs_to_kill_for_boss = 3
@@ -52,7 +52,7 @@ func test_boss_initial_properties() -> void:
 	assert_eq(boss.health_component.max_health, 300.0, "Boss max health should be 300")
 	assert_eq(boss.speed, 1.5, "Boss speed should be 1.5")
 
-func test_boss_hud_stays_removed_on_spawn() -> void:
+func test_boss_screen_hud_appears_on_spawn() -> void:
 	_world_manager.orcs_to_kill_for_boss = 1
 	var dummy := CharacterBody3D.new()
 	dummy.add_to_group("orc_mobs")
@@ -61,8 +61,8 @@ func test_boss_hud_stays_removed_on_spawn() -> void:
 	await wait_physics_frames(2)
 	dummy.queue_free()
 	
-	var hud_bar: Control = world_instance.get_node_or_null("WorldManager/UI/BossHUDContainer") as Control
-	assert_null(hud_bar, "HUD BossHUDContainer should stay removed after boss spawn")
+	var hud_bar := _world_manager.get_node_or_null("UI/BossHealthBar") as BossHealthBar
+	assert_not_null(hud_bar, "Boss screen HUD should appear after boss spawn")
 
 func test_boss_death_sequence() -> void:
 	_world_manager.orcs_to_kill_for_boss = 1
@@ -87,8 +87,8 @@ func test_boss_death_sequence() -> void:
 	await tree.create_timer(2.5).timeout
 	assert_false(is_instance_valid(boss), "Boss should be freed and invalid")
 	
-	var hud_bar: Control = world_instance.get_node_or_null("WorldManager/UI/BossHUDContainer") as Control
-	assert_null(hud_bar, "HUD BossHUDContainer should remain absent on boss death")
+	var hud_bar := _world_manager.get_node_or_null("UI/BossHealthBar") as BossHealthBar
+	assert_null(hud_bar, "Boss screen HUD should be removed after boss death")
 
 func test_boss_victory_dialog_targets_main_menu() -> void:
 	# Khi boss bị đánh bại, hiện lời chúc mừng, bài văn và nút về menu chính

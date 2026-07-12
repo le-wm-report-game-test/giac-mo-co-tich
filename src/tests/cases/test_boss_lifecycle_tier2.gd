@@ -59,13 +59,11 @@ func test_boss_damage_ui_sync() -> void:
 	var boss := _world_manager.boss_instance as CharacterBody3D
 	assert_not_null(boss, "Boss must exist")
 
-	# Máu boss giờ chỉ còn ở health bar trên đầu, nên HUD fill trên màn hình phải vắng mặt.
+	# Máu boss giờ chỉ dùng screen HUD lớn, không còn thanh dưới chân.
 	boss.health_component.take_damage(60.0)
 	await wait_physics_frames(2)
-	assert_null(
-		world_instance.get_node_or_null("WorldManager/UI/BossHUDContainer"),
-		"Boss screen HUD should stay removed while boss health changes"
-	)
+	var hud_bar := _world_manager.get_node_or_null("UI/BossHealthBar") as BossHealthBar
+	assert_not_null(hud_bar, "Boss screen HUD should stay present while boss health changes")
 
 func test_boss_camera_magnet_activation() -> void:
 	_world_manager.orcs_to_kill_for_boss = 1

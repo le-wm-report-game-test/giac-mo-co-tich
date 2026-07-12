@@ -10,7 +10,7 @@ enum State { IDLE, WANDER, CHASE, ATTACK, HURT, DEATH }
 @export var attack_frame_count: int = 8  # used by EnemyCombatV2 for 3-phase timing
 
 const REGULAR_SPRITE_PIXEL_SIZE: float = 0.0231
-const BOSS_SPRITE_PIXEL_SIZE: float = 0.04
+const BOSS_SPRITE_PIXEL_SIZE: float = 0.0275
 const SPRITE_FRAME_CENTER_Y_PX: float = 50.0
 # Asset orc_spring_enemy vẽ kín khung 100x100 (đầu ~y=4, chân ~y=95), khác hẳn
 # asset Tiny RPG cũ chỉ chiếm một vùng nhỏ giữa khung.
@@ -163,8 +163,8 @@ func _setup_physics_collider(is_boss: bool) -> void:
 	var col := CollisionShape3D.new()
 	var body_shape := SphereShape3D.new()
 	if is_boss:
-		body_shape.radius = 0.8
-		col.position.y = 0.8
+		body_shape.radius = 0.5
+		col.position.y = 0.5
 	else:
 		body_shape.radius = 0.4
 		col.position.y = 0.4
@@ -253,6 +253,8 @@ func _setup_health_component() -> void:
 		combat_v2.telegraph_radius = attack_range * 1.1
 
 func _setup_health_bar(is_boss: bool) -> void:
+	if not _should_use_world_health_bar(is_boss):
+		return
 	var bar_size := BOSS_HEALTH_BAR_SIZE if is_boss else REGULAR_HEALTH_BAR_SIZE
 	health_bar_viewport = SubViewport.new()
 	health_bar_viewport.name = "HealthBarViewport"
@@ -303,6 +305,9 @@ func _setup_health_bar(is_boss: bool) -> void:
 	add_child(health_bar_sprite)
 	_update_health_bar(health_component.current_health, health_component.max_health)
 
+func _should_use_world_health_bar(is_boss: bool) -> bool:
+	return not is_boss
+
 func _get_health_bar_height(is_boss: bool) -> float:
 	if use_3d_model:
 		return model_height + 0.3
@@ -335,9 +340,9 @@ func _setup_hurtbox(is_boss: bool) -> void:
 	var hurt_col := CollisionShape3D.new()
 	var hurt_shape := CapsuleShape3D.new()
 	if is_boss:
-		hurt_shape.radius = 0.9
-		hurt_shape.height = 2.4
-		hurt_col.position.y = 1.2
+		hurt_shape.radius = 0.68
+		hurt_shape.height = 1.9
+		hurt_col.position.y = 0.95
 	else:
 		hurt_shape.radius = 0.6
 		hurt_shape.height = 1.6
@@ -354,8 +359,8 @@ func _setup_hitbox(is_boss: bool) -> void:
 	hitbox_col = CollisionShape3D.new()
 	var hit_shape := SphereShape3D.new()
 	if is_boss:
-		hit_shape.radius = 1.5
-		hitbox_col.position.y = 1.0
+		hit_shape.radius = maxf(0.9, attack_range * 0.55)
+		hitbox_col.position.y = 0.75
 	else:
 		# Tầm hit phải theo sát tầm kích hoạt attack để Orc không vung trúng hình nhưng hụt hitbox.
 		hit_shape.radius = maxf(0.65, attack_range * 0.65)

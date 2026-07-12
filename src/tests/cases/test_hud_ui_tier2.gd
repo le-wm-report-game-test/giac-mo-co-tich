@@ -51,23 +51,28 @@ func test_rapid_damage_spawning() -> void:
 	var end_count: int = ui.get_child_count()
 	assert_eq(end_count, start_count + 50, "50 damage labels should be spawned concurrently")
 
-func test_boss_hud_death_transition_is_noop() -> void:
-	# Boss HUD trên màn hình đã bị bỏ nên hide/show chỉ còn là no-op.
+func test_boss_hud_show_and_hide_work() -> void:
+	# Boss HUD lớn trên màn hình phải hiện khi attach boss và biến mất khi hide.
 	var world_manager: Node = world_instance.get_node_or_null("WorldManager")
 	assert_not_null(world_manager, "WorldManager must exist")
-	
-	var boss_container: Control = world_manager.get_node_or_null("UI/BossHUDContainer")
-	world_manager.call("_show_boss_health_bar")
-	assert_null(boss_container, "Boss HUD container should remain absent")
 	
 	var dummy_boss: CharacterBody3D = CharacterBody3D.new()
 	dummy_boss.add_to_group("boss")
 	dummy_boss.add_to_group("orc_mobs")
+	var health := HealthComponent.new()
+	health.name = "HealthComponent"
+	health.max_health = 120.0
+	health.current_health = 120.0
+	dummy_boss.add_child(health)
 	world_instance.add_child(dummy_boss)
 	
-	world_manager.call("_hide_boss_health_bar")
-	assert_null(world_manager.get_node_or_null("UI/BossHUDContainer"), "Boss HUD container should still be absent after hide")
+	world_manager.call("_show_boss_health_bar", dummy_boss)
+	await tree.process_frame
+	assert_not_null(world_manager.get_node_or_null("UI/BossHealthBar"), "Boss screen HUD should appear")
 	
+	world_manager.call("_hide_boss_health_bar")
+	assert_null(world_manager.get_node_or_null("UI/BossHealthBar"), "Boss screen HUD should be removed after hide")
+
 	dummy_boss.queue_free()
 	await tree.process_frame
 

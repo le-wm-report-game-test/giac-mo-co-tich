@@ -97,16 +97,18 @@ func _build_fill_bar() -> void:
 	_bar.value = 100.0
 	_bar.fill_mode = TextureProgressBar.FILL_LEFT_TO_RIGHT
 	_bar.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_bar.offset_left = 2.0
-	_bar.offset_top = 2.0
-	_bar.offset_right = -2.0
-	_bar.offset_bottom = -2.0
+	_bar.offset_left = 0.0
+	_bar.offset_top = 0.0
+	_bar.offset_right = 0.0
+	_bar.offset_bottom = -1.0
 	_bar.tint_under = Color(1.0, 1.0, 1.0, 0.0)
 	_bar.tint_progress = BAR_FILL_COLOR
 	_bar.tint_over = Color(1.0, 1.0, 1.0, 0.0)
 	_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_bar.texture_under = _solid_texture(Color(0.0, 0.0, 0.0, 0.0), Vector2i(2, 2))
-	_bar.texture_progress = _solid_texture(BAR_FILL_COLOR, Vector2i(2, 2))
+	# Use a full-size texture so Godot stretches the red fill across the bar
+	# instead of rendering only the source texture's tiny 2x2 area.
+	_bar.texture_progress = _solid_texture(BAR_FILL_COLOR, Vector2i(int(BAR_WIDTH), int(BAR_HEIGHT)))
 	_bar.texture_over = _solid_texture(Color(0.0, 0.0, 0.0, 0.0), Vector2i(2, 2))
 	add_child(_bar)
 
