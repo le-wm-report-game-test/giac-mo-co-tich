@@ -2,7 +2,6 @@
 class_name ChanTinhMob
 extends OrcMob
 
-# Enums and Constants
 enum MoveDir { DOWN, UP, RIGHT, LEFT, DOWN_RIGHT, DOWN_LEFT, UP_RIGHT, UP_LEFT }
 
 const MOVE_DIR_NAMES: Dictionary = {
@@ -21,49 +20,43 @@ var move_direction: MoveDir = MoveDir.DOWN
 
 func _ready() -> void:
 	super._ready()
-	attack_frame_count = 5  # Chằn Tinh attack animation frame count
+	attack_frame_count = 5
 
-	# Thiết lập chỉ số cho Chằn Tinh sau super._ready() để tránh bị ghi đè bởi cấu hình OrcMob thường
 	if not is_in_group("boss"):
 		max_health = 80.0
 		attack_damage = 15.0
 		speed = 1.6
-		sprite_pixel_size = 2.0 / 256.0 # Chiều cao khoảng 2m
+		sprite_pixel_size = 2.0 / 256.0
 	else:
-		# Giữ chỉ số Boss đã được cấu hình từ WorldManager nhưng cập nhật pixel_size
 		max_health = 300.0
 		attack_damage = 25.0
 		speed = 1.3
-		sprite_pixel_size = 3.5 / 256.0 # Chiều cao Boss khoảng 3.5m (khoảng gấp đôi nhân vật)
-		# Boss Chằn Tinh đánh chậm nhưng mạnh - nhịp rõ ràng
+		sprite_pixel_size = 3.5 / 256.0
 		attack_cooldown_time = 2.5
-		
-	# Áp dụng pixel_size chuẩn cho sprite và cập nhật vị trí Y chạm đất thực tế
+
 	if is_instance_valid(sprite):
 		sprite.pixel_size = sprite_pixel_size
 		sprite.position.y = _get_grounded_sprite_y()
-		
-	# Cập nhật lại chỉ số máu cho component
+
 	if is_instance_valid(health_component):
 		health_component.max_health = max_health
 		health_component.current_health = max_health
 
 func _get_grounded_sprite_y() -> float:
-	# Căn chỉnh cạnh dưới của ảnh 256x256 sát mặt đất (tâm ảnh nằm ở giữa)
 	return (256.0 * sprite_pixel_size) / 2.0
 
 func _update_facing_direction() -> void:
 	var look_dir := Vector3.ZERO
 	var player := get_tree().get_first_node_in_group("player") as Node3D
-	
+
 	if current_state == State.DEATH:
 		return
-		
+
 	if (current_state == State.CHASE or current_state == State.ATTACK) and player:
 		look_dir = _get_planar_offset_to(player)
 	elif velocity.length_squared() > 0.01:
 		look_dir = velocity
-		
+
 	if look_dir.length_squared() > 0.0001:
 		facing_direction = _snap_direction_to_octant(look_dir.normalized())
 		move_direction = _get_move_direction_from_facing(facing_direction)
@@ -97,10 +90,10 @@ func _get_move_direction_from_facing(dir: Vector3) -> MoveDir:
 
 func _update_sprite() -> void:
 	_update_facing_direction()
-	
+
 	var prefix := "idle"
 	var frame_count := 3
-	
+
 	match current_state:
 		State.IDLE:
 			prefix = "idle"
@@ -117,17 +110,17 @@ func _update_sprite() -> void:
 		State.DEATH:
 			prefix = "die"
 			frame_count = 4
-			
+
 	var frame := clampi(current_frame, 0, frame_count - 1)
 	var dir_name: String = MOVE_DIR_NAMES.get(move_direction, "down")
 	var path := "res://Assets/enemies/chan_tinh/movement_frames/%s_%s_%d.png" % [dir_name, prefix, frame]
-	
+
 	if not _texture_cache.has(path):
 		if ResourceLoader.exists(path):
 			_texture_cache[path] = load(path) as Texture2D
 		else:
 			_texture_cache[path] = null
-			
+
 	var tex: Texture2D = _texture_cache[path]
 	if tex:
 		sprite.texture = tex
@@ -137,7 +130,7 @@ func _update_sprite() -> void:
 func _update_animation(delta: float) -> void:
 	var max_frames := 3
 	anim_fps = 6.0
-	
+
 	match current_state:
 		State.IDLE:
 			max_frames = 3
@@ -151,7 +144,7 @@ func _update_animation(delta: float) -> void:
 		State.HURT:
 			max_frames = 4
 			anim_fps = 6.0
-	
+
 	frame_timer += delta
 	if frame_timer >= 1.0 / anim_fps:
 		frame_timer = 0.0
@@ -168,7 +161,7 @@ func _update_animation(delta: float) -> void:
 					current_frame = 0
 				_:
 					current_frame = 0
-	
+
 	if current_state == State.ATTACK:
 		if combat_v2 and combat_v2.enabled:
 			combat_v2.tick(delta)

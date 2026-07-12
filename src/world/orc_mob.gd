@@ -10,7 +10,7 @@ enum State { IDLE, WANDER, CHASE, ATTACK, HURT, DEATH }
 @export var attack_frame_count: int = 8  # used by EnemyCombatV2 for 3-phase timing
 
 const REGULAR_SPRITE_PIXEL_SIZE: float = 0.0231
-const BOSS_SPRITE_PIXEL_SIZE: float = 0.0346
+const BOSS_SPRITE_PIXEL_SIZE: float = 0.04
 const SPRITE_FRAME_CENTER_Y_PX: float = 50.0
 # Asset orc_spring_enemy vẽ kín khung 100x100 (đầu ~y=4, chân ~y=95), khác hẳn
 # asset Tiny RPG cũ chỉ chiếm một vùng nhỏ giữa khung.
@@ -62,6 +62,7 @@ const HEALTH_BAR_PIXEL_SIZE_FACTOR: float = 0.519481  # 0.012 / 0.0231
 @export_range(0.0, 1.0, 0.05) var close_range_strafe_weight: float = 0.45
 @export var max_health: float = 50.0
 @export_range(0.01, 0.25, 0.005) var sprite_pixel_size: float = REGULAR_SPRITE_PIXEL_SIZE
+@export var use_directional_sprites: bool = false
 @export var use_3d_model: bool = false
 @export var model_scale: float = 1.0
 @export var model_height: float = 1.8
@@ -120,6 +121,8 @@ func _ready() -> void:
 
 	# Giữ physics node ở scale 1; chỉ scale Sprite3D bằng pixel_size để hitbox không bị phóng đại.
 	scale = Vector3.ONE
+	if not use_directional_sprites:
+		sprite_pixel_size = 0.0035
 	if is_in_group("boss"):
 		sprite_pixel_size = maxf(sprite_pixel_size, BOSS_SPRITE_PIXEL_SIZE)
 		attack_range = maxf(attack_range, 2.5)
@@ -230,7 +233,9 @@ func _accumulate_aabb(root: Node3D, current: Node, acc: Dictionary) -> void:
 		_accumulate_aabb(root, child, acc)
 
 func _get_grounded_sprite_y() -> float:
-	var feet_offset_px := SPRITE_FEET_BASELINE_Y_PX - SPRITE_FRAME_CENTER_Y_PX
+	var center_y := 362.0 if not use_directional_sprites else SPRITE_FRAME_CENTER_Y_PX
+	var feet_y := 560.0 if not use_directional_sprites else SPRITE_FEET_BASELINE_Y_PX
+	var feet_offset_px := feet_y - center_y
 	return feet_offset_px * sprite_pixel_size + SPRITE_GROUND_CLEARANCE
 
 func _setup_health_component() -> void:
@@ -301,8 +306,15 @@ func _setup_health_bar(is_boss: bool) -> void:
 func _get_health_bar_height(is_boss: bool) -> float:
 	if use_3d_model:
 		return model_height + 0.3
-	var height_factor := BOSS_HEALTH_BAR_HEIGHT_FACTOR if is_boss else REGULAR_HEALTH_BAR_HEIGHT_FACTOR
-	return _get_grounded_sprite_y() + height_factor * sprite_pixel_size
+	var factor := BOSS_HEALTH_BAR_HEIGHT_FACTOR if is_boss else REGULAR_HEALTH_BAR_HEIGHT_FACTOR
+	var height_factor := 460.0 if not use_directional_sprites else factor
+	var s_mult := _get_state_sprite_scale()
+	
+	var center_y := 362.0 if not use_directional_sprites else SPRITE_FRAME_CENTER_Y_PX
+	var feet_y := 560.0 if not use_directional_sprites else SPRITE_FEET_BASELINE_Y_PX
+	var feet_offset_px := feet_y - center_y
+	var grounded_y := (feet_offset_px * sprite_pixel_size) * s_mult + SPRITE_GROUND_CLEARANCE
+	return grounded_y + (height_factor * sprite_pixel_size) * s_mult
 
 func _on_health_changed(current: float, max_h: float) -> void:
 	_update_health_bar(current, max_h)
@@ -371,9 +383,23 @@ func _physics_process(delta: float) -> void:
 		attack_cooldown_timer -= delta
 	_update_sprite_height()
 
+func _get_state_sprite_scale() -> float:
+	if not use_directional_sprites and (current_state == State.WANDER or current_state == State.CHASE):
+		return 1.5
+	return 1.0
+
 func _update_sprite_height() -> void:
 	if sprite:
-		sprite.position.y = _get_grounded_sprite_y()
+		var s_mult := _get_state_sprite_scale()
+		sprite.scale = Vector3.ONE * s_mult
+		
+		var center_y := 362.0 if not use_directional_sprites else SPRITE_FRAME_CENTER_Y_PX
+		var feet_y := 560.0 if not use_directional_sprites else SPRITE_FEET_BASELINE_Y_PX
+		var feet_offset_px := feet_y - center_y
+		sprite.position.y = (feet_offset_px * sprite_pixel_size) * s_mult + SPRITE_GROUND_CLEARANCE
+		
+		if is_instance_valid(health_bar_sprite):
+			health_bar_sprite.position.y = _get_health_bar_height(is_in_group("boss"))
 	elif model:
 		model.position.y = _model_ground_offset
 
@@ -689,31 +715,33 @@ func _update_sprite() -> void:
 			prefix = "death"
 			frame = clampi(current_frame, 0, 3)
 
-	var dir_idx := _get_direction_index()
-	var source_dir: String = DIRECTION_SOURCE[dir_idx]
-	var mirror: bool = DIRECTION_MIRROR[dir_idx]
-	if DIRECTION_ANIM_FALLBACK.has(source_dir) and (DIRECTION_ANIM_FALLBACK[source_dir] as Dictionary).has(prefix):
-		source_dir = (DIRECTION_ANIM_FALLBACK[source_dir] as Dictionary)[prefix]
+	if use_directional_sprites:
+		var dir_idx := _get_direction_index()
+		var source_dir: String = DIRECTION_SOURCE[dir_idx]
+		var mirror: bool = DIRECTION_MIRROR[dir_idx]
+		if DIRECTION_ANIM_FALLBACK.has(source_dir) and (DIRECTION_ANIM_FALLBACK[source_dir] as Dictionary).has(prefix):
+			source_dir = (DIRECTION_ANIM_FALLBACK[source_dir] as Dictionary)[prefix]
 
-	# Try directional sprite sheet first, fall back to legacy single-direction assets
-	var sheet_path := "%s/%s/%s.png" % [ORC_SPRITE_SHEET_DIR, source_dir, prefix]
-	if not _texture_cache.has(sheet_path):
-		if ResourceLoader.exists(sheet_path):
-			_texture_cache[sheet_path] = load(sheet_path) as Texture2D
-		else:
-			_texture_cache[sheet_path] = null
+		# Try directional sprite sheet first, fall back to legacy single-direction assets
+		var sheet_path := "%s/%s/%s.png" % [ORC_SPRITE_SHEET_DIR, source_dir, prefix]
+		if not _texture_cache.has(sheet_path):
+			if ResourceLoader.exists(sheet_path):
+				_texture_cache[sheet_path] = load(sheet_path) as Texture2D
+			else:
+				_texture_cache[sheet_path] = null
 
-	var tex: Texture2D = _texture_cache[sheet_path]
-	if tex:
-		var total_frames := _get_sheet_frames(prefix)
-		var fw := tex.get_width() / total_frames
-		sprite.texture = tex
-		sprite.region_enabled = true
-		sprite.region_rect = Rect2(frame * fw, 0, fw, tex.get_height())
-		sprite.flip_h = mirror
-		return
+		var tex: Texture2D = _texture_cache[sheet_path]
+		if tex:
+			var total_frames := _get_sheet_frames(prefix)
+			var fw := tex.get_width() / total_frames
+			sprite.texture = tex
+			sprite.region_enabled = true
+			sprite.region_rect = Rect2(frame * fw, 0, fw, tex.get_height())
+			sprite.flip_h = mirror
+			return
 
-	# Legacy fallback: old single-direction sheet (only flips left/right)
+	# Legacy fallback or when use_directional_sprites is false:
+	# old single-direction sheet (only flips left/right)
 	var legacy_sheet_path := "%s/%s.png" % [ORC_SPRITE_SHEET_DIR, prefix]
 	if not _texture_cache.has(legacy_sheet_path):
 		if ResourceLoader.exists(legacy_sheet_path):
@@ -724,10 +752,11 @@ func _update_sprite() -> void:
 	var legacy_tex: Texture2D = _texture_cache[legacy_sheet_path]
 	if legacy_tex:
 		var total_frames := _get_sheet_frames(prefix)
-		var fw := legacy_tex.get_width() / total_frames
+		# Support float frame width for walk sheet (271.5px per frame)
+		var fw: float = float(legacy_tex.get_width()) / float(total_frames)
 		sprite.texture = legacy_tex
 		sprite.region_enabled = true
-		sprite.region_rect = Rect2(frame * fw, 0, fw, legacy_tex.get_height())
+		sprite.region_rect = Rect2(float(frame) * fw, 0.0, fw, float(legacy_tex.get_height()))
 		sprite.flip_h = not facing_right
 		return
 

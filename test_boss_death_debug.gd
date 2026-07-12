@@ -15,7 +15,6 @@ func _initialize() -> void:
 	boss.health_component.take_damage(300.0)
 	print("after dmg current_health: ", boss.health_component.current_health)
 	print("state: ", boss.current_state)
-	# wait 3 seconds
 	await create_timer(3.0).timeout
 	print("after 3s valid: ", is_instance_valid(boss))
 	if is_instance_valid(boss):

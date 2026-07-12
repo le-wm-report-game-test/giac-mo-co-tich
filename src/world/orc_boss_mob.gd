@@ -8,9 +8,9 @@ const WALK_ATLAS_PATH := "res://Assets/enemies/orc_boss/boss_walk.png"
 const ATTACK_ATLAS_PATH := "res://Assets/enemies/orc_boss/boss_attack.png"
 const HURT_ATLAS_PATH := "res://Assets/enemies/orc_boss/boss_hurt.png"
 const DEATH_ATLAS_PATH := "res://Assets/enemies/orc_boss/boss_death.png"
-const BOSS_VISUAL_PIXEL_SIZE: float = 0.02
+const BOSS_VISUAL_PIXEL_SIZE: float = 0.04
 const BOSS_SPRITE_TINT := Color(1.50, 1.50, 1.38, 1.5)
-const BOSS_HEALTH_BAR_RENDER_PIXEL_SIZE: float = 0.012  # equals OrcMob.REGULAR_SPRITE_PIXEL_SIZE * OrcMob.HEALTH_BAR_PIXEL_SIZE_FACTOR
+const BOSS_HEALTH_BAR_RENDER_PIXEL_SIZE: float = 0.02  # scaled up to match boss body scale
 const BOSS_HEALTH_BAR_TOP_MARGIN: float = 0.06
 
 const WALK_DIR_UP_LEFT := "wa"
