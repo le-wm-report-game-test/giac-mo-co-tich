@@ -82,19 +82,16 @@ func test_boss_keeps_heavy_attack_cadence() -> void:
 	assert_true(boss.attack_animation_fps <= 8.0, "Boss attack animation should retain its heavy cadence")
 	boss.queue_free()
 
-func test_boss_health_bar_is_larger_and_hides_on_death() -> void:
+func test_boss_uses_screen_hud_instead_of_world_health_bar() -> void:
 	var boss := OrcMob.new()
 	boss.add_to_group("boss")
 	world_instance.add_child(boss)
 	boss.set_physics_process(false)
 	
-	assert_not_null(boss.health_bar_sprite, "Boss should create a floating health bar sprite")
-	assert_not_null(boss.health_bar_fill, "Boss should create a health bar fill")
-	assert_true(boss.health_bar_fill_max_width > _orc.health_bar_fill_max_width, "Boss health bar should be wider than regular Orc bar")
-	assert_true(boss.health_bar_sprite.position.y > _orc.health_bar_sprite.position.y, "Boss health bar should float higher than regular Orc bar")
+	assert_null(boss.health_bar_sprite, "Boss should not create a floating health bar sprite anymore")
+	assert_null(boss.health_bar_fill, "Boss should not create a floating health bar fill anymore")
 	
 	boss.health_component.take_damage(boss.health_component.max_health, null)
-	assert_false(boss.health_bar_sprite.visible, "Boss health bar should hide immediately on death")
 	boss.queue_free()
 
 func test_boss_visual_scale_stays_close_to_regular_orc() -> void:
@@ -106,6 +103,11 @@ func test_boss_visual_scale_stays_close_to_regular_orc() -> void:
 	var boss_sprite := boss.sprite as Sprite3D
 	assert_not_null(boss_sprite, "Boss should create its Sprite3D visual")
 	assert_almost_eq(boss_sprite.pixel_size, OrcBossMob.BOSS_VISUAL_PIXEL_SIZE, 0.0001, "Boss visual should follow the dedicated boss scale constant")
+	assert_true(
+		boss_sprite.pixel_size > OrcMob.REGULAR_SPRITE_PIXEL_SIZE
+		and boss_sprite.pixel_size <= OrcMob.REGULAR_SPRITE_PIXEL_SIZE * 1.25,
+		"Boss should be only slightly larger than a regular Orc"
+	)
 	boss.queue_free()
 
 func test_boss_diagonal_walk_falls_back_to_cardinal_frames() -> void:

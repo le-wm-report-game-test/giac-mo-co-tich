@@ -35,11 +35,11 @@ func test_orc_counter_update() -> void:
 	dummy_orc.queue_free()
 	await tree.process_frame
 
-func test_boss_hud_is_removed() -> void:
+func test_boss_hud_is_hidden_before_spawn() -> void:
 	var world_manager: Node = world_instance.get_node_or_null("WorldManager")
 	assert_not_null(world_manager, "WorldManager must exist")
-	var boss_container: Control = world_manager.get_node_or_null("UI/BossHUDContainer")
-	assert_null(boss_container, "Boss HUD container should not exist")
+	var boss_bar := world_manager.get_node_or_null("UI/BossHealthBar") as BossHealthBar
+	assert_null(boss_bar, "Boss screen HUD should not exist before spawn")
 
 func test_boss_health_bar_uses_chan_tinh_name() -> void:
 	var world_manager: Node = world_instance.get_node_or_null("WorldManager")
@@ -60,6 +60,12 @@ func test_boss_health_bar_uses_chan_tinh_name() -> void:
 	var boss_name := world_manager.get_node_or_null("UI/BossHealthBar/BossBarName") as Label
 	assert_not_null(boss_name, "Boss health bar should create a name label")
 	assert_eq(boss_name.text, "Chằn Tinh", "Boss HUD should show the approved display name")
+
+	var boss_fill := world_manager.get_node_or_null("UI/BossHealthBar/BossBarFill") as TextureProgressBar
+	assert_not_null(boss_fill, "Boss HUD should create the red health fill")
+	assert_eq(boss_fill.value, 180.0, "Boss HUD should start at full health")
+	assert_eq(boss_fill.max_value, 180.0, "Boss HUD max value should match boss health")
+	assert_eq(boss_fill.tint_progress, Color(0.85, 0.18, 0.12, 1.0), "Boss HUD fill should be red")
 
 	dummy_boss.queue_free()
 	await tree.process_frame

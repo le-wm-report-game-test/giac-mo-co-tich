@@ -26,11 +26,11 @@ func scenario_complete_level_progression() -> void:
 	var boss := world_manager.boss_instance as CharacterBody3D
 	assert_not_null(boss, "Boss instance should be valid")
 	
-	assert_null(world_manager.get_node_or_null("UI/BossHUDContainer"), "Boss health HUD must not exist anymore")
+	assert_not_null(world_manager.get_node_or_null("UI/BossHealthBar"), "Boss health HUD should appear once the boss spawns")
 	
 	EventBus.enemy_died.emit(boss)
 	await tree.process_frame
-	assert_null(world_manager.get_node_or_null("UI/BossHUDContainer"), "Boss health HUD should stay absent after boss death")
+	assert_null(world_manager.get_node_or_null("UI/BossHealthBar"), "Boss health HUD should be removed after boss death")
 
 func scenario_survival_stormy_forest() -> void:
 	# Scenario 2: Sinh tồn trong bão sét khi đang thám hiểm rừng
