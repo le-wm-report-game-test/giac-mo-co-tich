@@ -8,7 +8,7 @@ const WALK_ATLAS_PATH := "res://Assets/enemies/orc_boss/boss_walk.png"
 const ATTACK_ATLAS_PATH := "res://Assets/enemies/orc_boss/boss_attack.png"
 const HURT_ATLAS_PATH := "res://Assets/enemies/orc_boss/boss_hurt.png"
 const DEATH_ATLAS_PATH := "res://Assets/enemies/orc_boss/boss_death.png"
-const BOSS_VISUAL_PIXEL_SIZE: float = 0.0275
+const BOSS_VISUAL_PIXEL_SIZE: float = 0.0255
 const BOSS_SPRITE_TINT := Color(1.50, 1.50, 1.38, 1.5)
 
 const WALK_DIR_UP_LEFT := "wa"
@@ -52,7 +52,7 @@ var _walk_direction_key: String = WALK_DIR_DOWN
 @export var boss_speed: float = 1.5
 @export var boss_attack_cooldown_time: float = 2.5
 @export var boss_attack_range: float = 1.65
-@export var boss_detection_range: float = 20.0
+@export var boss_detection_range: float = 48.0
 
 # Spawn state set by configure_arena(); used by _ready to apply stats.
 var _arena_position: Vector3 = Vector3(-15.0, 0.2, -15.0)

@@ -10,7 +10,7 @@ enum State { IDLE, WANDER, CHASE, ATTACK, HURT, DEATH }
 @export var attack_frame_count: int = 8  # used by EnemyCombatV2 for 3-phase timing
 
 const REGULAR_SPRITE_PIXEL_SIZE: float = 0.0231
-const BOSS_SPRITE_PIXEL_SIZE: float = 0.0275
+const BOSS_SPRITE_PIXEL_SIZE: float = 0.0255
 const SPRITE_FRAME_CENTER_Y_PX: float = 50.0
 # Asset orc_spring_enemy vẽ kín khung 100x100 (đầu ~y=4, chân ~y=95), khác hẳn
 # asset Tiny RPG cũ chỉ chiếm một vùng nhỏ giữa khung.
@@ -163,8 +163,8 @@ func _setup_physics_collider(is_boss: bool) -> void:
 	var col := CollisionShape3D.new()
 	var body_shape := SphereShape3D.new()
 	if is_boss:
-		body_shape.radius = 0.5
-		col.position.y = 0.5
+		body_shape.radius = 0.46
+		col.position.y = 0.46
 	else:
 		body_shape.radius = 0.4
 		col.position.y = 0.4
@@ -340,9 +340,9 @@ func _setup_hurtbox(is_boss: bool) -> void:
 	var hurt_col := CollisionShape3D.new()
 	var hurt_shape := CapsuleShape3D.new()
 	if is_boss:
-		hurt_shape.radius = 0.68
-		hurt_shape.height = 1.9
-		hurt_col.position.y = 0.95
+		hurt_shape.radius = 0.64
+		hurt_shape.height = 1.8
+		hurt_col.position.y = 0.9
 	else:
 		hurt_shape.radius = 0.6
 		hurt_shape.height = 1.6
@@ -359,8 +359,8 @@ func _setup_hitbox(is_boss: bool) -> void:
 	hitbox_col = CollisionShape3D.new()
 	var hit_shape := SphereShape3D.new()
 	if is_boss:
-		hit_shape.radius = maxf(0.9, attack_range * 0.55)
-		hitbox_col.position.y = 0.75
+		hit_shape.radius = maxf(0.82, attack_range * 0.5)
+		hitbox_col.position.y = 0.72
 	else:
 		# Tầm hit phải theo sát tầm kích hoạt attack để Orc không vung trúng hình nhưng hụt hitbox.
 		hit_shape.radius = maxf(0.65, attack_range * 0.65)
@@ -423,7 +423,7 @@ func _update_ai_state(delta: float) -> void:
 		if combat_v2 and combat_v2.enabled:
 			combat_v2.on_attack_started(attack_animation_fps, attack_frame_count)
 		return
-	if dist <= detection_range:
+	if is_in_group("boss") or dist <= detection_range:
 		current_state = State.CHASE
 	else:
 		if current_state == State.CHASE:
@@ -503,6 +503,8 @@ func _apply_movement(delta: float, orc_neighbors: Array[Node]) -> void:
 		target_dir = wander_direction
 
 	var steer := _get_context_steering_direction(target_dir, orc_neighbors)
+	if steer == Vector3.ZERO and target_dir != Vector3.ZERO:
+		steer = target_dir
 	var sep := Vector3.ZERO if hold_attack_position else _get_diagonal_separation_force(orc_neighbors)
 	var move_dir := (steer + sep * 1.5).normalized()
 	if move_dir != Vector3.ZERO:
