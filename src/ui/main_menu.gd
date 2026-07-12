@@ -155,8 +155,7 @@ func _create_menu_button(name: String, label_text: String, hint_text: String, pr
 	button.focus_entered.connect(_on_button_hover.bind(button, true))
 	button.focus_exited.connect(_on_button_hover.bind(button, false))
 	button.pivot_offset = button.custom_minimum_size / 2.0
-	button.offset_transform_enabled = true
-	button.offset_transform_scale = Vector2.ONE
+	button.scale = Vector2.ONE
 	wrapper.add_child(button)
 
 	var hint := Label.new()
@@ -181,7 +180,7 @@ func _on_button_hover(button: Control, is_hovered: bool) -> void:
 	var tween: Tween = create_tween().set_parallel(true)
 	var target_scale: Vector2 = Vector2(1.08, 1.08) if is_hovered else Vector2(1.0, 1.0)
 	var target_color: Color = Color(1.15, 1.15, 1.15) if is_hovered else Color.WHITE
-	tween.tween_property(button, "offset_transform_scale", target_scale, 0.15).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	tween.tween_property(button, "scale", target_scale, 0.15).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	tween.tween_property(button, "modulate", target_color, 0.15).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	if is_hovered and hover_sfx and sfx_player:
 		sfx_player.stream = hover_sfx

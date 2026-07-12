@@ -31,8 +31,7 @@ func build(ui: CanvasLayer) -> void:
 	_container.offset_bottom = 20.0 + SCREEN_SIZE.y
 	_container.custom_minimum_size = SCREEN_SIZE
 	_container.pivot_offset = Vector2(SCREEN_SIZE.x, 0.0)
-	_container.offset_transform_enabled = true
-	_container.offset_transform_scale = Vector2.ONE
+	_container.scale = Vector2.ONE
 	_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	ui.add_child(_container)
 	_add_frame()
@@ -49,7 +48,7 @@ func toggle_zoom() -> void:
 	_owner.set("minimap_zoomed", _zoomed)
 	var target := Vector2.ONE * (ZOOM_SCALE if _zoomed else 1.0)
 	var tween := create_tween()
-	tween.tween_property(_container, "offset_transform_scale", target, ZOOM_DURATION).set_trans(
+	tween.tween_property(_container, "scale", target, ZOOM_DURATION).set_trans(
 		Tween.TRANS_SINE
 	).set_ease(Tween.EASE_OUT)
 
