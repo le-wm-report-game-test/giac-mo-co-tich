@@ -32,6 +32,7 @@ var is_active: bool = false
 
 # Telegraph configuration (set by enemy before attack starts)
 var telegraph_radius: float = 1.0
+var telegraph_offset: Vector3 = Vector3.ZERO
 var telegraph_duration_override: float = 0.0  # 0 means use anticipation_dur
 
 # Owner wiring
@@ -70,23 +71,20 @@ func tick(delta: float) -> bool:
 	phase_timer += delta
 	match phase:
 		AttackPhase.ANTICIPATION:
-			_set_hitbox_monitoring(false)
 			if phase_timer >= maxf(anticipation_dur, telegraph_min_duration):
 				phase = AttackPhase.ATTACK
 				phase_timer = 0.0
 				_remove_telegraph()
 		AttackPhase.ATTACK:
-			_set_hitbox_monitoring(true)
 			if phase_timer >= active_dur:
 				phase = AttackPhase.RECOVERY
 				phase_timer = 0.0
-				_set_hitbox_monitoring(false)
 		AttackPhase.RECOVERY:
-			_set_hitbox_monitoring(false)
 			if phase_timer >= recovery_dur:
 				on_attack_ended()
 				return false
-	return true
+	_set_hitbox_monitoring(is_active and phase == AttackPhase.ATTACK)
+	return is_active
 
 func get_active_phase() -> AttackPhase:
 	return phase
@@ -116,7 +114,8 @@ func _spawn_telegraph() -> void:
 	var dur: float = telegraph_duration_override
 	if dur <= 0.0:
 		dur = maxf(anticipation_dur, telegraph_min_duration)
-	var telegraph: Node3D = AttackTelegraph.build_circle(_enemy_owner.global_position, telegraph_radius, dur)
+	var center := _enemy_owner.to_global(telegraph_offset)
+	var telegraph: Node3D = AttackTelegraph.build_circle(center, telegraph_radius, dur)
 	var world_position := telegraph.position
 	telegraph_parent.add_child(telegraph)
 	telegraph.global_position = world_position

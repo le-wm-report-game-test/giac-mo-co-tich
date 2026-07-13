@@ -145,3 +145,51 @@ func test_boss_diagonal_walk_falls_back_to_cardinal_frames() -> void:
 		var frames: Array = boss._get_frames_for_state("walk")
 		assert_true(frames.is_empty(), "Boss walk lookup should not provide separate diagonal frame sets anymore")
 	boss.queue_free()
+
+func test_boss_attack_atlas_uses_four_stable_grid_frames() -> void:
+	var boss := OrcBossMob.new()
+	boss.add_to_group("boss")
+	world_instance.add_child(boss)
+	boss.set_physics_process(false)
+
+	var atlas := load(OrcBossMob.ATTACK_ATLAS_PATH) as Texture2D
+	assert_not_null(atlas, "Boss attack atlas must load")
+	var cell_width := atlas.get_size().x / 4.0
+	var facings: Array[int] = [
+		OrcBossMob.VisualFacing.FRONT,
+		OrcBossMob.VisualFacing.SIDE,
+		OrcBossMob.VisualFacing.BACK,
+	]
+	for facing in facings:
+		boss._visual_facing = facing
+		var frames: Array = boss._get_frames_for_state("attack")
+		assert_eq(frames.size(), 4, "Every boss attack direction must expose four frames")
+		for index in range(frames.size()):
+			var frame: Rect2 = frames[index]
+			assert_almost_eq(frame.position.x, cell_width * index, 0.1, "Attack frame must keep its grid anchor")
+			assert_almost_eq(frame.size.x, cell_width, 0.1, "Attack crop must preserve a stable horizontal pivot")
+	assert_eq(boss.attack_frame_count, 4, "Combat timing must use the four visual attack frames")
+	boss.queue_free()
+
+func test_boss_attack_commits_short_directional_hitbox() -> void:
+	var boss := OrcBossMob.new()
+	boss.add_to_group("boss")
+	world_instance.add_child(boss)
+	boss.set_physics_process(false)
+	boss.global_position = Vector3.ZERO
+	_player.global_position = Vector3(boss.attack_range * 0.9, 0.8, 0.0)
+	boss.current_state = OrcMob.State.CHASE
+	boss.attack_cooldown_timer = 0.0
+
+	boss._update_ai_state(1.0 / 60.0)
+	var hit_shape := boss.hitbox_col.shape as SphereShape3D
+	assert_eq(boss.current_state, OrcMob.State.ATTACK, "Boss must commit when the player enters close melee range")
+	assert_true(boss.attack_range <= 1.4, "Boss melee trigger range must not use the old long reach")
+	assert_not_null(hit_shape, "Boss attack hitbox should remain spherical")
+	assert_true(hit_shape.radius <= 0.5, "Boss hitbox radius must stay local to the visible weapon impact")
+	assert_true(boss.hitbox_col.position.x >= 0.55, "Boss hitbox must move toward the committed player direction")
+	assert_true(absf(boss.hitbox_col.position.z) <= 0.01, "Directional hitbox must not drift sideways")
+	var telegraph_offset: Vector3 = boss.combat_v2.telegraph_offset
+	assert_almost_eq(telegraph_offset.x, boss.hitbox_col.position.x, 0.001, "Telegraph X must match the committed hitbox")
+	assert_almost_eq(telegraph_offset.z, boss.hitbox_col.position.z, 0.001, "Telegraph Z must match the committed hitbox")
+	boss.queue_free()

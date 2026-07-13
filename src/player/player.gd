@@ -323,6 +323,13 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if not event.is_action_pressed(&"attack"):
 		return
+
+	if event is InputEventMouseButton and combat_v2 and combat_v2.enabled:
+		var mouse_event := event as InputEventMouseButton
+		attack_mouse_pos = mouse_event.position
+		var pointer_direction: Vector3 = combat_v2.get_pointer_attack_direction(attack_mouse_pos)
+		if pointer_direction.length_squared() > 0.0001:
+			_set_facing_from_world_direction(pointer_direction)
 	# Combat V2: chain attack if buffer was set during previous recovery
 	if combat_v2 and combat_v2.enabled and combat_v2.consume_recovery_buffer():
 		_start_attack()
@@ -538,7 +545,10 @@ func _process_animation(delta: float) -> void:
 	
 	# V2 attack has wind-up, strike, impact, recover; legacy keeps the old 2-frame timing.
 	if anim_state == AnimState.ATTACK:
-		hitbox_area.monitoring = _is_attack_damage_frame(anim_frame)
+		if combat_v2 and combat_v2.enabled:
+			hitbox_area.monitoring = combat_v2.is_active and combat_v2.phase == PlayerCombatV2.AttackPhase.ATTACK
+		else:
+			hitbox_area.monitoring = _is_attack_damage_frame(anim_frame)
 	
 	_update_sprite()
 

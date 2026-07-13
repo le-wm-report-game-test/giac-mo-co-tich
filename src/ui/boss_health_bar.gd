@@ -4,8 +4,12 @@ extends Control
 const FADE_OUT_DURATION: float = 0.6
 const BAR_WIDTH: float = 600.0
 const BAR_HEIGHT: float = 28.0
-const BAR_MARGIN_TOP: float = 40.0
+const BAR_MARGIN_TOP: float = 16.0
 const NAME_FONT_SIZE: int = 24
+const NAME_ROW_HEIGHT: float = 34.0
+const NAME_BAR_GAP: float = 6.0
+const BAR_CONTENT_TOP: float = NAME_ROW_HEIGHT + NAME_BAR_GAP
+const HUD_HEIGHT: float = BAR_CONTENT_TOP + BAR_HEIGHT
 const NAME_OUTLINE: int = 5
 const NAME_COLOR := Color(0.96, 0.92, 0.82)
 const NAME_OUTLINE_COLOR := Color(0.0, 0.0, 0.0, 0.9)
@@ -27,9 +31,9 @@ func _ready() -> void:
 	offset_left = -BAR_WIDTH * 0.5
 	offset_right = BAR_WIDTH * 0.5
 	offset_top = BAR_MARGIN_TOP
-	offset_bottom = BAR_MARGIN_TOP + BAR_HEIGHT
-	custom_minimum_size = Vector2(BAR_WIDTH, BAR_HEIGHT)
-	pivot_offset = Vector2(BAR_WIDTH * 0.5, BAR_HEIGHT * 0.5)
+	offset_bottom = BAR_MARGIN_TOP + HUD_HEIGHT
+	custom_minimum_size = Vector2(BAR_WIDTH, HUD_HEIGHT)
+	pivot_offset = Vector2(BAR_WIDTH * 0.5, HUD_HEIGHT * 0.5)
 	_build_children()
 	hide()
 
@@ -71,7 +75,7 @@ func _build_background() -> void:
 	_background.color = BAR_BACK_COLOR
 	_background.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_background.offset_left = 0.0
-	_background.offset_top = 0.0
+	_background.offset_top = BAR_CONTENT_TOP
 	_background.offset_right = 0.0
 	_background.offset_bottom = 0.0
 	_background.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -82,7 +86,7 @@ func _build_background() -> void:
 	inner_border.color = Color(0.0, 0.0, 0.0, 1.0)
 	inner_border.set_anchors_preset(Control.PRESET_FULL_RECT)
 	inner_border.offset_left = 0.0
-	inner_border.offset_top = 0.0
+	inner_border.offset_top = BAR_CONTENT_TOP
 	inner_border.offset_right = 0.0
 	inner_border.offset_bottom = 0.0
 	inner_border.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -98,7 +102,7 @@ func _build_fill_bar() -> void:
 	_bar.fill_mode = TextureProgressBar.FILL_LEFT_TO_RIGHT
 	_bar.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_bar.offset_left = 0.0
-	_bar.offset_top = 0.0
+	_bar.offset_top = BAR_CONTENT_TOP
 	_bar.offset_right = 0.0
 	_bar.offset_bottom = -1.0
 	_bar.tint_under = Color(1.0, 1.0, 1.0, 0.0)
@@ -119,12 +123,10 @@ func _build_name_label() -> void:
 	_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_name_label.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
 	_name_label.set_anchors_preset(Control.PRESET_TOP_WIDE)
-	_name_label.anchor_left = 0.5
-	_name_label.anchor_right = 0.5
-	_name_label.offset_left = -BAR_WIDTH * 0.5
-	_name_label.offset_right = BAR_WIDTH * 0.5
-	_name_label.offset_top = -NAME_FONT_SIZE - 6.0
-	_name_label.offset_bottom = -4.0
+	_name_label.offset_left = 0.0
+	_name_label.offset_right = 0.0
+	_name_label.offset_top = 0.0
+	_name_label.offset_bottom = NAME_ROW_HEIGHT
 	_name_label.add_theme_font_size_override("font_size", NAME_FONT_SIZE)
 	_name_label.add_theme_color_override("font_color", NAME_COLOR)
 	_name_label.add_theme_font_override("font", preload("res://src/ui/ui_theme.gd").FONT_HEADING)

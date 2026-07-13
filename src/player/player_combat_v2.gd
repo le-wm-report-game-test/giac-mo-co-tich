@@ -37,9 +37,27 @@ var is_active: bool = false
 
 # Owner wiring
 var _hitbox_area: Area3D = null
+var _player_owner: CharacterBody3D = null
 
 func bind(player: CharacterBody3D) -> void:
+	_player_owner = player
 	_hitbox_area = player.get_node_or_null("HitboxArea") as Area3D
+
+func get_pointer_attack_direction(screen_position: Vector2) -> Vector3:
+	if not is_instance_valid(_player_owner):
+		return Vector3.ZERO
+	var camera := _player_owner.get_viewport().get_camera_3d()
+	if camera == null:
+		return Vector3.ZERO
+	var ray_origin := camera.project_ray_origin(screen_position)
+	var ray_direction := camera.project_ray_normal(screen_position)
+	var ground_plane := Plane(Vector3.UP, _player_owner.global_position.y)
+	var intersection: Variant = ground_plane.intersects_ray(ray_origin, ray_direction)
+	if not intersection is Vector3:
+		return Vector3.ZERO
+	var attack_direction := (intersection as Vector3) - _player_owner.global_position
+	attack_direction.y = 0.0
+	return attack_direction.normalized()
 
 func on_attack_started(anim_fps: float, attack_frame_count: int) -> void:
 	if not enabled:
@@ -98,18 +116,14 @@ func tick(delta: float) -> bool:
 	phase_timer += delta
 	match phase:
 		AttackPhase.ANTICIPATION:
-			_set_hitbox_monitoring(false)
 			if phase_timer >= anticipation_dur:
 				phase = AttackPhase.ATTACK
 				phase_timer = 0.0
 		AttackPhase.ATTACK:
-			_set_hitbox_monitoring(true)
 			if phase_timer >= active_dur:
 				phase = AttackPhase.RECOVERY
 				phase_timer = 0.0
-				_set_hitbox_monitoring(false)
 		AttackPhase.RECOVERY:
-			_set_hitbox_monitoring(false)
 			if _buffered_attack:
 				return false  # let Player call _start_attack
 			if _has_movement_input() and phase_timer >= 0.05:
@@ -117,7 +131,8 @@ func tick(delta: float) -> bool:
 				return false
 			if phase_timer >= recovery_dur:
 				_finish_attack()
-	return true
+	_set_hitbox_monitoring(is_active and phase == AttackPhase.ATTACK)
+	return is_active
 
 func should_apply_interrupt_penalty() -> bool:
 	return enabled and is_active

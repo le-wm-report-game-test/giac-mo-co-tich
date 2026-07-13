@@ -67,6 +67,18 @@ func test_boss_health_bar_uses_chan_tinh_name() -> void:
 	assert_eq(boss_fill.max_value, 180.0, "Boss HUD max value should match boss health")
 	assert_eq(boss_fill.tint_progress, Color(0.85, 0.18, 0.12, 1.0), "Boss HUD fill should be red")
 
+	var boss_bar := world_manager.get_node_or_null("UI/BossHealthBar") as BossHealthBar
+	var bar_rect := boss_bar.get_global_rect()
+	var name_rect := boss_name.get_global_rect()
+	assert_true(
+		bar_rect.encloses(name_rect),
+		"Boss HUD root bounds should contain the title instead of placing it above the frame"
+	)
+	assert_true(
+		Rect2(Vector2.ZERO, boss_bar.get_viewport_rect().size).encloses(name_rect),
+		"Boss title should remain fully inside the viewport"
+	)
+
 	dummy_boss.queue_free()
 	await tree.process_frame
 

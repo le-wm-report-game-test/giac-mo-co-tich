@@ -55,6 +55,8 @@ const HEALTH_BAR_PIXEL_SIZE_FACTOR: float = 0.519481  # 0.012 / 0.0231
 @export var gravity: float = 9.8
 @export var detection_range: float = 12.0
 @export var attack_range: float = 1.2
+@export_range(0.3, 0.7, 0.05) var boss_attack_hitbox_radius: float = 0.45
+@export_range(0.4, 0.9, 0.05) var boss_attack_hitbox_forward_offset: float = 0.65
 @export var attack_cooldown_time: float = 0.8
 @export var attack_animation_fps: float = 10.0
 @export_range(0.0, 2.0, 0.05) var attack_commit_margin: float = 0.55
@@ -83,6 +85,7 @@ var anim_fps: float = 6.0
 var strafe_dir: float = 1.0
 var facing_right: bool = true
 var facing_dir: Vector3 = Vector3.BACK
+var _committed_attack_direction: Vector3 = Vector3.BACK
 
 var candidate_directions: Array[Vector3] = []
 var _texture_cache: Dictionary = {}
@@ -125,7 +128,7 @@ func _ready() -> void:
 		sprite_pixel_size = 0.0035
 	if is_in_group("boss"):
 		sprite_pixel_size = maxf(sprite_pixel_size, BOSS_SPRITE_PIXEL_SIZE)
-		attack_range = maxf(attack_range, 2.5)
+		attack_range = maxf(attack_range, 1.35)
 		# Boss giữ nhịp đánh nặng và có khoảng nghỉ rõ ràng; buff cadence chỉ dành cho Orc thường.
 		attack_cooldown_time = maxf(attack_cooldown_time, BOSS_ATTACK_COOLDOWN)
 		attack_animation_fps = minf(attack_animation_fps, BOSS_ATTACK_ANIMATION_FPS)
@@ -158,6 +161,7 @@ func _setup_nodes() -> void:
 	_setup_health_bar(is_boss)
 	_setup_hurtbox(is_boss)
 	_setup_hitbox(is_boss)
+	_refresh_combat_geometry()
 
 func _setup_physics_collider(is_boss: bool) -> void:
 	var col := CollisionShape3D.new()
@@ -248,9 +252,6 @@ func _setup_health_component() -> void:
 	health_component.damaged.connect(_on_damaged)
 	health_component.health_changed.connect(_on_health_changed)
 
-	if combat_v2:
-		combat_v2.bind(self, hitbox_component)
-		combat_v2.telegraph_radius = attack_range * 1.1
 
 func _setup_health_bar(is_boss: bool) -> void:
 	if not _should_use_world_health_bar(is_boss):
@@ -359,8 +360,8 @@ func _setup_hitbox(is_boss: bool) -> void:
 	hitbox_col = CollisionShape3D.new()
 	var hit_shape := SphereShape3D.new()
 	if is_boss:
-		hit_shape.radius = maxf(0.82, attack_range * 0.5)
-		hitbox_col.position.y = 0.72
+		hit_shape.radius = boss_attack_hitbox_radius
+		hitbox_col.position.y = 0.9
 	else:
 		# Tầm hit phải theo sát tầm kích hoạt attack để Orc không vung trúng hình nhưng hụt hitbox.
 		hit_shape.radius = maxf(0.65, attack_range * 0.65)
@@ -373,6 +374,51 @@ func _setup_hitbox(is_boss: bool) -> void:
 		_update_model_visual()
 	else:
 		_update_sprite()
+
+
+func _refresh_combat_geometry() -> void:
+	if (
+		not is_instance_valid(hurtbox_component)
+		or not is_instance_valid(hitbox_component)
+		or not is_instance_valid(hitbox_col)
+	):
+		return
+	var hurtbox_col := hurtbox_component.get_child(0) as CollisionShape3D
+	if hurtbox_col == null:
+		return
+	var hurt_shape := hurtbox_col.shape as CapsuleShape3D
+	var hit_shape := hitbox_col.shape as SphereShape3D
+	if hurt_shape == null or hit_shape == null:
+		return
+	if is_in_group("boss"):
+		hurt_shape.radius = 0.9
+		hurt_shape.height = 2.4
+		hurtbox_col.position.y = 1.2
+		hit_shape.radius = boss_attack_hitbox_radius
+		hitbox_col.position.y = 0.9
+	else:
+		hurt_shape.radius = 0.6
+		hurt_shape.height = 1.6
+		hurtbox_col.position.y = 0.8
+		hit_shape.radius = maxf(0.65, attack_range * 0.65)
+		hitbox_col.position.y = 0.6
+	if is_in_group("boss"):
+		_commit_attack_direction(_committed_attack_direction)
+	hitbox_component.damage = attack_damage
+	if combat_v2:
+		combat_v2.bind(self, hitbox_component)
+		combat_v2.telegraph_radius = hit_shape.radius if is_in_group("boss") else attack_range * 1.1
+
+func _commit_attack_direction(direction: Vector3) -> void:
+	var planar := Vector3(direction.x, 0.0, direction.z)
+	if planar.length_squared() > 0.0001:
+		_committed_attack_direction = planar.normalized()
+	if not is_in_group("boss") or not is_instance_valid(hitbox_col):
+		return
+	var offset := _committed_attack_direction * boss_attack_hitbox_forward_offset
+	hitbox_col.position = Vector3(offset.x, 0.9, offset.z)
+	if combat_v2:
+		combat_v2.telegraph_offset = offset
 
 func _physics_process(delta: float) -> void:
 	if current_state == State.DEATH:
@@ -411,11 +457,13 @@ func _update_sprite_height() -> void:
 func _update_ai_state(delta: float) -> void:
 	var player := get_tree().get_first_node_in_group("player") as Node3D
 	if not player:
+		_cancel_active_attack()
 		current_state = State.IDLE
 		return
 	var dist := _get_planar_offset_to(player).length()
 	if current_state == State.ATTACK or current_state == State.HURT: return
-	if dist <= attack_range and attack_cooldown_timer <= 0.0:
+	if dist <= attack_range + 0.001 and attack_cooldown_timer <= 0.0:
+		_commit_attack_direction(_get_planar_offset_to(player))
 		current_state = State.ATTACK
 		current_frame = 0
 		frame_timer = 0.0
@@ -485,6 +533,18 @@ func _get_chase_target_direction(player: Node3D) -> Vector3:
 		return (dir * (1.0 - blend) + perp * blend).normalized()
 	return dir
 
+func _get_obstacle_detour_direction(target_dir: Vector3) -> Vector3:
+	var forward := target_dir.normalized()
+	if forward == Vector3.ZERO:
+		return Vector3.ZERO
+	var detour := Vector3(-forward.z, 0.0, forward.x) * strafe_dir
+	if _check_obstacle(detour, 1.25):
+		detour = -detour
+		if _check_obstacle(detour, 1.25):
+			return Vector3.ZERO
+		strafe_dir = -strafe_dir
+	return (detour * 0.9 + forward * 0.1).normalized()
+
 func _apply_movement(delta: float, orc_neighbors: Array[Node]) -> void:
 	if current_state == State.ATTACK or current_state == State.HURT:
 		if current_state == State.HURT:
@@ -502,6 +562,8 @@ func _apply_movement(delta: float, orc_neighbors: Array[Node]) -> void:
 	elif current_state == State.WANDER:
 		target_dir = wander_direction
 
+	if is_in_group("boss") and target_dir != Vector3.ZERO and _check_obstacle(target_dir, 1.5):
+		target_dir = _get_obstacle_detour_direction(target_dir)
 	var steer := _get_context_steering_direction(target_dir, orc_neighbors)
 	if steer == Vector3.ZERO and target_dir != Vector3.ZERO:
 		steer = target_dir
@@ -587,6 +649,22 @@ func _get_context_steering_direction(target_dir: Vector3, orc_neighbors: Array[N
 		chosen += candidate_directions[i] * (interest[i] - danger[i])
 	return chosen.normalized() if chosen != Vector3.ZERO else Vector3.ZERO
 
+func _finish_attack_cycle() -> void:
+	if combat_v2 and combat_v2.is_active:
+		combat_v2.on_attack_ended()
+	current_state = State.IDLE
+	current_frame = 0
+	frame_timer = 0.0
+	attack_cooldown_timer = attack_cooldown_time
+	if is_instance_valid(hitbox_component):
+		hitbox_component.monitoring = false
+
+func _cancel_active_attack() -> void:
+	if combat_v2 and combat_v2.is_active:
+		combat_v2.on_attack_ended()
+	if is_instance_valid(hitbox_component):
+		hitbox_component.monitoring = false
+
 func _update_animation(delta: float) -> void:
 	var max_frames := 6
 	anim_fps = 6.0
@@ -612,10 +690,10 @@ func _update_animation(delta: float) -> void:
 		if current_frame >= max_frames:
 			match current_state:
 				State.ATTACK:
-					current_state = State.IDLE
-					current_frame = 0
-					attack_cooldown_timer = attack_cooldown_time
-					hitbox_component.monitoring = false
+					if combat_v2 and combat_v2.enabled and combat_v2.is_active:
+						current_frame = max_frames - 1
+					else:
+						_finish_attack_cycle()
 				State.HURT:
 					current_state = State.IDLE
 					current_frame = 0
@@ -624,8 +702,8 @@ func _update_animation(delta: float) -> void:
 	
 	if current_state == State.ATTACK:
 		if combat_v2 and combat_v2.enabled:
-			combat_v2.tick(delta)
-			hitbox_component.monitoring = combat_v2.phase == EnemyCombatV2.AttackPhase.ATTACK
+			if not combat_v2.tick(delta):
+				_finish_attack_cycle()
 		else:
 			hitbox_component.monitoring = (current_frame == 4)
 
@@ -792,6 +870,7 @@ func _get_sheet_frames(prefix: String) -> int:
 func _on_damaged(amount: float, source: Node3D, is_critical: bool = false) -> void:
 	if current_state == State.DEATH:
 		return
+	_cancel_active_attack()
 	current_state = State.HURT
 	current_frame = 0
 	frame_timer = 0.0
@@ -864,6 +943,7 @@ func _on_damaged(amount: float, source: Node3D, is_critical: bool = false) -> vo
 		event_bus.enemy_damaged.emit(self, amount, global_position, is_critical)
 
 func _on_died() -> void:
+	_cancel_active_attack()
 	current_state = State.DEATH
 	current_frame = 0
 	_schedule_death_cleanup()

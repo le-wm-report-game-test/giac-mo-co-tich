@@ -8,6 +8,7 @@ const WALK_ATLAS_PATH := "res://Assets/enemies/orc_boss/boss_walk.png"
 const ATTACK_ATLAS_PATH := "res://Assets/enemies/orc_boss/boss_attack.png"
 const HURT_ATLAS_PATH := "res://Assets/enemies/orc_boss/boss_hurt.png"
 const DEATH_ATLAS_PATH := "res://Assets/enemies/orc_boss/boss_death.png"
+const BOSS_SPRITE_ANCHOR := preload("res://src/world/components/orc_boss_mob_sprite_anchor.gd")
 const BOSS_VISUAL_PIXEL_SIZE: float = 0.0255
 const BOSS_SPRITE_TINT := Color(1.50, 1.50, 1.38, 1.5)
 
@@ -26,10 +27,10 @@ const BOSS_WALK_UP_RECTS := [
 	Rect2(487, 272, 83, 108),
 ]
 const BOSS_WALK_SIDE_RECTS := [
-	Rect2(61, 137, 73, 135),
-	Rect2(208, 137, 67, 135),
+	Rect2(61, 137, 73, 99),
+	Rect2(208, 137, 67, 99),
 	Rect2(349, 137, 71, 99),
-	Rect2(500, 137, 68, 135),
+	Rect2(500, 137, 68, 99),
 ]
 const BOSS_WALK_DOWN_RECTS := [
 	Rect2(42, 8, 86, 99),
@@ -44,6 +45,7 @@ var _visual_facing: VisualFacing = VisualFacing.FRONT
 var _flip_h_visual: bool = false
 var _atlas_images: Dictionary = {}
 var _walk_direction_key: String = WALK_DIR_DOWN
+var _sprite_anchor := BOSS_SPRITE_ANCHOR.new()
 
 # Boss-tier stats. Override via configure_arena() or Inspector. Defaults
 # match the original _spawn_boss values from world_manager.gd.
@@ -51,7 +53,7 @@ var _walk_direction_key: String = WALK_DIR_DOWN
 @export var boss_attack_damage: float = 25.0
 @export var boss_speed: float = 1.5
 @export var boss_attack_cooldown_time: float = 2.5
-@export var boss_attack_range: float = 1.65
+@export var boss_attack_range: float = 1.35
 @export var boss_detection_range: float = 48.0
 
 # Spawn state set by configure_arena(); used by _ready to apply stats.
@@ -69,8 +71,9 @@ func _ready() -> void:
 	_build_frame_manifest()
 	super._ready()
 	_apply_boss_stats()
+	_refresh_combat_geometry()
 	sprite_pixel_size = BOSS_VISUAL_PIXEL_SIZE
-	attack_frame_count = 6  # boss attack animation has fewer frames than orc
+	attack_frame_count = 4
 	if is_instance_valid(sprite):
 		sprite.pixel_size = sprite_pixel_size
 		sprite.position.y = _get_grounded_sprite_y()
@@ -89,6 +92,7 @@ func _apply_boss_stats() -> void:
 	attack_cooldown_time = boss_attack_cooldown_time
 	attack_range = boss_attack_range
 	detection_range = boss_detection_range
+	close_range_strafe_weight = 0.0
 
 func _build_frame_manifest() -> void:
 	_frames_by_state = {
@@ -109,8 +113,8 @@ func _build_frame_manifest() -> void:
 			VisualFacing.FRONT: _trimmed_grid_row_frames(ATTACK_ATLAS_PATH, 0, 3, 4),
 			VisualFacing.FRONT_DIAG: _trimmed_grid_row_frames(ATTACK_ATLAS_PATH, 0, 3, 4),
 			VisualFacing.SIDE: _trimmed_grid_row_frames(ATTACK_ATLAS_PATH, 1, 3, 4),
-			VisualFacing.BACK_DIAG: _trimmed_grid_row_frames(ATTACK_ATLAS_PATH, 2, 3, 3),
-			VisualFacing.BACK: _trimmed_grid_row_frames(ATTACK_ATLAS_PATH, 2, 3, 3),
+			VisualFacing.BACK_DIAG: _trimmed_grid_row_frames(ATTACK_ATLAS_PATH, 2, 3, 4),
+			VisualFacing.BACK: _trimmed_grid_row_frames(ATTACK_ATLAS_PATH, 2, 3, 4),
 		},
 		"hurt": {
 			VisualFacing.FRONT: _trimmed_grid_row_frames(HURT_ATLAS_PATH, 0, 3, 4),
@@ -155,23 +159,7 @@ func _get_trimmed_rect(atlas_path: String, rough_rect: Rect2) -> Rect2:
 	var atlas_image: Image = _get_atlas_image(atlas_path)
 	if atlas_image == null:
 		return rough_rect
-	var min_x := int(rough_rect.position.x + rough_rect.size.x)
-	var max_x := int(rough_rect.position.x)
-	var min_y := int(rough_rect.position.y + rough_rect.size.y)
-	var max_y := int(rough_rect.position.y)
-	for y in range(int(rough_rect.position.y), int(rough_rect.position.y + rough_rect.size.y)):
-		for x in range(int(rough_rect.position.x), int(rough_rect.position.x + rough_rect.size.x)):
-			if x < 0 or y < 0 or x >= atlas_image.get_width() or y >= atlas_image.get_height():
-				continue
-			if atlas_image.get_pixel(x, y).a <= 0.05:
-				continue
-			min_x = mini(min_x, x)
-			max_x = maxi(max_x, x)
-			min_y = mini(min_y, y)
-			max_y = maxi(max_y, y)
-	if max_x < min_x or max_y < min_y:
-		return rough_rect
-	return Rect2(min_x, min_y, max_x - min_x + 1, max_y - min_y + 1)
+	return _sprite_anchor.get_primary_vertical_rect(atlas_image, rough_rect)
 
 func _get_atlas_image(atlas_path: String) -> Image:
 	if not _atlas_images.has(atlas_path):
@@ -180,14 +168,21 @@ func _get_atlas_image(atlas_path: String) -> Image:
 	return _atlas_images.get(atlas_path) as Image
 
 func _get_grounded_sprite_y() -> float:
-	return _active_frame_size.y * sprite_pixel_size * 0.5 + SPRITE_GROUND_CLEARANCE
+	return SPRITE_GROUND_CLEARANCE
+
+func _update_sprite_height() -> void:
+	if is_instance_valid(sprite):
+		sprite.scale = Vector3.ONE
+		sprite.position.y = SPRITE_GROUND_CLEARANCE
 
 func _update_visual_facing() -> void:
 	if current_state == State.DEATH:
 		return
 	var look_dir := Vector3.ZERO
 	var player := get_tree().get_first_node_in_group("player") as Node3D
-	if (current_state == State.CHASE or current_state == State.ATTACK) and player:
+	if current_state == State.ATTACK:
+		look_dir = _committed_attack_direction
+	elif current_state == State.CHASE and player:
 		look_dir = _get_planar_offset_to(player)
 	elif velocity.length_squared() > 0.01:
 		look_dir = velocity
@@ -295,10 +290,10 @@ func _update_animation(delta: float) -> void:
 		if current_frame >= max_frames:
 			match current_state:
 				State.ATTACK:
-					current_state = State.IDLE
-					current_frame = 0
-					attack_cooldown_timer = attack_cooldown_time
-					hitbox_component.monitoring = false
+					if combat_v2 and combat_v2.enabled and combat_v2.is_active:
+						current_frame = max_frames - 1
+					else:
+						_finish_attack_cycle()
 				State.HURT:
 					current_state = State.IDLE
 					current_frame = 0
@@ -306,8 +301,8 @@ func _update_animation(delta: float) -> void:
 					current_frame = 0
 	if current_state == State.ATTACK:
 		if combat_v2 and combat_v2.enabled:
-			combat_v2.tick(delta)
-			hitbox_component.monitoring = combat_v2.phase == EnemyCombatV2.AttackPhase.ATTACK
+			if not combat_v2.tick(delta):
+				_finish_attack_cycle()
 		else:
 			hitbox_component.monitoring = (current_frame == clampi(int(max_frames / 2), 1, max_frames - 1))
 	_update_sprite()
@@ -330,9 +325,16 @@ func _update_sprite() -> void:
 	sprite.region_enabled = true
 	sprite.region_rect = region
 	sprite.flip_h = _flip_h_visual if state_name != "walk" else _should_flip_walk_direction(_walk_direction_key)
+	var atlas_image := _get_atlas_image(atlas_path)
+	sprite.offset = _sprite_anchor.get_frame_offset(
+		atlas_path,
+		atlas_image,
+		region,
+		sprite.flip_h
+	)
 	sprite.modulate = BOSS_SPRITE_TINT
 	_active_frame_size = region.size
-	sprite.position.y = _get_grounded_sprite_y()
+	sprite.position.y = SPRITE_GROUND_CLEARANCE
 
 func _should_flip_walk_direction(direction_key: String) -> bool:
 	return direction_key == WALK_DIR_LEFT

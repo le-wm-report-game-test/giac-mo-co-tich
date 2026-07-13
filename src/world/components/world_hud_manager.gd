@@ -74,6 +74,9 @@ func show_boss_health_bar(boss: Node3D) -> void:
 func hide_boss_health_bar() -> void:
 	if is_instance_valid(_boss_health_bar):
 		_boss_health_bar.detach()
+		var parent := _boss_health_bar.get_parent()
+		if parent:
+			parent.remove_child(_boss_health_bar)
 		_boss_health_bar.queue_free()
 	_boss_health_bar = null
 

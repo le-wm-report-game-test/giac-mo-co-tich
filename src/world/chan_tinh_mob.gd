@@ -20,7 +20,7 @@ var move_direction: MoveDir = MoveDir.DOWN
 
 func _ready() -> void:
 	super._ready()
-	attack_frame_count = 5
+	attack_frame_count = 4
 
 	if not is_in_group("boss"):
 		max_health = 80.0
@@ -34,6 +34,7 @@ func _ready() -> void:
 		sprite_pixel_size = 3.5 / 256.0
 		attack_cooldown_time = 2.5
 
+	_refresh_combat_geometry()
 	if is_instance_valid(sprite):
 		sprite.pixel_size = sprite_pixel_size
 		sprite.position.y = _get_grounded_sprite_y()
@@ -52,7 +53,9 @@ func _update_facing_direction() -> void:
 	if current_state == State.DEATH:
 		return
 
-	if (current_state == State.CHASE or current_state == State.ATTACK) and player:
+	if current_state == State.ATTACK:
+		look_dir = _committed_attack_direction
+	elif current_state == State.CHASE and player:
 		look_dir = _get_planar_offset_to(player)
 	elif velocity.length_squared() > 0.01:
 		look_dir = velocity
@@ -152,10 +155,10 @@ func _update_animation(delta: float) -> void:
 		if current_frame >= max_frames:
 			match current_state:
 				State.ATTACK:
-					current_state = State.IDLE
-					current_frame = 0
-					attack_cooldown_timer = attack_cooldown_time
-					hitbox_component.monitoring = false
+					if combat_v2 and combat_v2.enabled and combat_v2.is_active:
+						current_frame = max_frames - 1
+					else:
+						_finish_attack_cycle()
 				State.HURT:
 					current_state = State.IDLE
 					current_frame = 0
@@ -164,8 +167,8 @@ func _update_animation(delta: float) -> void:
 
 	if current_state == State.ATTACK:
 		if combat_v2 and combat_v2.enabled:
-			combat_v2.tick(delta)
-			hitbox_component.monitoring = combat_v2.phase == EnemyCombatV2.AttackPhase.ATTACK
+			if not combat_v2.tick(delta):
+				_finish_attack_cycle()
 		else:
 			hitbox_component.monitoring = (current_frame == 2)
 
