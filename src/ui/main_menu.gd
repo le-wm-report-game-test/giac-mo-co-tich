@@ -10,11 +10,11 @@ const GAME_SCENE_PATH: String = "res://src/world/world.tscn"
 const LEGACY_GAME_SCENE_PATH: String = "res://Scenes/Game.tscn"
 const LOADING_SCENE_PATH: String = "res://src/ui/LoadingScreen.tscn"
 const BG_PATH: String = "res://Assets/OpenScreenAssets/Background_Screen.png"
-const BUTTON_WIDTH: float = 246.0
-const BUTTON_HEIGHT: float = 44.0
-const BACKDROP_HALF_WIDTH: float = 188.0
-const BACKDROP_TOP: float = 84.0
-const BACKDROP_BOTTOM: float = 312.0
+const BUTTON_WIDTH: float = 302.0
+const BUTTON_HEIGHT: float = 54.0
+const BACKDROP_HALF_WIDTH: float = 229.0
+const BACKDROP_TOP: float = 56.0
+const BACKDROP_BOTTOM: float = 348.0
 
 @export var hover_sfx: AudioStream = preload("res://Assets/audio/Select_Sound.mp3")
 @export var bg_music: AudioStream = preload("res://Assets/audio/intro.mp3")
@@ -96,14 +96,14 @@ func _ready() -> void:
 
 	var menu_title := Label.new()
 	menu_title.text = "Hành Trình Cổ Tích"
-	UITheme.apply_heading(menu_title, 24)
+	UITheme.apply_heading(menu_title, 29)
 	container.add_child(menu_title)
 
 	var menu_subtitle := Label.new()
 	menu_subtitle.text = "Thắp kiếm, bước vào khu rừng và viết tiếp truyền thuyết Thạch Sanh."
 	menu_subtitle.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	menu_subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	UITheme.apply_body(menu_subtitle, 13, UITheme.BODY_TEXT_COLOR)
+	UITheme.apply_body(menu_subtitle, 16, UITheme.BODY_TEXT_COLOR)
 	container.add_child(menu_subtitle)
 
 	container.add_child(UITheme.create_separator(14.0))
@@ -164,7 +164,7 @@ func _create_menu_button(name: String, label_text: String, hint_text: String, pr
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	hint.custom_minimum_size = Vector2(BUTTON_WIDTH, 0.0)
-	UITheme.apply_body(hint, 12, UITheme.BODY_MUTED_COLOR)
+	UITheme.apply_body(hint, 15, UITheme.BODY_MUTED_COLOR)
 	wrapper.add_child(hint)
 
 	if name == "Continue":
