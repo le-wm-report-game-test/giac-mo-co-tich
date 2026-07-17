@@ -111,7 +111,7 @@ func _ready() -> void:
 	_music_player = AudioStreamPlayer.new()
 	_music_player.name = "MusicPlayer"
 	_music_player.stream = bg_music
-	_music_player.volume_db = -10.0
+	_music_player.volume_db = -11.1
 	add_child(_music_player)
 	if bg_music:
 		if bg_music is AudioStreamMP3:
