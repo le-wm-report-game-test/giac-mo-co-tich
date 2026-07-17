@@ -11,7 +11,7 @@ const BUS_SFX: String = "SFX"
 const BUS_AMBIENCE: String = "Ambience"
 
 var sfx_volume: float = 0.8
-var music_volume: float = 0.5
+var music_volume: float = 0.44
 var ambience_volume: float = 0.6
 
 var _sfx_players: Array[AudioStreamPlayer3D] = []
@@ -83,7 +83,7 @@ func _create_players() -> void:
 	_footstep_player = AudioStreamPlayer3D.new()
 	_footstep_player.name = "FootstepPlayer"
 	_footstep_player.bus = BUS_SFX
-	_footstep_player.volume_db = 10.0 # Boost volume by +10 dB
+	_footstep_player.volume_db = 13.0 # Boost player footsteps without raising other SFX
 	_footstep_player.unit_size = 15.0 # Make sound carry further before attenuating
 	_footstep_player.max_distance = 60.0
 	_footstep_player.attenuation_model = AudioStreamPlayer3D.ATTENUATION_INVERSE_SQUARE_DISTANCE
