@@ -63,7 +63,7 @@ func test_orc_spawning_and_orc_counter() -> void:
 	
 	var label := world_manager.get_node_or_null("UI/OrcCounter/OrcCountLabel") as Label
 	assert_not_null(label, "Orc counter label must exist")
-	assert_eq(label.text, "Orc da ha: %d/%d" % [new_killed, world_manager.orcs_to_kill_for_boss], "HUD label should reflect new killed count")
+	assert_eq(label.text, "Đã hạ %d" % new_killed, "HUD label should reflect new killed count")
 
 func test_boss_spawning_and_camera_magnet() -> void:
 	# Interaction 2: Spawn Boss làm kích hoạt cơ chế kéo camera (Camera Magnet)

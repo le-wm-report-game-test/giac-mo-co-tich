@@ -31,7 +31,7 @@ func test_orc_counter_update() -> void:
 	EventBus.enemy_died.emit(dummy_orc)
 	await tree.process_frame
 
-	assert_eq(orc_count_label.text, "Orc da ha: 1/5", "Orc counter should show progress")
+	assert_eq(orc_count_label.text, "Đã hạ 1", "Orc counter should show progress")
 	dummy_orc.queue_free()
 	await tree.process_frame
 

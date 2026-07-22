@@ -82,10 +82,12 @@ var is_attacking: bool = false
 var attack_cooldown: float = 0.0
 var attack_window_active: bool = false
 var attack_mouse_pos: Vector2 = Vector2.ZERO
+var _hit_stopped_this_swing: bool = false
 
 # Hurt
 var invulnerable_timer: float = 0.0
 var invulnerable_duration: float = 0.5
+var _hit_flash_timer: float = 0.0
 
 # Speed boost
 var _speed_boost_active: bool = false
@@ -156,6 +158,39 @@ func _ready() -> void:
 
 	prewarm_visual_assets()
 	_update_sprite()
+	_setup_hero_aura()
+
+func _setup_hero_aura() -> void:
+	# Subtle always-on gold drift so Thạch Sanh reads as the legendary hero at
+	# a glance, distinct from the red/orange used for enemy hit reactions.
+	var visuals := get_node_or_null("Visuals") as Node3D
+	if visuals == null:
+		return
+	var aura := CPUParticles3D.new()
+	aura.name = "HeroAura"
+	var mesh := BoxMesh.new()
+	mesh.size = Vector3(0.025, 0.025, 0.025)
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = StandardMaterial3D.SHADING_MODE_UNSHADED
+	mat.vertex_color_use_as_albedo = true
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mesh.material = mat
+	aura.mesh = mesh
+	aura.amount = 5
+	aura.lifetime = 1.4
+	aura.preprocess = 1.4
+	aura.one_shot = false
+	aura.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
+	aura.emission_sphere_radius = 0.35
+	aura.direction = Vector3.UP
+	aura.spread = 20.0
+	aura.gravity = Vector3(0.0, 0.15, 0.0)
+	aura.initial_velocity_min = 0.05
+	aura.initial_velocity_max = 0.15
+	aura.color = Color(1.0, 0.82, 0.4, 0.35)
+	aura.position = Vector3(0.0, 0.9, 0.0)
+	visuals.add_child(aura)
+	aura.emitting = true
 
 func prewarm_visual_assets() -> void:
 	if sprite_animator != null and sprite_animator.prewarm():
@@ -355,6 +390,16 @@ func _physics_process(delta: float) -> void:
 	else:
 		sprite.modulate.a = 1.0
 
+	# Hit-flash: brief overbright tint pulse on the frame damage lands, decaying
+	# back to white. Only touches r/g/b so it never fights the alpha blink above.
+	if _hit_flash_timer > 0.0:
+		_hit_flash_timer = maxf(0.0, _hit_flash_timer - delta)
+		var flash_ratio := _hit_flash_timer / CombatJuice.HIT_FLASH_DURATION
+		var flash_color := CombatJuice.HIT_FLASH_COLOR.lerp(Color.WHITE, 1.0 - flash_ratio)
+		sprite.modulate.r = flash_color.r
+		sprite.modulate.g = flash_color.g
+		sprite.modulate.b = flash_color.b
+
 	# Speed boost timer
 	if _speed_boost_active:
 		_speed_boost_timer -= delta
@@ -501,6 +546,7 @@ func _start_attack() -> void:
 	anim_timer = 0.0
 	anim_fps = 10.0
 	attack_window_active = false
+	_hit_stopped_this_swing = false
 	velocity = Vector3.ZERO
 
 	# Play attack sound
@@ -509,6 +555,7 @@ func _start_attack() -> void:
 		audio.play_sfx("sword_swing", global_position, 0.15)
 
 	_update_attack_hitbox_position()
+	_play_swing_trail()
 
 	if combat_v2 and combat_v2.enabled:
 		combat_v2.on_attack_started(anim_fps, _get_animation_frame_count("attack"))
@@ -669,6 +716,39 @@ func _on_hitbox_area_entered(area: Area3D) -> void:
 		var is_critical := randf() < CRIT_CHANCE
 		var final_damage := attack_damage * CRIT_MULTIPLIER if is_critical else attack_damage
 		hurtbox.receive_hit(final_damage, self, is_critical)
+		_play_attack_connect_juice(is_critical)
+
+func _play_swing_trail() -> void:
+	if not is_inside_tree() or get_parent() == null:
+		return
+	var swing_dir := facing_direction
+	if swing_dir.length_squared() < 0.0001:
+		swing_dir = Vector3.FORWARD
+	CombatJuice.spawn_impact_burst(
+		get_parent(),
+		global_position + Vector3(0.0, 1.0, 0.0) + swing_dir * 0.4,
+		swing_dir,
+		PackedColorArray([
+			Color(1.0, 0.95, 0.7, 0.9),
+			Color(1.0, 0.8, 0.35, 0.85),
+			Color(0.85, 0.5, 0.1, 0.0),
+		]),
+		10, 0.35, 0.05
+	)
+
+func _play_attack_connect_juice(is_critical: bool) -> void:
+	# A swing can hit multiple orcs in one active window; only the first
+	# connection freezes time so a wide swing doesn't stack up hit-stops.
+	if not _hit_stopped_this_swing:
+		_hit_stopped_this_swing = true
+		_apply_hit_stop(0.06)
+	CombatJuice.camera_shake(get_tree(), 0.08, 4.5 if is_critical else 3.0)
+
+func _apply_hit_stop(duration_sec: float) -> void:
+	Engine.time_scale = 0.05
+	get_tree().create_timer(duration_sec, true, false, true).timeout.connect(
+		func() -> void: Engine.time_scale = 1.0
+	)
 
 func _on_damaged(amount: float, source: Node3D, is_critical: bool = false) -> void:
 	if anim_state == AnimState.DEATH:
@@ -696,9 +776,33 @@ func _on_damaged(amount: float, source: Node3D, is_critical: bool = false) -> vo
 	anim_frame = 0
 	anim_timer = 0.0
 	invulnerable_timer = invulnerable_duration
+	_hit_flash_timer = CombatJuice.HIT_FLASH_DURATION
+	CombatJuice.camera_shake(get_tree(), 0.14, 6.0 if is_critical else 4.0)
+	_play_hit_particles(source)
 
 	# Emit damage event for floating numbers (use penalized amount so player sees it)
 	EventBus.player_took_damage.emit(final_damage, global_position)
+
+
+func _play_hit_particles(source: Node3D) -> void:
+	if not is_inside_tree() or get_parent() == null:
+		return
+	var spray_dir := Vector3.UP
+	if source:
+		var away := global_position - source.global_position
+		away.y = 0.4
+		if away.length_squared() > 0.0001:
+			spray_dir = away.normalized()
+	CombatJuice.spawn_impact_burst(
+		get_parent(),
+		global_position + Vector3(0.0, 0.9, 0.0),
+		spray_dir,
+		PackedColorArray([
+			Color(1.0, 0.9, 0.85, 0.95),
+			Color(0.95, 0.28, 0.22, 0.85),
+			Color(0.5, 0.05, 0.05, 0.0),
+		])
+	)
 
 
 func apply_speed_boost(multiplier: float, duration: float) -> void:

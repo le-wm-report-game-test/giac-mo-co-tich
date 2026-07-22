@@ -11,6 +11,7 @@ const FILL_SIZE := Vector2(429.0, 81.0)
 const FILL_COLOR := Color(0.82, 0.0, 0.02, 1.0)
 const COUNTER_POSITION := Vector2(24.0, 235.0)
 const COUNTER_SIZE := Vector2(207.0, 69.0)
+const COUNTER_RIGHT_PADDING := 16.0
 
 
 static func build(ui: CanvasLayer, owner: Node) -> void:
@@ -137,11 +138,9 @@ static func _add_orc_counter(
 	var label := Label.new()
 	label.name = "OrcCountLabel"
 	label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	label.text = "Orc da ha: %d/%d" % [
-		int(owner.get("orcs_killed")),
-		int(owner.get("orcs_to_kill_for_boss")),
-	]
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.offset_right -= COUNTER_RIGHT_PADDING
+	label.text = "Đã hạ %d" % int(owner.get("orcs_killed"))
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	label.add_theme_font_override("font", UIThemeScript.FONT_BODY_SEMIBOLD)
 	label.add_theme_font_size_override("font_size", maxi(11, roundi(15.0 * hud_scale)))

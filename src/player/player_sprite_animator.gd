@@ -3,6 +3,9 @@ extends Node
 
 const CELL_SIZE := 64
 const SHEET_COLUMNS := 6
+const LEG_BAND_START_RATIO := 0.6 # bottom 40% of the silhouette anchors horizontal centering
+const BODY_COLOR_VARIANCE := 0.08 # skin/cloth hue spread vs. the near-grayscale held weapon
+const MAX_BODY_VALUE := 0.92 # excludes blown-out white highlights from the body sample
 const SHEET_PATHS := {
 	"idle": "res://Assets/_ThachSanh_V2/spr_thach_sanh_idle_6x4_alpha.png",
 	"run": "res://Assets/_ThachSanh_V2/spr_thach_sanh_run_6x4_alpha.png",
@@ -51,6 +54,7 @@ func apply_to_sprite(
 	var metrics := _get_frame_metrics(tex, normalized_state, row, frame)
 	var used_height := maxf(1.0, float(metrics.get("used_height", CELL_SIZE)))
 	var feet_offset := float(metrics.get("feet_offset", CELL_SIZE / 2.0))
+	var center_offset_x := float(metrics.get("center_offset_x", 0.0))
 
 	sprite.texture = tex
 	sprite.region_enabled = true
@@ -62,6 +66,7 @@ func apply_to_sprite(
 	var visuals_node := sprite.get_parent() as Node3D
 	var visuals_global_y := visuals_node.global_position.y if visuals_node else 0.0
 	sprite.position.y = -visuals_global_y + feet_offset * sprite.pixel_size
+	sprite.position.x = -center_offset_x * sprite.pixel_size
 	return true
 
 
@@ -105,6 +110,7 @@ func _get_frame_metrics(tex: Texture2D, state_name: String, row: int, frame: int
 	var metrics := {
 		"used_height": float(CELL_SIZE),
 		"feet_offset": float(CELL_SIZE / 2),
+		"center_offset_x": 0.0,
 	}
 	var img := tex.get_image()
 	if img != null:
@@ -113,7 +119,42 @@ func _get_frame_metrics(tex: Texture2D, state_name: String, row: int, frame: int
 		if used_rect.size.y > 0:
 			metrics["used_height"] = float(used_rect.size.y)
 			metrics["feet_offset"] = float((used_rect.position.y + used_rect.size.y) - (CELL_SIZE / 2))
+			metrics["center_offset_x"] = _get_leg_band_center_x(region, used_rect) - (CELL_SIZE / 2.0)
 
 	_metrics_cache[key] = metrics
 	return metrics
+
+
+func _get_leg_band_center_x(region: Image, used_rect: Rect2i) -> float:
+	# Anchors on the legs/torso rather than the full silhouette so a held
+	# weapon swinging wide (attack frames) or resting near the feet (idle)
+	# can't drag the whole body sideways. Skin/cloth pixels have a wide
+	# r/g/b spread; the near-grayscale weapon doesn't, so bias toward those.
+	var band_top := used_rect.position.y + int(used_rect.size.y * LEG_BAND_START_RATIO)
+	var band_bottom := used_rect.position.y + used_rect.size.y
+	var min_x := CELL_SIZE
+	var max_x := 0
+	var found := false
+	var fallback_min_x := CELL_SIZE
+	var fallback_max_x := 0
+	var fallback_found := false
+	for y in range(band_top, band_bottom):
+		for x in range(used_rect.position.x, used_rect.position.x + used_rect.size.x):
+			var color := region.get_pixel(x, y)
+			if color.a <= 0.05:
+				continue
+			fallback_min_x = mini(fallback_min_x, x)
+			fallback_max_x = maxi(fallback_max_x, x)
+			fallback_found = true
+			var brightest := maxf(color.r, maxf(color.g, color.b))
+			var darkest := minf(color.r, minf(color.g, color.b))
+			if brightest - darkest > BODY_COLOR_VARIANCE and brightest < MAX_BODY_VALUE:
+				min_x = mini(min_x, x)
+				max_x = maxi(max_x, x)
+				found = true
+	if found:
+		return (min_x + max_x) / 2.0
+	if fallback_found:
+		return (fallback_min_x + fallback_max_x) / 2.0
+	return used_rect.position.x + used_rect.size.x / 2.0
 

@@ -68,6 +68,13 @@ func _build_dialog() -> void:
 	UITheme.apply_body(sub, 15, UITheme.BODY_MUTED_COLOR)
 	vbox.add_child(sub)
 
+	var stats := Label.new()
+	stats.name = "RunStats"
+	stats.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	UITheme.apply_body(stats, 15, Color(0.92, 0.78, 0.4))
+	vbox.add_child(stats)
+	_animate_run_stats(stats)
+
 	var btn_row := HBoxContainer.new()
 	btn_row.name = "HBoxContainer"
 	btn_row.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -100,6 +107,24 @@ func _build_dialog() -> void:
 		.set_trans(Tween.TRANS_SINE).set_delay(0.15)
 	tw.tween_property(panel, "scale", Vector2(1.0, 1.0), 0.30)\
 		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT).set_delay(0.15)
+
+func _format_run_stats(orcs: int, elapsed: float) -> String:
+	var total_seconds := int(elapsed)
+	var minutes := total_seconds / 60
+	var seconds := total_seconds % 60
+	return "Đã hạ %d Orc · Sống sót %dp %02ds" % [orcs, minutes, seconds]
+
+func _animate_run_stats(label: Label) -> void:
+	var world_manager := get_tree().get_first_node_in_group("world_manager")
+	var orcs := int(world_manager.get("orcs_killed")) if world_manager else 0
+	var elapsed := float(world_manager.get("run_elapsed")) if world_manager else 0.0
+	label.text = _format_run_stats(0, 0.0)
+	var tw := create_tween()
+	tw.tween_method(
+		func(t: float) -> void:
+			label.text = _format_run_stats(roundi(orcs * t), elapsed * t),
+		0.0, 1.0, 0.6
+	).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT).set_delay(0.3)
 
 func _on_replay_pressed() -> void:
 	get_tree().reload_current_scene()

@@ -24,7 +24,7 @@ var window_mode_index: int = 0
 var fps_index: int = 0
 
 # Audio settings
-var music_volume: float = 0.44
+var music_volume: float = 0.3
 var sfx_volume: float = 0.8
 var ambience_volume: float = 0.6
 
@@ -404,7 +404,7 @@ func _load_settings() -> void:
 	window_mode_index = clampi(int(config.get_value("display", "window_mode", 0)), 0, 2)
 	fps_index = clampi(int(config.get_value("display", "fps_limit", 0)), 0, 3)
 	
-	music_volume = clampf(float(config.get_value("audio", "music_volume", 0.44)), 0.0, 1.0)
+	music_volume = clampf(float(config.get_value("audio", "music_volume", 0.3)), 0.0, 1.0)
 	sfx_volume = clampf(float(config.get_value("audio", "sfx_volume", 0.8)), 0.0, 1.0)
 	ambience_volume = clampf(float(config.get_value("audio", "ambience_volume", 0.6)), 0.0, 1.0)
 

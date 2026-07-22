@@ -11,7 +11,7 @@ const BUS_SFX: String = "SFX"
 const BUS_AMBIENCE: String = "Ambience"
 
 var sfx_volume: float = 0.8
-var music_volume: float = 0.44
+var music_volume: float = 0.3
 var ambience_volume: float = 0.6
 
 var _sfx_players: Array[AudioStreamPlayer3D] = []
@@ -79,6 +79,7 @@ func _create_players() -> void:
 	_music_player.name = "MusicPlayer"
 	_music_player.bus = BUS_MUSIC
 	add_child(_music_player)
+	_music_player.finished.connect(_on_music_finished)
 
 	_footstep_player = AudioStreamPlayer3D.new()
 	_footstep_player.name = "FootstepPlayer"
@@ -106,12 +107,13 @@ func _load_assets() -> void:
 		"hurt": "res://Assets/audio/heavy-grunt.mp3",
 		"thunder": "res://Assets/audio/thunder.mp3",
 		"footstep": "res://Assets/audio/walk_on_grass.mp3",
-		"intro_music": "res://Assets/audio/intro.mp3"
+		"gameplay_music": "res://Assets/audio/panic.mp3",
+		"boss_music": "res://Assets/audio/giant_beast_roar.mp3"
 	}
 	for s_name in assets:
 		var _ok: bool = load_external_sound(s_name, str(assets[s_name]))
-	
-	for key in ["intro_music", "footstep"]:
+
+	for key in ["gameplay_music", "footstep"]:
 		var stream := _sounds.get(key) as AudioStream
 		if stream and "loop" in stream:
 			stream.loop = true
@@ -129,7 +131,7 @@ func _connect_event_bus() -> void:
 	eb.weather_changed.connect(_on_weather_changed)
 
 func _on_player_spawned(_player: CharacterBody3D) -> void:
-	var music_stream := _sounds.get("intro_music") as AudioStream
+	var music_stream := _sounds.get("gameplay_music") as AudioStream
 	if music_stream: play_music(music_stream)
 	var wm := get_tree().get_first_node_in_group("world_manager") as WorldManager
 	if wm and wm.get("is_raining"): play_ambience("rain_ambience")
@@ -159,6 +161,8 @@ func _on_enemy_died(enemy: Node3D) -> void:
 func _on_boss_spawned(boss: Node3D) -> void:
 	play_sfx("boss_roar", boss.global_position, 0.0)
 	play_sfx("thunder", boss.global_position, 0.1)
+	var music_stream := _sounds.get("boss_music") as AudioStream
+	if music_stream: play_music(music_stream)
 
 func _on_weather_changed(weather_type: String) -> void:
 	if weather_type == "rain": play_ambience("rain_ambience")
@@ -185,6 +189,12 @@ func stop_ambience() -> void:
 func play_music(stream: AudioStream) -> void:
 	_music_player.stream = stream
 	_music_player.play()
+
+func _on_music_finished() -> void:
+	# Only non-looping tracks (the boss entrance sting) reach here; once it
+	# plays out, drop back to the looping gameplay track automatically.
+	var music_stream := _sounds.get("gameplay_music") as AudioStream
+	if music_stream: play_music(music_stream)
 
 func stop_music() -> void:
 	_music_player.stop()

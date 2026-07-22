@@ -42,6 +42,31 @@ func spawn_boss() -> void:
 	_world_manager._show_boss_health_bar(boss)
 	_world_manager._activate_camera_magnet(Vector3(-15.0, 0.0, -15.0), 25.0, 8.0)
 	EventBus.boss_spawned.emit(boss)
+
+	# Punctuate the arena reveal: without this the camera magnet cuts to the
+	# boss silently and the moment reads as a slow pan, not an entrance.
+	CombatJuice.camera_shake(_world_manager.get_tree(), 0.3, 7.0)
+	_world_manager.trigger_screen_flash()
+	CombatJuice.spawn_ground_shockwave(
+		_world_manager.get_parent(),
+		boss.global_position,
+		Color(1.0, 0.55, 0.15, 0.85),
+		6.0,
+		0.7
+	)
+	CombatJuice.spawn_impact_burst(
+		_world_manager.get_parent(),
+		boss.global_position + Vector3(0.0, 0.5, 0.0),
+		Vector3.UP,
+		PackedColorArray([
+			Color(1.0, 0.85, 0.3, 0.9),
+			Color(0.7, 0.15, 0.1, 0.7),
+			Color(0.2, 0.05, 0.05, 0.0),
+		]),
+		30,
+		0.9,
+		0.1
+	)
 	var lighting := get_tree().get_first_node_in_group("lighting_director") as LightingDirector
 	if lighting:
 		lighting.set_active_objective(boss.global_position)

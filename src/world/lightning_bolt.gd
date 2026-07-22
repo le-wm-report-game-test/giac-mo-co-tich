@@ -89,6 +89,7 @@ func _strike() -> void:
 		_particles.emitting = true
 
 	_trigger_screen_flash()
+	CombatJuice.camera_shake(get_tree(), 0.18, 5.0)
 	_deal_strike_damage()
 	_spawn_fire_hazard()
 	_play_thunder_sound()

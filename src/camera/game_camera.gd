@@ -186,7 +186,15 @@ func activate_magnet(target_pos: Vector3, zoom_size: float) -> void:
 	if magnet_pcam.has_method("look_at_target"):
 		magnet_pcam.set("look_at_target", target_pos)
 	if magnet_pcam.camera_3d_resource:
-		magnet_pcam.camera_3d_resource.size = zoom_size
+		# Punch in tighter than the final framing, then ease out to it over
+		# the reveal -- reads as a "brace" beat before the arena settles,
+		# without delaying `priority` (camera_magnet_active flips synchronously,
+		# same frame, so nothing waiting on that state has to change).
+		magnet_pcam.camera_3d_resource.size = zoom_size * 0.45
+		var punch_tween := create_tween()
+		punch_tween.tween_interval(0.12)
+		punch_tween.tween_property(magnet_pcam.camera_3d_resource, "size", zoom_size, 0.45)\
+			.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	magnet_pcam.priority = 100  # higher than any other pcam so the tween wins
 
 

@@ -86,6 +86,7 @@ var strafe_dir: float = 1.0
 var facing_right: bool = true
 var facing_dir: Vector3 = Vector3.BACK
 var _committed_attack_direction: Vector3 = Vector3.BACK
+var _hit_flash_timer: float = 0.0
 
 var candidate_directions: Array[Vector3] = []
 var _texture_cache: Dictionary = {}
@@ -432,6 +433,8 @@ func _physics_process(delta: float) -> void:
 	_update_animation(delta)
 	if attack_cooldown_timer > 0.0:
 		attack_cooldown_timer -= delta
+	if _hit_flash_timer > 0.0:
+		_hit_flash_timer = maxf(0.0, _hit_flash_timer - delta)
 	_update_sprite_height()
 
 func _get_state_sprite_scale() -> float:
@@ -780,6 +783,10 @@ func _get_direction_index() -> int:
 	return int(round(deg / 45.0)) % 8
 
 func _update_sprite() -> void:
+	if sprite:
+		var flash_ratio := clampf(_hit_flash_timer / CombatJuice.HIT_FLASH_DURATION, 0.0, 1.0)
+		sprite.modulate = CombatJuice.HIT_FLASH_COLOR.lerp(Color.WHITE, 1.0 - flash_ratio) if flash_ratio > 0.0 else Color.WHITE
+
 	var prefix := "idle"
 	var frame := clampi(current_frame, 0, 5)
 
@@ -887,55 +894,28 @@ func _on_damaged(amount: float, source: Node3D, is_critical: bool = false) -> vo
 	# Set knockback velocity (6.0 force)
 	var knockback_force := 6.0
 	velocity = kb_dir * knockback_force
-	
-	# Spawn golden-orange-red square particle burst if in scene tree and has parent
-	if is_inside_tree() and get_parent():
-		var particles := CPUParticles3D.new()
-		particles.name = "HitParticles"
-		
-		var mesh := BoxMesh.new()
-		mesh.size = Vector3(0.06, 0.06, 0.06)
-		
-		var mat := StandardMaterial3D.new()
-		mat.shading_mode = StandardMaterial3D.SHADING_MODE_UNSHADED
-		mat.vertex_color_use_as_albedo = true # Correct Godot 4 property for particle colors
-		mesh.material = mat
-		
-		particles.mesh = mesh
-		particles.amount = 12
-		particles.explosiveness = 1.0
-		particles.one_shot = true
-		particles.lifetime = 0.5
-		
-		# Particles spray in the direction of hit, slightly upwards
-		var spray_dir := kb_dir
-		spray_dir.y = 0.4
-		particles.direction = spray_dir.normalized()
-		particles.spread = 45.0
-		particles.initial_velocity_min = 3.0
-		particles.initial_velocity_max = 5.0
-		particles.damping_min = 1.0
-		particles.damping_max = 2.0
-		
-		# Color gradient: Light Gold -> Orange -> Red -> Fade
-		var gradient := Gradient.new()
-		gradient.offsets = PackedFloat32Array([0.0, 0.4, 0.8, 1.0])
-		gradient.colors = PackedColorArray([
+
+	var is_boss := is_in_group("boss")
+	_hit_flash_timer = CombatJuice.HIT_FLASH_DURATION
+	var shake_amplitude := 5.0 if is_boss else 3.5
+	if is_critical:
+		shake_amplitude *= 1.6
+	CombatJuice.camera_shake(get_tree(), 0.16 if is_boss else 0.12, shake_amplitude)
+
+	# Spawn golden-orange-red square particle burst, spraying in hit direction.
+	var spray_dir := kb_dir
+	spray_dir.y = 0.4
+	CombatJuice.spawn_impact_burst(
+		get_parent(),
+		global_position + Vector3(0.0, 0.6, 0.0),
+		spray_dir,
+		PackedColorArray([
 			Color("#FFF1B2"), # Light gold-white
 			Color("#FF9F33"), # Orange
 			Color("#D92B2B"), # Deep red
-			Color(0.85, 0.17, 0.17, 0.0) # Transparent red
+			Color(0.85, 0.17, 0.17, 0.0), # Transparent red
 		])
-		particles.color_ramp = gradient
-		
-		# Add particles as sibling to this orc (use local position relative to parent)
-		get_parent().add_child(particles)
-		particles.position = position + Vector3(0.0, 0.6, 0.0)
-		particles.emitting = true
-		
-		# Auto delete particles after emission completes
-		var particle_timer := get_tree().create_timer(0.6)
-		particle_timer.timeout.connect(particles.queue_free)
+	)
 
 	# Emit damage event for floating numbers
 	var event_bus := get_node_or_null("/root/EventBus")
@@ -956,7 +936,28 @@ func _on_died() -> void:
 	hitbox_component.monitoring = false
 	if health_bar_sprite:
 		health_bar_sprite.visible = false
-	
+
+	# _physics_process's flash-timer decrement is skipped once current_state is
+	# DEATH (it returns early into _process_death_state), so a killing blow's
+	# flash would otherwise freeze at full brightness for the whole death fade.
+	_hit_flash_timer = 0.0
+
+	var is_boss := is_in_group("boss")
+	CombatJuice.camera_shake(get_tree(), 0.3 if is_boss else 0.1, 7.0 if is_boss else 2.0)
+	CombatJuice.spawn_impact_burst(
+		get_parent(),
+		global_position + Vector3(0.0, 0.7, 0.0),
+		Vector3.UP,
+		PackedColorArray([
+			Color(1.0, 0.95, 0.8, 0.9),
+			Color(0.6, 0.55, 0.5, 0.6),
+			Color(0.3, 0.28, 0.26, 0.0),
+		]),
+		24 if is_boss else 14,
+		0.8 if is_boss else 0.5,
+		0.09 if is_boss else 0.06
+	)
+
 	# Notify world
 	var event_bus := get_node_or_null("/root/EventBus")
 	if event_bus:

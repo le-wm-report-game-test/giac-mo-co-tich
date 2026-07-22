@@ -332,7 +332,8 @@ func _update_sprite() -> void:
 		region,
 		sprite.flip_h
 	)
-	sprite.modulate = BOSS_SPRITE_TINT
+	var flash_ratio := clampf(_hit_flash_timer / CombatJuice.HIT_FLASH_DURATION, 0.0, 1.0)
+	sprite.modulate = BOSS_SPRITE_TINT.lerp(CombatJuice.HIT_FLASH_COLOR, flash_ratio)
 	_active_frame_size = region.size
 	sprite.position.y = SPRITE_GROUND_CLEARANCE
 

@@ -4,17 +4,19 @@ extends Control
 
 const UITheme = preload("res://src/ui/ui_theme.gd")
 const SettingsMenuScript = preload("res://src/common/settings_menu.gd")
+const GuideDialogScript = preload("res://src/ui/main_menu_guide_dialog.gd")
+const ButtonGlowShader = preload("res://src/ui/main_menu_glow.gdshader")
 
 # Hằng số đường dẫn tài nguyên do người dùng cung cấp
 const GAME_SCENE_PATH: String = "res://src/world/world.tscn"
 const LEGACY_GAME_SCENE_PATH: String = "res://Scenes/Game.tscn"
 const LOADING_SCENE_PATH: String = "res://src/ui/LoadingScreen.tscn"
 const BG_PATH: String = "res://Assets/OpenScreenAssets/Background_Screen.png"
-const BUTTON_WIDTH: float = 302.0
-const BUTTON_HEIGHT: float = 54.0
-const BACKDROP_HALF_WIDTH: float = 229.0
-const BACKDROP_TOP: float = 56.0
-const BACKDROP_BOTTOM: float = 348.0
+const BUTTON_WIDTH: float = 276.0
+const BUTTON_HEIGHT: float = 44.0
+const BACKDROP_HALF_WIDTH: float = 215.0
+const BACKDROP_TOP: float = 16.0
+const BACKDROP_BOTTOM: float = 420.0
 
 @export var hover_sfx: AudioStream = preload("res://Assets/audio/Select_Sound.mp3")
 @export var bg_music: AudioStream = preload("res://Assets/audio/intro.mp3")
@@ -22,10 +24,11 @@ const BACKDROP_BOTTOM: float = 348.0
 var sfx_player: AudioStreamPlayer = null
 var _music_player: AudioStreamPlayer = null
 var _settings_menu_instance: CanvasLayer = null
+var _guide_dialog: CanvasLayer = null
+var _guide_button: Button = null
 var bg: TextureRect = null
 var _scene_change_in_progress: bool = false
 var _continue_button: Button = null
-var _continue_hint: Label = null
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -55,9 +58,9 @@ func _ready() -> void:
 	button_glow.anchor_right = 0.5
 	button_glow.anchor_bottom = 0.5
 	button_glow.offset_left = -260
-	button_glow.offset_top = 58
+	button_glow.offset_top = 0
 	button_glow.offset_right = 260
-	button_glow.offset_bottom = 338
+	button_glow.offset_bottom = 420
 	button_glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	button_glow.material = _create_button_glow_material()
 	add_child(button_glow)
@@ -83,30 +86,30 @@ func _ready() -> void:
 	backdrop_style.shadow_size = 10
 	backdrop_style.content_margin_left = 26.0
 	backdrop_style.content_margin_right = 26.0
-	backdrop_style.content_margin_top = 22.0
-	backdrop_style.content_margin_bottom = 22.0
+	backdrop_style.content_margin_top = 14.0
+	backdrop_style.content_margin_bottom = 14.0
 	button_backdrop.add_theme_stylebox_override("panel", backdrop_style)
 	add_child(button_backdrop)
 
 	var container: VBoxContainer = VBoxContainer.new()
 	container.name = "ButtonContainer"
 	container.alignment = BoxContainer.ALIGNMENT_CENTER
-	container.add_theme_constant_override("separation", 12)
+	container.add_theme_constant_override("separation", 5)
 	button_backdrop.add_child(container)
 
 	var menu_title := Label.new()
 	menu_title.text = "Hành Trình Cổ Tích"
-	UITheme.apply_heading(menu_title, 29)
+	UITheme.apply_heading(menu_title, 26)
 	container.add_child(menu_title)
 
 	var menu_subtitle := Label.new()
 	menu_subtitle.text = "Thắp kiếm, bước vào khu rừng và viết tiếp truyền thuyết Thạch Sanh."
 	menu_subtitle.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	menu_subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	UITheme.apply_body(menu_subtitle, 16, UITheme.BODY_TEXT_COLOR)
+	UITheme.apply_body(menu_subtitle, 14, UITheme.BODY_TEXT_COLOR)
 	container.add_child(menu_subtitle)
 
-	container.add_child(UITheme.create_separator(14.0))
+	container.add_child(UITheme.create_separator(10.0))
 
 	_music_player = AudioStreamPlayer.new()
 	_music_player.name = "MusicPlayer"
@@ -124,24 +127,25 @@ func _ready() -> void:
 	add_child(sfx_player)
 
 	var buttons_data: Array[Dictionary] = [
-		{"name": "Start", "label": "Bắt đầu", "hint": "Khởi đầu lại hành trình từ đầu.", "pressed": _on_play_pressed},
-		{"name": "Continue", "label": "Tiếp tục", "hint": "", "pressed": _on_continue_pressed},
-		{"name": "Settings", "label": "Cài đặt", "hint": "Âm thanh, đồ họa và tốc độ khung hình.", "pressed": _on_settings_pressed},
-		{"name": "Quit", "label": "Thoát", "hint": "Rời khỏi trò chơi.", "pressed": _on_quit_pressed, "variant": "danger"}
+		{"name": "Start", "label": "Bắt đầu", "pressed": _on_play_pressed},
+		{"name": "Continue", "label": "Tiếp tục", "pressed": _on_continue_pressed},
+		{"name": "Guide", "label": "Hướng dẫn", "pressed": _on_guide_pressed},
+		{"name": "Settings", "label": "Cài đặt", "pressed": _on_settings_pressed},
+		{"name": "Quit", "label": "Thoát", "pressed": _on_quit_pressed, "variant": "danger"}
 	]
 
 	for data in buttons_data:
-		var entry := _create_menu_button(data["name"], data["label"], data["hint"], data["pressed"], data.get("variant", "primary"))
+		var entry := _create_menu_button(data["name"], data["label"], data["pressed"], data.get("variant", "primary"))
 		container.add_child(entry)
 
 	_refresh_continue_state()
 
-func _create_menu_button(name: String, label_text: String, hint_text: String, pressed_handler: Callable, variant: String) -> Control:
+func _create_menu_button(name: String, label_text: String, pressed_handler: Callable, variant: String) -> Control:
 	var wrapper := VBoxContainer.new()
 	wrapper.name = "%sEntry" % name
 	wrapper.alignment = BoxContainer.ALIGNMENT_CENTER
 	wrapper.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	wrapper.add_theme_constant_override("separation", 4)
+	wrapper.add_theme_constant_override("separation", 2)
 
 	var button := Button.new()
 	button.name = name
@@ -158,18 +162,10 @@ func _create_menu_button(name: String, label_text: String, hint_text: String, pr
 	button.scale = Vector2.ONE
 	wrapper.add_child(button)
 
-	var hint := Label.new()
-	hint.name = "%sHint" % name
-	hint.text = hint_text
-	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	hint.custom_minimum_size = Vector2(BUTTON_WIDTH, 0.0)
-	UITheme.apply_body(hint, 15, UITheme.BODY_MUTED_COLOR)
-	wrapper.add_child(hint)
-
 	if name == "Continue":
 		_continue_button = button
-		_continue_hint = hint
+	elif name == "Guide":
+		_guide_button = button
 
 	return wrapper
 
@@ -187,21 +183,12 @@ func _on_button_hover(button: Control, is_hovered: bool) -> void:
 		sfx_player.play()
 
 func _refresh_continue_state() -> void:
-	if _continue_button == null or _continue_hint == null:
+	if _continue_button == null:
 		return
 	var has_save := SaveManager.has_save()
 	_continue_button.disabled = not has_save
-	_continue_hint.text = (
-		"Tiếp tục từ lần lưu gần nhất."
-		if has_save
-		else "Chưa có dữ liệu lưu để tiếp tục hành trình."
-	)
 	_continue_button.tooltip_text = "" if has_save else "Hãy bắt đầu trò chơi mới để tạo dữ liệu lưu."
 	_continue_button.modulate = Color.WHITE if has_save else Color(0.72, 0.68, 0.62, 0.92)
-	_continue_hint.add_theme_color_override(
-		"font_color",
-		UITheme.BODY_MUTED_COLOR if has_save else Color(0.86, 0.68, 0.48)
-	)
 
 func _on_play_pressed() -> void:
 	if SaveManager.has_save():
@@ -257,6 +244,13 @@ func _on_settings_pressed() -> void:
 		add_child(_settings_menu_instance)
 	_settings_menu_instance.call("toggle_menu")
 
+func _on_guide_pressed() -> void:
+	if _guide_dialog == null:
+		_guide_dialog = GuideDialogScript.new()
+		_guide_dialog.name = "MainMenuGuideDialog"
+		add_child(_guide_dialog)
+	_guide_dialog.call("open", _guide_button)
+
 func _on_quit_pressed() -> void:
 	get_tree().quit()
 
@@ -311,19 +305,6 @@ func _update_background_size() -> void:
 	bg.position = (screen_size - bg.size) / 2.0
 
 func _create_button_glow_material() -> ShaderMaterial:
-	var shader := Shader.new()
-	shader.code = """
-shader_type canvas_item;
-render_mode unshaded;
-
-void fragment() {
-	vec2 centered_uv = UV * 2.0 - vec2(1.0);
-	float radial = 1.0 - smoothstep(0.18, 1.0, length(centered_uv * vec2(0.95, 1.2)));
-	float vertical = smoothstep(1.0, 0.2, abs(centered_uv.y));
-	float alpha = radial * vertical * 0.44;
-	COLOR = vec4(0.03, 0.05, 0.04, alpha);
-}
-"""
 	var material := ShaderMaterial.new()
-	material.shader = shader
+	material.shader = ButtonGlowShader
 	return material

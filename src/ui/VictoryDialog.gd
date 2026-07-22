@@ -97,6 +97,13 @@ func _build_dialog() -> void:
 	UITheme.apply_body(summary, 15, UITheme.BODY_MUTED_COLOR)
 	vbox.add_child(summary)
 
+	var stats := Label.new()
+	stats.name = "VictoryStats"
+	stats.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	stats.custom_minimum_size = Vector2(CONTENT_WIDTH, 0.0)
+	UITheme.apply_body(stats, 15, Color(0.92, 0.78, 0.4))
+	vbox.add_child(stats)
+
 	var scroll := ScrollContainer.new()
 	scroll.name = "StoryScroll"
 	scroll.custom_minimum_size = Vector2(CONTENT_WIDTH, 130.0)
@@ -136,6 +143,7 @@ func _build_dialog() -> void:
 	title.modulate.a = 0.0
 	sep.modulate.a = 0.0
 	summary.modulate.a = 0.0
+	stats.modulate.a = 0.0
 	scroll.modulate.a = 0.0
 	return_btn.modulate.a = 0.0
 
@@ -148,8 +156,31 @@ func _build_dialog() -> void:
 	seq.tween_property(title, "modulate:a", 1.0, 0.20).set_delay(0.3)
 	seq.tween_property(sep, "modulate:a", 1.0, 0.15)
 	seq.tween_property(summary, "modulate:a", 1.0, 0.20)
+	seq.tween_property(stats, "modulate:a", 1.0, 0.20)
 	seq.tween_property(scroll, "modulate:a", 1.0, 0.20)
 	seq.tween_property(return_btn, "modulate:a", 1.0, 0.15)
+
+	_animate_run_stats(stats)
+
+func _format_run_stats(orcs: int, elapsed: float) -> String:
+	var total_seconds := int(elapsed)
+	var minutes := total_seconds / 60
+	var seconds := total_seconds % 60
+	return "Đã hạ %d Orc · Sống sót %dp %02ds" % [orcs, minutes, seconds]
+
+func _animate_run_stats(label: Label) -> void:
+	var world_manager := get_tree().get_first_node_in_group("world_manager")
+	var orcs := int(world_manager.get("orcs_killed")) if world_manager else 0
+	var elapsed := float(world_manager.get("run_elapsed")) if world_manager else 0.0
+	label.text = _format_run_stats(0, 0.0)
+	# Matches the fade-in sequence above: title(0.3+0.2) -> sep(0.15) -> summary(0.2)
+	# lands this label visible at ~0.85s, so the count-up starts right as it appears.
+	var tw := create_tween()
+	tw.tween_method(
+		func(t: float) -> void:
+			label.text = _format_run_stats(roundi(orcs * t), elapsed * t),
+		0.0, 1.0, 0.6
+	).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT).set_delay(0.85)
 
 func _tween_button_scale(btn: Button, target_scale: Vector2) -> void:
 	var tw := create_tween()

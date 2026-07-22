@@ -13,6 +13,7 @@ const HudManagerScript := preload("res://src/world/components/world_hud_manager.
 var orcs_killed: int = 0
 var boss_spawned: bool = false
 var boss_instance: Node3D = null
+var run_elapsed: float = 0.0
 
 # ─── Weather Config ──────────────────────────────────────────────────────────
 var weather_timer: float = 0.0
@@ -126,6 +127,7 @@ func _toggle_minimap_zoom() -> void:
 
 
 func _process(delta: float) -> void:
+	run_elapsed += delta
 	_update_weather(delta)
 	_update_rain_coverage()
 	_update_tree_fade(delta)

@@ -54,10 +54,7 @@ func update_orc_counter() -> void:
 
 
 func format_orc_counter() -> String:
-	return "Orc da ha: %d/%d" % [
-		int(_owner.get("orcs_killed")),
-		int(_owner.get("orcs_to_kill_for_boss")),
-	]
+	return "Đã hạ %d" % int(_owner.get("orcs_killed"))
 
 
 func show_boss_health_bar(boss: Node3D) -> void:

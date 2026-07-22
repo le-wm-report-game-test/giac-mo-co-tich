@@ -139,10 +139,10 @@ func _play_pickup_effect() -> void:
 	mesh.material = mat
 
 	particles.mesh = mesh
-	particles.amount = 8
+	particles.amount = 14
 	particles.explosiveness = 0.8
 	particles.one_shot = true
-	particles.lifetime = 0.4
+	particles.lifetime = 0.5
 	particles.direction = Vector3(0.0, 1.0, 0.0)
 	particles.spread = 60.0
 	particles.initial_velocity_min = 2.0

@@ -38,17 +38,13 @@ func test_continue_button_reflects_save_state() -> void:
 	await tree.process_frame
 
 	var continue_button := menu.get_node_or_null("ButtonBackdrop/ButtonContainer/ContinueEntry/Continue") as Button
-	var continue_hint := menu.get_node_or_null("ButtonBackdrop/ButtonContainer/ContinueEntry/ContinueHint") as Label
 	assert_not_null(continue_button, "Continue button must exist")
-	assert_not_null(continue_hint, "Continue hint must exist")
 	assert_true(continue_button.disabled, "Continue should be disabled with no save data")
-	assert_eq(continue_hint.text, "Chưa có dữ liệu lưu để tiếp tục hành trình.", "Continue hint should explain the disabled state")
 	assert_eq(continue_button.tooltip_text, "Hãy bắt đầu trò chơi mới để tạo dữ liệu lưu.", "Disabled continue should explain how to unlock resume")
 
 	SaveManager.save_progress({})
 	menu.call("_refresh_continue_state")
 	assert_false(continue_button.disabled, "Continue should be enabled after a save exists")
-	assert_eq(continue_hint.text, "Tiếp tục từ lần lưu gần nhất.", "Continue hint should describe the resume action")
 	assert_eq(continue_button.tooltip_text, "", "Enabled continue should not keep the disabled tooltip")
 
 	menu.queue_free()
@@ -60,13 +56,53 @@ func test_main_menu_priority3_layout_is_more_breathable() -> void:
 	await tree.process_frame
 
 	var continue_button := menu.get_node_or_null("ButtonBackdrop/ButtonContainer/ContinueEntry/Continue") as Button
+	var quit_entry := menu.get_node_or_null("ButtonBackdrop/ButtonContainer/QuitEntry") as VBoxContainer
 	var backdrop := menu.get_node_or_null("ButtonBackdrop") as PanelContainer
 	var glow := menu.get_node_or_null("ButtonGlow") as ColorRect
 	assert_not_null(continue_button, "Continue button must still exist after menu polish")
 	assert_not_null(backdrop, "Button backdrop must still exist after menu polish")
 	assert_not_null(glow, "Button glow layer must exist behind the menu buttons")
-	assert_eq(continue_button.custom_minimum_size, Vector2(246.0, 44.0), "Menu buttons should be reduced for a more breathable layout")
+	assert_eq(continue_button.custom_minimum_size, Vector2(MainMenu.BUTTON_WIDTH, MainMenu.BUTTON_HEIGHT), "Menu buttons should use the configured layout size")
 	assert_eq(backdrop.offset_top, MainMenu.BACKDROP_TOP, "Button cluster should sit lower to avoid crowding the key art")
 	assert_true(glow.offset_top < backdrop.offset_top, "Glow layer should start above the backdrop to soften readability against the art")
+	assert_true(backdrop.get_global_rect().encloses(quit_entry.get_global_rect()), "All menu entries must stay inside the backdrop")
 
+	menu.queue_free()
+
+func test_guide_button_is_between_continue_and_settings() -> void:
+	var menu := MainMenu.new()
+	tree.root.add_child(menu)
+	await tree.process_frame
+	var container := menu.get_node("ButtonBackdrop/ButtonContainer") as VBoxContainer
+	var guide_entry := container.get_node("GuideEntry") as VBoxContainer
+	var continue_entry := container.get_node("ContinueEntry") as VBoxContainer
+	var settings_entry := container.get_node("SettingsEntry") as VBoxContainer
+	var guide_button := guide_entry.get_node("Guide") as Button
+	assert_true(continue_entry.get_index() < guide_entry.get_index(), "Guide must appear after Continue")
+	assert_true(guide_entry.get_index() < settings_entry.get_index(), "Guide must appear before Settings")
+	guide_button.emit_signal("pressed")
+	await tree.process_frame
+	var dialog := menu.get_node_or_null("MainMenuGuideDialog") as CanvasLayer
+	assert_not_null(dialog, "Guide button must create the guide dialog")
+	assert_true(dialog.visible, "Guide dialog must be visible after opening")
+	menu.queue_free()
+
+func test_guide_dialog_content_and_focus_contract() -> void:
+	var menu := MainMenu.new()
+	tree.root.add_child(menu)
+	await tree.process_frame
+	var guide_button := menu.get_node("ButtonBackdrop/ButtonContainer/GuideEntry/Guide") as Button
+	guide_button.emit_signal("pressed")
+	await tree.process_frame
+	var dialog := menu.get_node("MainMenuGuideDialog") as CanvasLayer
+	var content := dialog.get_node("GuideOverlay/GuidePanel/GuideContent") as VBoxContainer
+	var objective := content.get_node("ObjectiveText") as Label
+	var close_button := content.get_node("CloseGuideButton") as Button
+	assert_true(objective.text.contains("5 Orc"), "Guide must explain the Orc objective")
+	assert_true(objective.text.contains("Chằn Tinh"), "Guide must name the boss objective")
+	assert_eq(close_button, dialog.get_viewport().gui_get_focus_owner(), "Close action must receive focus")
+	close_button.emit_signal("pressed")
+	await tree.process_frame
+	assert_false(dialog.visible, "Close action must hide the guide")
+	assert_eq(guide_button, dialog.get_viewport().gui_get_focus_owner(), "Focus must return to Guide")
 	menu.queue_free()
